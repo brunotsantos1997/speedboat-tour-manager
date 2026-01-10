@@ -1,11 +1,23 @@
 // src/viewmodels/useCreateEventViewModel.ts
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import type { Product, Discount, SelectedProduct, ClientProfile } from '../core/domain/types';
+import type { Product, Discount, SelectedProduct, ClientProfile, Boat, Event as EventType } from '../core/domain/types';
 import { LOYALTY_RULES } from '../core/data/mocks';
 import { clientRepository } from '../core/repositories/ClientRepository';
 import { productRepository } from '../core/repositories/ProductRepository';
+import { boatRepository } from '../core/repositories/BoatRepository';
+import { eventRepository } from '../core/repositories/EventRepository';
+import { formatDate } from '../core/utils/formatDate';
 
 export const useCreateEventViewModel = () => {
+  // Event State
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedTime, setSelectedTime] = useState('09:00');
+  const [scheduledEvents, setScheduledEvents] = useState<EventType[]>([]);
+
+  // Boat State
+  const [availableBoats, setAvailableBoats] = useState<Boat[]>([]);
+  const [selectedBoat, setSelectedBoat] = useState<Boat | null>(null);
+
   // Core State
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
@@ -27,15 +39,34 @@ export const useCreateEventViewModel = () => {
 
   // Fetch initial data
   useEffect(() => {
-    productRepository.getAll().then(products => {
+    const loadInitialData = async () => {
+      const products = await productRepository.getAll();
+      const boats = await boatRepository.getAll();
+
       setAvailableProducts(products);
+      setAvailableBoats(boats);
+
+      if (boats.length > 0) {
+        setSelectedBoat(boats[0]);
+      }
+
       // Set default courtesies
       const defaultCourtesies = products
         .filter(p => p.isDefaultCourtesy)
         .map(p => ({ ...p, isCourtesy: true }));
       setSelectedProducts(defaultCourtesies);
-    });
+    };
+
+    loadInitialData();
   }, []);
+
+  // Fetch scheduled events when selected date changes
+  useEffect(() => {
+    if (selectedDate) {
+      const dateString = formatDate(selectedDate);
+      eventRepository.getEventsByDate(dateString).then(setScheduledEvents);
+    }
+  }, [selectedDate]);
 
   // Handlers for Products, Discount, Passengers
   const toggleProduct = useCallback((product: Product) => {
@@ -66,6 +97,11 @@ export const useCreateEventViewModel = () => {
       setPassengerCount(newCount);
     }
   }, []);
+
+  const handleBoatSelection = (boatId: string) => {
+    const boat = availableBoats.find(b => b.id === boatId);
+    setSelectedBoat(boat || null);
+  };
 
   // Client Management Handlers
   const handleClientSearch = useCallback(async (term: string) => {
@@ -151,7 +187,12 @@ export const useCreateEventViewModel = () => {
   }, [selectedClient, clientSearchTerm, handleClientSearch, clearClientSelection]);
 
 
-  // Derived State: Calculations with new pricing logic
+  // Derived State: Calculations & Validations
+  const isCapacityExceeded = useMemo(() => {
+    if (!selectedBoat) return false;
+    return passengerCount > selectedBoat.capacity;
+  }, [passengerCount, selectedBoat]);
+
   const subtotal = useMemo(() => {
     return selectedProducts.reduce((acc, product) => {
       if (product.isCourtesy) {
@@ -189,6 +230,14 @@ export const useCreateEventViewModel = () => {
   }, [selectedClient]);
 
   return {
+    // Event State
+    selectedDate,
+    selectedTime,
+    scheduledEvents,
+    // Boat State
+    availableBoats,
+    selectedBoat,
+    isCapacityExceeded,
     // State & Derived State
     availableProducts,
     selectedProducts,
@@ -209,6 +258,9 @@ export const useCreateEventViewModel = () => {
     newClientName,
     newClientPhone,
     // Handlers
+    setSelectedDate,
+    setSelectedTime,
+    handleBoatSelection,
     toggleProduct,
     toggleCourtesy,
     updateDiscountType,
