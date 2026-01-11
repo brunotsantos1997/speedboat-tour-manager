@@ -1,9 +1,10 @@
 // src/ui/screens/CreateEventScreen.tsx
 import React from 'react';
-import { Anchor, Utensils, Beer, User, Circle, HelpCircle, Users, Search, X, Package, Pencil, Trash2, Clock, AlertTriangle } from 'lucide-react';
+import { Anchor, Utensils, Beer, User, Circle, HelpCircle, Users, Search, X, Package, Pencil, Trash2, Clock, AlertTriangle, Minus, Plus } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import { useCreateEventViewModel } from '../../viewmodels/useCreateEventViewModel';
 import type { Product, ClientProfile } from '../../core/domain/types';
+import InputMask from 'react-input-mask';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import { format } from 'date-fns';
@@ -11,11 +12,93 @@ import { ptBR } from 'date-fns/locale';
 
 // --- Components ---
 
+const TimeSelector: React.FC<{
+  label: string;
+  value: string;
+  onChange: (time: string) => void;
+  options: string[];
+  disabled?: boolean;
+}> = ({ label, value, onChange, options, disabled }) => (
+  <div>
+    <label className="block text-xs text-gray-500 mb-1">{label}</label>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
+      className="w-full p-2 text-sm border border-gray-300 rounded-md bg-white disabled:bg-gray-100"
+    >
+      <option value="">--:--</option>
+      {options.map(time => <option key={time} value={time}>{time}</option>)}
+    </select>
+  </div>
+);
+
+
 const DynamicIcon = ({ name, ...props }: { name: string } & LucideProps) => {
   const iconMap: { [key: string]: React.FC<LucideProps> } = { Anchor, Utensils, Beer, User, Circle, Package };
   const IconComponent = iconMap[name] || HelpCircle;
   return <IconComponent {...props} />;
 };
+
+const NumericInput: React.FC<{
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+}> = ({ value, onChange, min = 0, max, step = 1 }) => {
+  const handleIncrement = () => {
+    const newValue = value + step;
+    if (max === undefined || newValue <= max) {
+      onChange(newValue);
+    }
+  };
+
+  const handleDecrement = () => {
+    const newValue = value - step;
+    if (min === undefined || newValue >= min) {
+      onChange(newValue);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const num = parseFloat(e.target.value);
+    if (!isNaN(num)) {
+      onChange(num);
+    } else if (e.target.value === '') {
+      onChange(0);
+    }
+  };
+
+  return (
+    <div className="flex items-center">
+      <button onClick={handleDecrement} className="p-2 border border-r-0 border-gray-300 rounded-l-lg bg-gray-50 hover:bg-gray-100 disabled:opacity-50" disabled={min !== undefined && value <= min}>
+        <Minus size={16} />
+      </button>
+      <input
+        type="number"
+        value={value}
+        onChange={handleChange}
+        min={min}
+        max={max}
+        step={step}
+        className="w-full p-2 border-t border-b border-gray-300 text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        style={{ MozAppearance: 'textfield' }}
+      />
+      <button onClick={handleIncrement} className="p-2 border border-l-0 border-gray-300 rounded-r-lg bg-gray-50 hover:bg-gray-100 disabled:opacity-50" disabled={max !== undefined && value >= max}>
+        <Plus size={16} />
+      </button>
+      <style>{`
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+      `}</style>
+    </div>
+  );
+};
+
 
 const NewClientModal: React.FC<{
   isOpen: boolean;
@@ -43,13 +126,20 @@ const NewClientModal: React.FC<{
             onChange={(e) => setName(e.target.value)}
             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           />
-          <input
-            type="tel"
-            placeholder="Telefone (WhatsApp)"
+          <InputMask
+            mask="+55 (99) 99999-9999"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          />
+          >
+            {(inputProps: any) => (
+              <input
+                {...inputProps}
+                type="tel"
+                placeholder="Telefone (WhatsApp)"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            )}
+          </InputMask>
         </div>
         <div className="flex justify-end space-x-3 mt-6">
           <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">
@@ -71,6 +161,30 @@ export const CreateEventScreen: React.FC = () => {
   const isProductSelected = (product: Product) => vm.selectedProducts.some(p => p.id === product.id);
 
   const bookedDays = vm.scheduledEvents.map(event => new Date(event.date));
+
+  // --- Time Slot Generation ---
+  const generateTimeOptions = (startHour = 8, endHour = 18, interval = 30) => {
+    const options = [];
+    let currentTime = new Date();
+    currentTime.setHours(startHour, 0, 0, 0);
+
+    const endTime = new Date();
+    endTime.setHours(endHour, 0, 0, 0);
+
+    while (currentTime <= endTime) {
+      options.push(format(currentTime, 'HH:mm'));
+      currentTime.setMinutes(currentTime.getMinutes() + interval);
+    }
+    return options;
+  };
+
+  const allTimeOptions = generateTimeOptions();
+
+  const getEndTimeOptions = (startTime: string | undefined) => {
+    if (!startTime) return [];
+    const startIndex = allTimeOptions.indexOf(startTime);
+    return allTimeOptions.slice(startIndex + 1);
+  };
 
   return (
     <div className="bg-gray-50 font-sans text-gray-800">
@@ -135,11 +249,16 @@ export const CreateEventScreen: React.FC = () => {
 
               {/* Passenger Count */}
               <div>
-                <h2 className="text-lg font-semibold mb-2">Nº de Passageiros</h2>
-                <div className="relative">
-                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <input type="number" min="1" value={vm.passengerCount} onChange={(e) => vm.updatePassengerCount(parseInt(e.target.value, 10))} className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
-                </div>
+                <h2 className="text-lg font-semibold mb-2 flex items-center">
+                  <Users className="mr-2 text-gray-500" size={20} />
+                  Nº de Passageiros
+                </h2>
+                <NumericInput
+                  value={vm.passengerCount}
+                  onChange={vm.updatePassengerCount}
+                  min={1}
+                  max={vm.selectedBoat?.capacity}
+                />
                 {vm.isCapacityExceeded && (
                   <div className="mt-2 flex items-center text-sm text-red-600">
                     <AlertTriangle size={16} className="mr-1"/>
@@ -159,7 +278,9 @@ export const CreateEventScreen: React.FC = () => {
                     <div className="flex-grow">
                       <p className="font-semibold">{product.name}</p>
                       <p className="text-sm text-gray-500">
-                        R$ {product.price.toFixed(2)}
+                        {product.pricingType === 'HOURLY'
+                          ? `R$ ${product.hourlyPrice?.toFixed(2)} / hora`
+                          : `R$ ${(product.price || 0).toFixed(2)}`}
                         {product.pricingType === 'PER_PERSON' && ' / pessoa'}
                       </p>
                     </div>
@@ -174,33 +295,65 @@ export const CreateEventScreen: React.FC = () => {
               <section>
                 <h2 className="text-lg font-semibold mb-3">Itens Selecionados</h2>
                 <div className="bg-white p-4 rounded-lg shadow-sm divide-y divide-gray-200">
-                  {vm.selectedProducts.map((product) => (
-                    <div key={product.id} className="flex items-center justify-between py-3">
-                      <div>
-                        <p className="font-semibold">{product.name}</p>
-                        <p className={`text-sm ${product.isCourtesy ? 'line-through text-gray-400' : 'text-gray-600'}`}>
-                          R$ {product.price.toFixed(2)}
-                          {product.pricingType === 'PER_PERSON' && ` x ${vm.passengerCount} passageiros`}
-                        </p>
+                  {vm.selectedProducts.map((product) => {
+                    const selectedProd = vm.selectedProducts.find(p => p.id === product.id);
+                    return (
+                      <div key={product.id} className="py-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold">{product.name}</p>
+                            <p className={`text-sm ${product.isCourtesy ? 'line-through text-gray-400' : 'text-gray-600'}`}>
+                              {product.pricingType === 'HOURLY'
+                                ? `R$ ${product.hourlyPrice?.toFixed(2)} / hora`
+                                : `R$ ${(product.price || 0).toFixed(2)}`}
+                              {product.pricingType === 'PER_PERSON' && ` x ${vm.passengerCount} passageiros`}
+                            </p>
+                          </div>
+                          <div className="flex items-center">
+                            <span className="text-sm mr-2">{product.isCourtesy ? 'Cortesia' : 'Marcar Cortesia'}</span>
+                            <label htmlFor={`courtesy-${product.id}`} className="relative inline-flex items-center cursor-pointer">
+                              <input type="checkbox" id={`courtesy-${product.id}`} className="sr-only peer" checked={product.isCourtesy} onChange={() => vm.toggleCourtesy(product.id)} />
+                              <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            </label>
+                          </div>
+                        </div>
+
+                        {product.pricingType === 'HOURLY' && (
+                          <div className="grid grid-cols-2 gap-4 mt-3">
+                            <TimeSelector
+                              label="Início"
+                              value={selectedProd?.startTime || ''}
+                              onChange={(time) => vm.updateHourlyProductTime(product.id, time, 'start')}
+                              options={allTimeOptions}
+                            />
+                            <TimeSelector
+                              label="Fim"
+                              value={selectedProd?.endTime || ''}
+                              onChange={(time) => vm.updateHourlyProductTime(product.id, time, 'end')}
+                              options={getEndTimeOptions(selectedProd?.startTime)}
+                              disabled={!selectedProd?.startTime}
+                            />
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center">
-                        <span className="text-sm mr-2">{product.isCourtesy ? 'Cortesia' : 'Marcar Cortesia'}</span>
-                        <label htmlFor={`courtesy-${product.id}`} className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" id={`courtesy-${product.id}`} className="sr-only peer" checked={product.isCourtesy} onChange={() => vm.toggleCourtesy(product.id)} />
-                          <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
                 <div className="mt-6">
                   <h3 className="text-md font-semibold mb-2">Desconto</h3>
-                  <div className="flex items-center gap-2 bg-white p-2 rounded-lg border">
-                    <div className="flex">
-                      <button onClick={() => vm.updateDiscountType('FIXED')} className={`px-4 py-2 text-sm rounded-l-md ${vm.discount.type === 'FIXED' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>R$</button>
-                      <button onClick={() => vm.updateDiscountType('PERCENTAGE')} className={`px-4 py-2 text-sm rounded-r-md ${vm.discount.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>%</button>
+                  <div className="grid grid-cols-3 gap-2 bg-white p-2 rounded-lg border">
+                    <div className="col-span-1 flex">
+                      <button onClick={() => vm.updateDiscountType('FIXED')} className={`w-full px-4 py-2 text-sm rounded-l-md ${vm.discount.type === 'FIXED' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>R$</button>
+                      <button onClick={() => vm.updateDiscountType('PERCENTAGE')} className={`w-full px-4 py-2 text-sm rounded-r-md ${vm.discount.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>%</button>
                     </div>
-                    <input type="number" value={vm.discount.value} onChange={(e) => vm.updateDiscountValue(parseFloat(e.target.value))} className="w-full p-2 border-l border-gray-300 focus:ring-0 focus:border-gray-400 text-right" placeholder="0.00"/>
+                    <div className="col-span-2">
+                      <NumericInput
+                        value={vm.discount.value}
+                        onChange={vm.updateDiscountValue}
+                        min={0}
+                        step={vm.discount.type === 'PERCENTAGE' ? 1 : 10}
+                      />
+                    </div>
                   </div>
                 </div>
               </section>

@@ -6,8 +6,9 @@
 export interface Product {
   id: string;
   name: string;
-  price: number;
-  pricingType: 'FIXED' | 'PER_PERSON';
+  price?: number; // Price for FIXED or PER_PERSON
+  hourlyPrice?: number; // Price for HOURLY
+  pricingType: 'FIXED' | 'PER_PERSON' | 'HOURLY';
   iconKey: string;
   isDefaultCourtesy: boolean;
 }
@@ -25,6 +26,8 @@ export interface Discount {
  */
 export interface SelectedProduct extends Product {
   isCourtesy: boolean;
+  startTime?: string; // e.g., "15:00"
+  endTime?: string;   // e.g., "19:00"
 }
 
 /**

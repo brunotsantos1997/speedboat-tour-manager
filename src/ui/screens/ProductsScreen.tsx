@@ -26,10 +26,15 @@ const ProductModal: React.FC<{
         <div className="space-y-4">
           <input type="text" placeholder="Nome do Produto" value={product.name} onChange={(e) => onUpdate('name', e.target.value)} className="w-full p-3 border rounded-lg" />
           <div className="grid grid-cols-2 gap-4">
-            <input type="number" placeholder="Preço" value={product.price} onChange={(e) => onUpdate('price', parseFloat(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
+            {product.pricingType === 'HOURLY' ? (
+              <input type="number" placeholder="Preço por Hora" value={product.hourlyPrice} onChange={(e) => onUpdate('hourlyPrice', parseFloat(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
+            ) : (
+              <input type="number" placeholder="Preço" value={product.price} onChange={(e) => onUpdate('price', parseFloat(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
+            )}
             <select value={product.pricingType} onChange={(e) => onUpdate('pricingType', e.target.value)} className="w-full p-3 border rounded-lg bg-white">
               <option value="FIXED">Preço Fixo</option>
               <option value="PER_PERSON">Por Pessoa</option>
+              <option value="HOURLY">Por Hora</option>
             </select>
           </div>
           <IconPicker
@@ -77,7 +82,11 @@ export const ProductsScreen: React.FC = () => {
                   <div>
                     <p className="font-bold text-lg">{product.name}</p>
                     <p className="text-sm text-gray-600">
-                      R$ {product.price.toFixed(2)} {product.pricingType === 'PER_PERSON' && '/ pessoa'}
+                      {product.pricingType === 'HOURLY'
+                        ? `R$ ${product.hourlyPrice?.toFixed(2) || '0.00'} / hora`
+                        : `R$ ${product.price?.toFixed(2) || '0.00'}`
+                      }
+                      {product.pricingType === 'PER_PERSON' && ' / pessoa'}
                     </p>
                     {product.isDefaultCourtesy && (
                         <span className="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded-full">Cortesia Padrão</span>

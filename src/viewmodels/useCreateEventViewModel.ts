@@ -103,6 +103,21 @@ export const useCreateEventViewModel = () => {
     setSelectedBoat(boat || null);
   };
 
+  const updateHourlyProductTime = (productId: string, time: string, type: 'start' | 'end') => {
+    setSelectedProducts(prev =>
+      prev.map(p => {
+        if (p.id === productId && p.pricingType === 'HOURLY') {
+          return {
+            ...p,
+            startTime: type === 'start' ? time : p.startTime,
+            endTime: type === 'end' ? time : p.endTime,
+          };
+        }
+        return p;
+      })
+    );
+  };
+
   // Client Management Handlers
   const handleClientSearch = useCallback(async (term: string) => {
     setClientSearchTerm(term);
@@ -198,8 +213,26 @@ export const useCreateEventViewModel = () => {
       if (product.isCourtesy) {
         return acc;
       }
-      const price = product.pricingType === 'PER_PERSON' ? product.price * passengerCount : product.price;
-      return acc + price;
+
+      switch (product.pricingType) {
+        case 'PER_PERSON':
+          return acc + (product.price || 0) * passengerCount;
+        case 'HOURLY':
+          if (product.startTime && product.endTime && product.hourlyPrice) {
+            const [startHour, startMinute] = product.startTime.split(':').map(Number);
+            const [endHour, endMinute] = product.endTime.split(':').map(Number);
+            const durationInMinutes = (endHour - startHour) * 60 + (endMinute - startMinute);
+            const durationInHours = durationInMinutes / 60;
+
+            if (durationInHours > 0) {
+              return acc + durationInHours * product.hourlyPrice;
+            }
+          }
+          return acc;
+        case 'FIXED':
+        default:
+          return acc + (product.price || 0);
+      }
     }, 0);
   }, [selectedProducts, passengerCount]);
 
@@ -261,6 +294,7 @@ export const useCreateEventViewModel = () => {
     setSelectedDate,
     setSelectedTime,
     handleBoatSelection,
+    updateHourlyProductTime,
     toggleProduct,
     toggleCourtesy,
     updateDiscountType,
