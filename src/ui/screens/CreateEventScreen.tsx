@@ -7,7 +7,7 @@ import type { Product, ClientProfile } from '../../core/domain/types';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale/pt-BR';
+import { ptBR } from 'date-fns/locale';
 
 // --- Components ---
 

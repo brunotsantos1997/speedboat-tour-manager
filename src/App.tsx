@@ -4,6 +4,7 @@ import { Layout } from './ui/components/Layout';
 import { CreateEventScreen } from './ui/screens/CreateEventScreen';
 import { ProductsScreen } from './ui/screens/ProductsScreen';
 import { BoatsScreen } from './ui/screens/BoatsScreen';
+import { ClientHistoryScreen } from './ui/screens/ClientHistoryScreen';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
           <Route index element={<CreateEventScreen />} />
           <Route path="products" element={<ProductsScreen />} />
           <Route path="boats" element={<BoatsScreen />} />
+          <Route path="clients" element={<ClientHistoryScreen />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -1,7 +1,7 @@
 // src/ui/components/Layout.tsx
 import React, { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Menu, PlusCircle, Settings, Anchor } from 'lucide-react';
+import { Menu, PlusCircle, Settings, Anchor, Users } from 'lucide-react';
 
 const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -38,6 +38,10 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, o
           <NavLink to="/boats" className={navLinkClass} onClick={onClose}>
             <Anchor className="mr-3" />
             Configurar Lanchas
+          </NavLink>
+          <NavLink to="/clients" className={navLinkClass} onClick={onClose}>
+            <Users className="mr-3" />
+            Clientes
           </NavLink>
         </nav>
       </aside>
