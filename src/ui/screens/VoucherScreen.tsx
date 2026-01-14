@@ -82,7 +82,6 @@ export const VoucherScreen: React.FC = () => {
     boat,
     products,
     subtotal,
-    discount,
     total,
     reservationFee,
     remainingBalance,

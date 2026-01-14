@@ -285,7 +285,7 @@ export const useCreateEventViewModel = () => {
     const eventData = {
       date: formatDate(selectedDate),
       time: selectedTime,
-      status: 'SCHEDULED',
+      status: 'SCHEDULED' as const,
       boat: selectedBoat,
       products: selectedProducts,
       discount,

@@ -15,13 +15,17 @@ export interface IEventRepository {
 
 class MockEventRepository implements IEventRepository {
   private events: Event[] = [];
+  private initializationPromise: Promise<void>;
 
   constructor() {
-    // Initialize with some mock events for demonstration
-    this.initializeMocks();
+    this.initializationPromise = this.initializeMocks();
   }
 
-  private async initializeMocks() {
+  private async initializeMocks(): Promise<void> {
+    // Make sure we don't run initialization more than once.
+    if (this.events.length > 0) {
+        return;
+    }
     const boats = await boatRepository.getAll();
     if (boats.length === 0) return;
 
@@ -32,7 +36,7 @@ class MockEventRepository implements IEventRepository {
     const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
     this.events.push({
-      id: uuidv4(),
+      id: "event-1-id", // Using a stable ID for testing
       date: formatDate(today),
       time: '10:00',
       status: 'SCHEDULED',
@@ -46,7 +50,7 @@ class MockEventRepository implements IEventRepository {
     });
 
     this.events.push({
-      id: uuidv4(),
+      id: "event-2-id", // Using a stable ID for testing
       date: formatDate(tomorrow),
       time: '14:00',
       status: 'SCHEDULED',
@@ -61,24 +65,29 @@ class MockEventRepository implements IEventRepository {
   }
 
   async getById(eventId: string): Promise<Event | undefined> {
+    await this.initializationPromise;
     return this.events.find(e => e.id === eventId);
   }
 
   async getEventsByDate(date: string): Promise<Event[]> {
+    await this.initializationPromise;
     return this.events.filter(e => e.date === date);
   }
 
   async getEventsByClient(clientId: string): Promise<Event[]> {
+    await this.initializationPromise;
     return this.events.filter(e => e.client.id === clientId);
   }
 
   async add(eventData: Omit<Event, 'id'>): Promise<Event> {
+    await this.initializationPromise;
     const newEvent: Event = { ...eventData, id: uuidv4() };
     this.events.push(newEvent);
     return newEvent;
   }
 
   async update(updatedEvent: Event): Promise<Event> {
+    await this.initializationPromise;
     const index = this.events.findIndex(e => e.id === updatedEvent.id);
     if (index === -1) throw new Error('Event not found');
     this.events[index] = updatedEvent;
@@ -86,6 +95,7 @@ class MockEventRepository implements IEventRepository {
   }
 
   async updateStatus(eventId: string, status: EventStatus): Promise<Event> {
+    await this.initializationPromise;
     const index = this.events.findIndex(e => e.id === eventId);
     if (index === -1) throw new Error('Event not found');
     this.events[index].status = status;

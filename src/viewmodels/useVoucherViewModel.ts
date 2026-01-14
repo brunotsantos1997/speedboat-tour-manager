@@ -1,7 +1,7 @@
 // src/viewmodels/useVoucherViewModel.ts
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Event } from '../core/domain/types';
+import type { Event } from '../core/domain/types';
 import { eventRepository } from '../core/repositories/EventRepository';
 import { RESERVATION_FEE_PERCENTAGE } from '../core/config';
 import html2pdf from 'html2pdf.js';
@@ -61,9 +61,9 @@ export const useVoucherViewModel = () => {
       const opt = {
         margin:       0.5,
         filename:     `voucher-${voucher.client.name.replace(/\s+/g, '-')}-${voucher.id}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
+        image:        { type: 'jpeg' as const, quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' as const }
       };
       html2pdf().from(element).set(opt).save();
     }
