@@ -1,8 +1,8 @@
 // src/ui/screens/ClientHistoryScreen.tsx
 import React from 'react';
 import { useClientHistoryViewModel } from '../../viewmodels/useClientHistoryViewModel';
-import { Search, X, Calendar, Edit, Ban, CheckCircle, Clock, Pencil, FileText } from 'lucide-react';
-import type { EventStatus, Event as EventType, ClientProfile } from '../../core/domain/types';
+import { Search, X, Calendar, Edit, Ban, CheckCircle, Clock, Pencil, FileText, Share2, DollarSign, AlertTriangle } from 'lucide-react';
+import type { EventStatus, PaymentStatus, Event as EventType, ClientProfile } from '../../core/domain/types';
 import { useNavigate } from 'react-router-dom';
 
 // This is the shared modal component. Let's define it here for simplicity,
@@ -54,6 +54,21 @@ const ClientModal: React.FC<{
   );
 };
 
+const PaymentStatusBadge: React.FC<{ status: PaymentStatus }> = ({ status }) => {
+  const statusMap = {
+    PENDING: { text: 'Pendente', color: 'yellow', icon: <AlertTriangle size={14} /> },
+    CONFIRMED: { text: 'Confirmado', color: 'green', icon: <CheckCircle size={14} /> },
+  };
+  const { text, color, icon } = statusMap[status];
+
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-${color}-100 text-${color}-800`}>
+      {icon}
+      <span className="ml-1">{text}</span>
+    </span>
+  );
+};
+
 
 const StatusBadge: React.FC<{ status: EventStatus }> = ({ status }) => {
   const statusMap = {
@@ -71,32 +86,57 @@ const StatusBadge: React.FC<{ status: EventStatus }> = ({ status }) => {
   );
 };
 
-const EventCard: React.FC<{ event: EventType; onCancel: (id: string) => void; onEdit: (id: string) => void; }> = ({ event, onCancel, onEdit }) => {
+const EventCard: React.FC<{
+  event: EventType;
+  onCancel: (id: string) => void;
+  onEdit: (id: string) => void;
+  onConfirmPayment: (id: string) => void;
+}> = ({ event, onCancel, onEdit, onConfirmPayment }) => {
 
-    const openVoucher = (eventId: string) => {
-        window.open(`/voucher/${eventId}`, '_blank');
-    };
+  const shareVoucher = (eventId: string) => {
+    const url = `${window.location.origin}/voucher/${eventId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      alert('Link do voucher copiado para a área de transferência!');
+    }, (err) => {
+      console.error('Falha ao copiar o link: ', err);
+      alert('Falha ao copiar o link.');
+    });
+  };
 
-    return (
-        <div className="bg-white p-4 rounded-lg shadow-md border">
-            <div className="flex justify-between items-start">
-                <div>
-                    <p className="font-bold text-lg">{event.boat.name}</p>
-                    <p className="flex items-center text-gray-600"><Calendar size={16} className="mr-2" /> {new Date(event.date).toLocaleDateString()} às {event.time}</p>
-                </div>
-                <StatusBadge status={event.status} />
-            </div>
-            <div className="mt-4 border-t pt-4 flex justify-end space-x-2">
-                 <button onClick={() => openVoucher(event.id)} className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 flex items-center"><FileText size={14} className="mr-1" /> Voucher</button>
-                {event.status === 'SCHEDULED' && (
-                    <>
-                        <button onClick={() => onCancel(event.id)} className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 flex items-center"><Ban size={14} className="mr-1" /> Cancelar</button>
-                        <button onClick={() => onEdit(event.id)} className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"><Edit size={14} className="mr-1" /> Alterar</button>
-                    </>
-                )}
-            </div>
+  return (
+    <div className="bg-white p-4 rounded-lg shadow-md border transition-shadow hover:shadow-lg">
+      <div className="flex justify-between items-start">
+        <div>
+          <p className="font-bold text-lg text-gray-800">{event.boat.name}</p>
+          <p className="flex items-center text-gray-600 mt-1">
+            <Calendar size={16} className="mr-2" />
+            {new Date(event.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} às {event.startTime}
+          </p>
         </div>
-    );
+        <div className="text-right">
+          <StatusBadge status={event.status} />
+          <div className="mt-1">
+            <PaymentStatusBadge status={event.paymentStatus || 'PENDING'} />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 border-t pt-4 flex flex-wrap justify-end gap-2">
+        <button onClick={() => shareVoucher(event.id)} className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 flex items-center"><Share2 size={14} className="mr-1" /> Compartilhar</button>
+        <a href={`/voucher/${event.id}`} target="_blank" rel="noopener noreferrer" className="px-3 py-1 text-sm bg-indigo-500 text-white rounded hover:bg-indigo-600 flex items-center"><FileText size={14} className="mr-1" /> Ver Voucher</a>
+
+        {event.status === 'SCHEDULED' && (
+          <>
+            {event.paymentStatus === 'PENDING' && (
+              <button onClick={() => onConfirmPayment(event.id)} className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 flex items-center"><DollarSign size={14} className="mr-1" /> Confirmar Pagamento</button>
+            )}
+            <button onClick={() => onEdit(event.id)} className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"><Edit size={14} className="mr-1" /> Alterar</button>
+            <button onClick={() => onCancel(event.id)} className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 flex items-center"><Ban size={14} className="mr-1" /> Cancelar</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
 };
 
 
@@ -151,7 +191,13 @@ export const ClientHistoryScreen: React.FC = () => {
                             <div className="space-y-4">
                                 {vm.clientEvents.length > 0 ? (
                                     vm.clientEvents.map(event => (
-                                       <EventCard key={event.id} event={event} onCancel={vm.cancelEvent} onEdit={handleEditEvent} />
+                                       <EventCard
+                                          key={event.id}
+                                          event={event}
+                                          onCancel={vm.cancelEvent}
+                                          onEdit={handleEditEvent}
+                                          onConfirmPayment={vm.confirmPayment}
+                                       />
                                     ))
                                 ) : <p>Nenhum evento encontrado para este cliente.</p>}
                             </div>

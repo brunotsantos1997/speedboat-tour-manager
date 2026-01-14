@@ -77,12 +77,12 @@ export const VoucherScreen: React.FC = () => {
   const {
     client,
     date,
-    time,
+    startTime,
+    endTime,
     passengerCount,
     boat,
     products,
     subtotal,
-    discount,
     total,
     reservationFee,
     remainingBalance,
@@ -127,7 +127,7 @@ export const VoucherScreen: React.FC = () => {
                 <h3 className="font-bold text-lg mb-4 text-gray-700">Detalhes do Evento</h3>
                  <div className="space-y-4">
                     <InfoItem icon={CalendarDays} label="Data" value={new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} />
-                    <InfoItem icon={Clock} label="Horário de Início" value={time} />
+                    <InfoItem icon={Clock} label="Horário" value={`${startTime} - ${endTime}`} />
                     <InfoItem icon={Users} label="Nº de Passageiros" value={`${passengerCount} pessoas`} />
                     <InfoItem icon={Anchor} label="Lancha" value={`${boat.name} (Cap: ${boat.capacity})`} />
                 </div>

@@ -57,6 +57,16 @@ export const useClientHistoryViewModel = () => {
     }
   }, [selectedClient, selectClient]);
 
+  const confirmPayment = useCallback(async (eventId: string) => {
+    if (window.confirm('Tem certeza que deseja confirmar o pagamento da reserva?')) {
+      await eventRepository.updatePaymentStatus(eventId, 'CONFIRMED');
+      if(selectedClient) {
+        // Re-fetch events to update the UI
+        selectClient(selectedClient);
+      }
+    }
+  }, [selectedClient, selectClient]);
+
   // --- Client Edit Handlers ---
   const openEditModal = () => {
     if (!selectedClient) return;
@@ -103,6 +113,7 @@ export const useClientHistoryViewModel = () => {
     selectClient,
     clearSelection,
     cancelEvent,
+    confirmPayment,
     openEditModal,
     closeEditModal,
     handleSaveChanges,

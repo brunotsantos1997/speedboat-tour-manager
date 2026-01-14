@@ -1,7 +1,7 @@
 // src/ui/components/Layout.tsx
 import React, { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Menu, PlusCircle, Settings, Anchor, Users } from 'lucide-react';
+import { Menu, PlusCircle, Settings, Anchor, Users, LayoutDashboard } from 'lucide-react';
 
 const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -27,7 +27,11 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, o
           <h2 className="text-2xl font-bold text-center">BoatManager</h2>
         </div>
         <nav className="p-4 space-y-2">
-          <NavLink to="/" className={navLinkClass} onClick={onClose}>
+          <NavLink to="/" className={navLinkClass} onClick={onClose} end>
+            <LayoutDashboard className="mr-3" />
+            Dashboard
+          </NavLink>
+          <NavLink to="/create-event" className={navLinkClass} onClick={onClose}>
             <PlusCircle className="mr-3" />
             Criar Passeio
           </NavLink>

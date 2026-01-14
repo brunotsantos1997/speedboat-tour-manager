@@ -41,6 +41,7 @@ export interface Boat {
 }
 
 export type EventStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
+export type PaymentStatus = 'PENDING' | 'CONFIRMED';
 
 /**
  * Represents the main event being created.
@@ -48,8 +49,10 @@ export type EventStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
 export interface Event {
   id: string;
   date: string; // YYYY-MM-DD
-  time: string; // HH:MM
+  startTime: string; // HH:MM
+  endTime: string; // HH:MM
   status: EventStatus;
+  paymentStatus?: PaymentStatus;
   boat: Boat;
   products: SelectedProduct[];
   discount: Discount;
