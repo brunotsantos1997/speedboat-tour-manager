@@ -9,6 +9,8 @@ import { BoatsScreen } from './ui/screens/BoatsScreen';
 import { RentalPricesScreen } from './ui/screens/RentalPricesScreen';
 import { ClientHistoryScreen } from './ui/screens/ClientHistoryScreen';
 import { VoucherScreen } from './ui/screens/VoucherScreen'; // Importa a nova tela
+import { BoardingLocationsScreen } from './ui/screens/BoardingLocationsScreen';
+import { VoucherTermsScreen } from './ui/screens/VoucherTermsScreen';
 
 function App() {
   return (
@@ -21,6 +23,8 @@ function App() {
           <Route path="products" element={<ProductsScreen />} />
           <Route path="boats" element={<BoatsScreen />} />
           <Route path="rental-prices" element={<RentalPricesScreen />} />
+          <Route path="boarding-locations" element={<BoardingLocationsScreen />} />
+          <Route path="voucher-terms" element={<VoucherTermsScreen />} />
           <Route path="clients" element={<ClientHistoryScreen />} />
         </Route>
 
