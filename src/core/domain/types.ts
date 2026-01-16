@@ -40,6 +40,15 @@ export interface Boat {
   size: number; // in feet
 }
 
+/**
+ * Represents a boarding location.
+ */
+export interface BoardingLocation {
+  id: string;
+  name: string;
+  mapLink?: string;
+}
+
 export type EventStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
 export type PaymentStatus = 'PENDING' | 'CONFIRMED';
 
@@ -49,10 +58,12 @@ export type PaymentStatus = 'PENDING' | 'CONFIRMED';
 export interface Event {
   id: string;
   date: string; // YYYY-MM-DD
-  time: string; // HH:MM
+  startTime: string; // HH:MM
+  endTime: string; // HH:MM
   status: EventStatus;
   paymentStatus?: PaymentStatus;
   boat: Boat;
+  boardingLocation: BoardingLocation;
   products: SelectedProduct[];
   discount: Discount;
   client: ClientProfile;
@@ -79,4 +90,22 @@ export interface LoyaltyRule {
   threshold?: number; // e.g., 5 trips
   date?: string; // e.g., '2024-12-25'
   message: string;
+}
+
+export interface CompanyData {
+  id: string;
+  cnpj: string;
+  phone: string;
+  appName: string;
+}
+
+export interface VoucherTerms {
+  id: string;
+  terms: string;
+}
+
+export interface RentalPrice {
+  id: string;
+  pricePerHour: number;
+  pricePerHalfHour: number;
 }

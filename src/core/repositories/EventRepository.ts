@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Event, EventStatus, PaymentStatus } from '../domain/types';
 import { MOCK_CLIENTS } from '../data/mocks';
 import { boatRepository } from './BoatRepository';
+import { MockBoardingLocationRepository } from './MockBoardingLocationRepository';
 
 export interface IEventRepository {
   getById(eventId: string): Promise<Event | undefined>;
@@ -28,7 +29,8 @@ class MockEventRepository implements IEventRepository {
         return;
     }
     const boats = await boatRepository.getAll();
-    if (boats.length === 0) return;
+    const boardingLocations = await new MockBoardingLocationRepository().getAll();
+    if (boats.length === 0 || boardingLocations.length === 0) return;
 
     const today = new Date();
     const tomorrow = new Date();
@@ -39,10 +41,12 @@ class MockEventRepository implements IEventRepository {
     this.events.push({
       id: "event-1-id", // Using a stable ID for testing
       date: formatDate(today),
-      time: '10:00',
+      startTime: '10:00',
+      endTime: '14:00',
       status: 'SCHEDULED',
       paymentStatus: 'PENDING',
       boat: boats[0],
+      boardingLocation: boardingLocations[0],
       client: MOCK_CLIENTS[0],
       passengerCount: 5,
       products: [],
@@ -54,10 +58,12 @@ class MockEventRepository implements IEventRepository {
     this.events.push({
       id: "event-2-id", // Using a stable ID for testing
       date: formatDate(tomorrow),
-      time: '14:00',
+      startTime: '14:00',
+      endTime: '18:00',
       status: 'SCHEDULED',
       paymentStatus: 'PENDING',
       boat: boats[0],
+      boardingLocation: boardingLocations[1],
       client: MOCK_CLIENTS[1],
       passengerCount: 8,
       products: [],

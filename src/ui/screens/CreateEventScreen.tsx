@@ -1,33 +1,30 @@
 // src/ui/screens/CreateEventScreen.tsx
-import React from 'react';
-import { Anchor, Utensils, Beer, User, Circle, HelpCircle, Users, Search, X, Package, Pencil, Trash2, Clock, AlertTriangle, Minus, Plus } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Anchor, Utensils, Beer, User, Circle, HelpCircle, Users, Search, X, Package, Pencil, Trash2, AlertTriangle, Minus, Plus } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import { useCreateEventViewModel } from '../../viewmodels/useCreateEventViewModel';
+import { useToastContext } from '../../ui/contexts/ToastContext';
 import type { Product, ClientProfile } from '../../core/domain/types';
 import InputMask from 'react-input-mask';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
-import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 // --- Components ---
 
-const TimeSelector: React.FC<{
+const TimePicker: React.FC<{
   label: string;
   value: string;
-  onChange: (time: string) => void;
+  onChange: (value: string) => void;
   options: string[];
-  disabled?: boolean;
-}> = ({ label, value, onChange, options, disabled }) => (
+}> = ({ label, value, onChange, options }) => (
   <div>
-    <label className="block text-xs text-gray-500 mb-1">{label}</label>
+    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
     <select
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled}
-      className="w-full p-2 text-sm border border-gray-300 rounded-md bg-white disabled:bg-gray-100"
+      onChange={e => onChange(e.target.value)}
+      className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
     >
-      <option value="">--:--</option>
       {options.map(time => <option key={time} value={time}>{time}</option>)}
     </select>
   </div>
@@ -158,33 +155,20 @@ const NewClientModal: React.FC<{
 
 export const CreateEventScreen: React.FC = () => {
   const vm = useCreateEventViewModel();
+  const { showToast } = useToastContext();
   const isProductSelected = (product: Product) => vm.selectedProducts.some(p => p.id === product.id);
 
   const bookedDays = vm.scheduledEvents.map(event => new Date(event.date));
 
   // --- Time Slot Generation ---
-  const generateTimeOptions = (startHour = 8, endHour = 18, interval = 30) => {
+  const timeOptions = useMemo(() => {
     const options = [];
-    let currentTime = new Date();
-    currentTime.setHours(startHour, 0, 0, 0);
-
-    const endTime = new Date();
-    endTime.setHours(endHour, 0, 0, 0);
-
-    while (currentTime <= endTime) {
-      options.push(format(currentTime, 'HH:mm'));
-      currentTime.setMinutes(currentTime.getMinutes() + interval);
+    for (let h = 8; h <= 20; h++) {
+      options.push(`${h.toString().padStart(2, '0')}:00`);
+      options.push(`${h.toString().padStart(2, '0')}:30`);
     }
     return options;
-  };
-
-  const allTimeOptions = generateTimeOptions();
-
-  const getEndTimeOptions = (startTime: string | undefined) => {
-    if (!startTime) return [];
-    const startIndex = allTimeOptions.indexOf(startTime);
-    return allTimeOptions.slice(startIndex + 1);
-  };
+  }, []);
 
   return (
     <div className="bg-gray-50 font-sans text-gray-800">
@@ -320,18 +304,17 @@ export const CreateEventScreen: React.FC = () => {
 
                         {product.pricingType === 'HOURLY' && (
                           <div className="grid grid-cols-2 gap-4 mt-3">
-                            <TimeSelector
+                            <TimePicker
                               label="Início"
                               value={selectedProd?.startTime || ''}
                               onChange={(time) => vm.updateHourlyProductTime(product.id, time, 'start')}
-                              options={allTimeOptions}
+                              options={timeOptions}
                             />
-                            <TimeSelector
+                            <TimePicker
                               label="Fim"
                               value={selectedProd?.endTime || ''}
                               onChange={(time) => vm.updateHourlyProductTime(product.id, time, 'end')}
-                              options={getEndTimeOptions(selectedProd?.startTime)}
-                              disabled={!selectedProd?.startTime}
+                              options={timeOptions.filter(t => t > (selectedProd?.startTime || ''))}
                             />
                           </div>
                         )}
@@ -374,6 +357,16 @@ export const CreateEventScreen: React.FC = () => {
                   </select>
               </div>
 
+              {/* Boarding Location Selection */}
+              <div className="mb-4">
+                  <label htmlFor="boarding-location-select" className="block text-sm font-medium text-gray-700 mb-1">Local de Embarque</label>
+                  <select id="boarding-location-select" value={vm.selectedBoardingLocation?.id || ''} onChange={(e) => vm.handleBoardingLocationSelection(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
+                      {vm.availableBoardingLocations.map(location => (
+                          <option key={location.id} value={location.id}>{location.name}</option>
+                      ))}
+                  </select>
+              </div>
+
               {/* Calendar */}
               <DayPicker
                 mode="single"
@@ -385,29 +378,21 @@ export const CreateEventScreen: React.FC = () => {
                 className="rounded-md"
               />
 
-              {/* Time Input */}
-              <div className="mt-4">
-                <label htmlFor="time-input" className="block text-sm font-medium text-gray-700 mb-1">Horário</label>
-                <div className="relative">
-                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20}/>
-                  <input id="time-input" type="time" value={vm.selectedTime} onChange={e => vm.setSelectedTime(e.target.value)} className="w-full p-2 pl-10 border border-gray-300 rounded-lg"/>
-                </div>
+              {/* Time Pickers */}
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <TimePicker
+                  label="Início"
+                  value={vm.startTime}
+                  onChange={vm.setStartTime}
+                  options={timeOptions}
+                />
+                <TimePicker
+                  label="Término"
+                  value={vm.endTime}
+                  onChange={vm.setEndTime}
+                  options={timeOptions.filter(t => t > vm.startTime)}
+                />
               </div>
-
-              {/* Scheduled Events for the day */}
-              {vm.scheduledEvents.length > 0 && (
-                <div className="mt-4 pt-4 border-t">
-                  <h3 className="text-md font-semibold text-gray-800">Passeios Agendados ({format(vm.selectedDate || new Date(), 'dd/MM')})</h3>
-                  <ul className="mt-2 space-y-2 text-sm">
-                    {vm.scheduledEvents.map(event => (
-                      <li key={event.id} className="p-2 bg-gray-100 rounded-md">
-                        <p className="font-bold">{event.client.name}</p>
-                        <p>Horário: {event.time} - Lancha: {event.boat.name}</p>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
             </section>
           </aside>
         </div>
@@ -417,9 +402,13 @@ export const CreateEventScreen: React.FC = () => {
         <div className="max-w-7xl mx-auto p-4 flex justify-between items-center">
           {/* Pricing Summary */}
           <div className="flex-grow pr-4">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-600">Custo do Aluguel da Lancha</span>
+              <span className="font-medium">R$ {vm.boatRentalCost.toFixed(2)}</span>
+            </div>
             <div className="flex justify-between items-center text-sm mb-1">
-              <span className="text-gray-600">Subtotal</span>
-              <span className="font-medium">R$ {vm.subtotal.toFixed(2)}</span>
+              <span className="text-gray-600">Subtotal (Produtos)</span>
+              <span className="font-medium">R$ {(vm.subtotal - vm.boatRentalCost).toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center text-sm mb-2 text-red-600">
               <span>Desconto</span>
@@ -433,7 +422,13 @@ export const CreateEventScreen: React.FC = () => {
           </div>
           {/* Action Button */}
           <button
-            onClick={vm.createEvent}
+            onClick={() => {
+              vm.createEvent().then(() => {
+                showToast(vm.editingEventId ? 'Passeio atualizado com sucesso!' : 'Passeio agendado com sucesso!');
+              }).catch(() => {
+                showToast('Ocorreu um erro ao salvar o passeio.');
+              });
+            }}
             className="px-8 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 text-lg font-bold shadow-lg"
           >
             Agendar Passeio
