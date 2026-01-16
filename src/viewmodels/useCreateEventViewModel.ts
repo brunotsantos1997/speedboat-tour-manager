@@ -1,11 +1,40 @@
 // src/viewmodels/useCreateEventViewModel.ts
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import type { Product, Discount, SelectedProduct, ClientProfile } from '../core/domain/types';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import type { Product, Discount, SelectedProduct, ClientProfile, Boat, Event as EventType } from '../core/domain/types';
 import { LOYALTY_RULES } from '../core/data/mocks';
 import { clientRepository } from '../core/repositories/ClientRepository';
 import { productRepository } from '../core/repositories/ProductRepository';
+import { boatRepository } from '../core/repositories/BoatRepository';
+import { eventRepository } from '../core/repositories/EventRepository';
+import { formatDate } from '../core/utils/formatDate';
+import { PriceRepository } from '../core/repositories/PriceRepository';
+import type { RentalPrices } from '../core/repositories/PriceRepository';
+import type { BoardingLocation } from '../core/domain/types';
+import { MockBoardingLocationRepository } from '../core/repositories/MockBoardingLocationRepository';
 
 export const useCreateEventViewModel = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [editingEventId, setEditingEventId] = useState<string | null>(searchParams.get('eventId'));
+
+  // Event State
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('13:00');
+  const [scheduledEvents, setScheduledEvents] = useState<EventType[]>([]);
+
+  // Boat State
+  const [availableBoats, setAvailableBoats] = useState<Boat[]>([]);
+  const [selectedBoat, setSelectedBoat] = useState<Boat | null>(null);
+
+  // Price State
+  const [rentalPrices, setRentalPrices] = useState<RentalPrices>({ hourlyRate: 0, halfHourRate: 0 });
+
+  // Boarding Location State
+  const [availableBoardingLocations, setAvailableBoardingLocations] = useState<BoardingLocation[]>([]);
+  const [selectedBoardingLocation, setSelectedBoardingLocation] = useState<BoardingLocation | null>(null);
+
   // Core State
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
@@ -25,17 +54,73 @@ export const useCreateEventViewModel = () => {
   const [newClientName, setNewClientName] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
 
+  // Effect to load event for editing
+  useEffect(() => {
+    const loadEventForEditing = async () => {
+      if (editingEventId) {
+        const event = await eventRepository.getById(editingEventId);
+        if (event) {
+          // Be careful with date parsing, ensure correct timezone handling
+          const eventDate = new Date(event.date);
+          const userTimezoneOffset = eventDate.getTimezoneOffset() * 60000;
+
+          setSelectedDate(new Date(eventDate.getTime() + userTimezoneOffset));
+          setStartTime(event.startTime);
+          setEndTime(event.endTime);
+          setSelectedBoat(event.boat);
+          setSelectedProducts(event.products);
+          setDiscount(event.discount);
+          setPassengerCount(event.passengerCount);
+          setSelectedClient(event.client);
+          setClientSearchTerm(event.client.name);
+        } else {
+          console.error("Event to edit not found!");
+          setEditingEventId(null); // Clear ID if not found
+        }
+      }
+    };
+
+    loadEventForEditing();
+  }, [editingEventId]);
+
   // Fetch initial data
   useEffect(() => {
-    productRepository.getAll().then(products => {
+    const loadInitialData = async () => {
+      const products = await productRepository.getAll();
+      const boats = await boatRepository.getAll();
+      const prices = await new PriceRepository().getPrices();
+      const boardingLocations = await new MockBoardingLocationRepository().getAll();
+
       setAvailableProducts(products);
+      setAvailableBoats(boats);
+      setRentalPrices(prices);
+      setAvailableBoardingLocations(boardingLocations);
+
+      if (boats.length > 0) {
+        setSelectedBoat(boats[0]);
+      }
+
+      if (boardingLocations.length > 0) {
+        setSelectedBoardingLocation(boardingLocations[0]);
+      }
+
       // Set default courtesies
       const defaultCourtesies = products
         .filter(p => p.isDefaultCourtesy)
         .map(p => ({ ...p, isCourtesy: true }));
       setSelectedProducts(defaultCourtesies);
-    });
+    };
+
+    loadInitialData();
   }, []);
+
+  // Fetch scheduled events when selected date changes
+  useEffect(() => {
+    if (selectedDate) {
+      const dateString = formatDate(selectedDate);
+      eventRepository.getEventsByDate(dateString).then(setScheduledEvents);
+    }
+  }, [selectedDate]);
 
   // Handlers for Products, Discount, Passengers
   const toggleProduct = useCallback((product: Product) => {
@@ -66,6 +151,31 @@ export const useCreateEventViewModel = () => {
       setPassengerCount(newCount);
     }
   }, []);
+
+  const handleBoatSelection = (boatId: string) => {
+    const boat = availableBoats.find(b => b.id === boatId);
+    setSelectedBoat(boat || null);
+  };
+
+  const handleBoardingLocationSelection = (locationId: string) => {
+    const location = availableBoardingLocations.find(l => l.id === locationId);
+    setSelectedBoardingLocation(location || null);
+  };
+
+  const updateHourlyProductTime = (productId: string, time: string, type: 'start' | 'end') => {
+    setSelectedProducts(prev =>
+      prev.map(p => {
+        if (p.id === productId && p.pricingType === 'HOURLY') {
+          return {
+            ...p,
+            startTime: type === 'start' ? time : p.startTime,
+            endTime: type === 'end' ? time : p.endTime,
+          };
+        }
+        return p;
+      })
+    );
+  };
 
   // Client Management Handlers
   const handleClientSearch = useCallback(async (term: string) => {
@@ -151,16 +261,57 @@ export const useCreateEventViewModel = () => {
   }, [selectedClient, clientSearchTerm, handleClientSearch, clearClientSelection]);
 
 
-  // Derived State: Calculations with new pricing logic
+  // Derived State: Calculations & Validations
+  const isCapacityExceeded = useMemo(() => {
+    if (!selectedBoat) return false;
+    return passengerCount > selectedBoat.capacity;
+  }, [passengerCount, selectedBoat]);
+
+  const boatRentalCost = useMemo(() => {
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+    const durationInMinutes = (endHour - startHour) * 60 + (endMinute - startMinute);
+
+    if (durationInMinutes <= 0) return 0;
+
+    const hours = Math.floor(durationInMinutes / 60);
+    const remainingMinutes = durationInMinutes % 60;
+
+    let cost = hours * rentalPrices.hourlyRate;
+    if (remainingMinutes >= 30) {
+      cost += rentalPrices.halfHourRate;
+    }
+
+    return cost;
+  }, [startTime, endTime, rentalPrices]);
+
   const subtotal = useMemo(() => {
     return selectedProducts.reduce((acc, product) => {
       if (product.isCourtesy) {
         return acc;
       }
-      const price = product.pricingType === 'PER_PERSON' ? product.price * passengerCount : product.price;
-      return acc + price;
-    }, 0);
-  }, [selectedProducts, passengerCount]);
+
+      switch (product.pricingType) {
+        case 'PER_PERSON':
+          return acc + (product.price || 0) * passengerCount;
+        case 'HOURLY':
+          if (product.startTime && product.endTime && product.hourlyPrice) {
+            const [startHour, startMinute] = product.startTime.split(':').map(Number);
+            const [endHour, endMinute] = product.endTime.split(':').map(Number);
+            const durationInMinutes = (endHour - startHour) * 60 + (endMinute - startMinute);
+            const durationInHours = durationInMinutes / 60;
+
+            if (durationInHours > 0) {
+              return acc + durationInHours * product.hourlyPrice;
+            }
+          }
+          return acc;
+        case 'FIXED':
+        default:
+          return acc + (product.price || 0);
+      }
+    }, 0) + boatRentalCost;
+  }, [selectedProducts, passengerCount, boatRentalCost]);
 
   const totalDiscount = useMemo(() => {
     if (discount.type === 'FIXED') return discount.value;
@@ -168,6 +319,57 @@ export const useCreateEventViewModel = () => {
   }, [subtotal, discount]);
 
   const total = useMemo(() => Math.max(0, subtotal - totalDiscount), [subtotal, totalDiscount]);
+
+  const createEvent = useCallback(async () => {
+    if (!selectedDate || !selectedClient || !selectedBoat || !selectedBoardingLocation) {
+      alert('Por favor, preencha todos os campos obrigatórios: Data, Cliente, Lancha e Local de Embarque.');
+      return;
+    }
+
+    const eventData = {
+      date: formatDate(selectedDate),
+      startTime: startTime,
+      endTime: endTime,
+      status: 'SCHEDULED' as const,
+      boat: selectedBoat,
+      boardingLocation: selectedBoardingLocation,
+      products: selectedProducts,
+      discount,
+      client: selectedClient,
+      passengerCount,
+      subtotal,
+      total,
+    };
+
+    try {
+      if (editingEventId) {
+        const updatedEvent = { ...eventData, id: editingEventId };
+        await eventRepository.update(updatedEvent);
+        alert('Passeio atualizado com sucesso!');
+      } else {
+        await eventRepository.add(eventData);
+        alert('Passeio agendado com sucesso!');
+      }
+      navigate(`/clients?clientId=${selectedClient.id}`);
+    } catch (error) {
+      console.error('Erro ao salvar evento:', error);
+      alert('Ocorreu um erro ao salvar o passeio.');
+    }
+  }, [
+    selectedDate,
+    startTime,
+    endTime,
+    selectedBoat,
+    selectedProducts,
+    discount,
+    selectedClient,
+    passengerCount,
+    subtotal,
+    total,
+    navigate,
+    editingEventId,
+    selectedBoardingLocation
+  ]);
 
   // Side Effects: Loyalty Checks (same as before)
   useEffect(() => {
@@ -189,11 +391,25 @@ export const useCreateEventViewModel = () => {
   }, [selectedClient]);
 
   return {
+    // Event State
+    editingEventId,
+    selectedDate,
+    startTime,
+    endTime,
+    scheduledEvents,
+    // Boat State
+    availableBoats,
+    selectedBoat,
+    isCapacityExceeded,
+    // Boarding Location State
+    availableBoardingLocations,
+    selectedBoardingLocation,
     // State & Derived State
     availableProducts,
     selectedProducts,
     discount,
     passengerCount,
+    boatRentalCost,
     subtotal,
     totalDiscount,
     total,
@@ -209,6 +425,12 @@ export const useCreateEventViewModel = () => {
     newClientName,
     newClientPhone,
     // Handlers
+    setSelectedDate,
+    setStartTime,
+    setEndTime,
+    handleBoatSelection,
+    handleBoardingLocationSelection,
+    updateHourlyProductTime,
     toggleProduct,
     toggleCourtesy,
     updateDiscountType,
@@ -223,5 +445,6 @@ export const useCreateEventViewModel = () => {
     handleCloseModal,
     handleSaveClient,
     handleDeleteClient,
+    createEvent,
   };
 };

@@ -5,6 +5,6 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
-    include: ['uuid'],
+    include: ['uuid', '@tiptap/react', '@tiptap/starter-kit'],
   },
 })

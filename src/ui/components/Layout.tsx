@@ -1,9 +1,10 @@
 // src/ui/components/Layout.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Menu, PlusCircle, Settings } from 'lucide-react';
+import { Menu, PlusCircle, Settings, Users, LayoutDashboard, Palette } from 'lucide-react';
+import { useCompanyDataViewModel } from '../../viewmodels/CompanyDataViewModel';
 
-const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string }> = ({ isOpen, onClose, appName }) => {
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center px-4 py-3 text-lg font-semibold rounded-lg transition-colors ${
       isActive ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-200'
@@ -24,16 +25,71 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, o
         } md:translate-x-0 md:relative md:w-64 md:flex-shrink-0`}
       >
         <div className="p-4 border-b">
-          <h2 className="text-2xl font-bold text-center">BoatManager</h2>
+          <h2 className="text-2xl font-bold text-center">{appName}</h2>
         </div>
         <nav className="p-4 space-y-2">
-          <NavLink to="/" className={navLinkClass} onClick={onClose}>
+          <NavLink to="/" className={navLinkClass} onClick={onClose} end>
+            <LayoutDashboard className="mr-3" />
+            Dashboard
+          </NavLink>
+          <NavLink to="/create-event" className={navLinkClass} onClick={onClose}>
             <PlusCircle className="mr-3" />
             Criar Passeio
           </NavLink>
-          <NavLink to="/products" className={navLinkClass} onClick={onClose}>
-            <Settings className="mr-3" />
-            Configurar Produtos
+          {/* Settings Dropdown */}
+          <div>
+            <button
+              className="flex items-center w-full px-4 py-3 text-lg font-semibold text-left text-gray-700 rounded-lg hover:bg-gray-200"
+              onClick={(e) => {
+                const submenu = e.currentTarget.nextElementSibling;
+                submenu?.classList.toggle('hidden');
+              }}
+            >
+              <Settings className="mr-3" />
+              Configurações
+            </button>
+            <div className="pl-8 space-y-2 hidden">
+              <NavLink to="/products" className={navLinkClass} onClick={onClose}>
+                Produtos
+              </NavLink>
+              <NavLink to="/boats" className={navLinkClass} onClick={onClose}>
+                Lanchas
+              </NavLink>
+              <NavLink to="/boarding-locations" className={navLinkClass} onClick={onClose}>
+                Locais de Embarque
+              </NavLink>
+              <NavLink to="/voucher-terms" className={navLinkClass} onClick={onClose}>
+                Termos do Voucher
+              </NavLink>
+              <NavLink to="/rental-prices" className={navLinkClass} onClick={onClose}>
+                Preços de Aluguel
+              </NavLink>
+            </div>
+          </div>
+          {/* Personalization Dropdown */}
+          <div>
+            <button
+              className="flex items-center w-full px-4 py-3 text-lg font-semibold text-left text-gray-700 rounded-lg hover:bg-gray-200"
+              onClick={(e) => {
+                const submenu = e.currentTarget.nextElementSibling;
+                submenu?.classList.toggle('hidden');
+              }}
+            >
+              <Palette className="mr-3" />
+              Personalização
+            </button>
+            <div className="pl-8 space-y-2 hidden">
+              <NavLink to="/company-data" className={navLinkClass} onClick={onClose}>
+                Dados da Empresa
+              </NavLink>
+              <NavLink to="/voucher-appearance" className={navLinkClass} onClick={onClose}>
+                Aparência do Voucher
+              </NavLink>
+            </div>
+          </div>
+          <NavLink to="/clients" className={navLinkClass} onClick={onClose}>
+            <Users className="mr-3" />
+            Clientes
           </NavLink>
         </nav>
       </aside>
@@ -43,15 +99,23 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, o
 
 export const Layout: React.FC = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const { companyData } = useCompanyDataViewModel();
+  const [appName, setAppName] = useState('BoatManager');
+
+  useEffect(() => {
+    if (companyData) {
+      setAppName(companyData.appName);
+    }
+  }, [companyData]);
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} appName={appName} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white shadow-md md:hidden">
           <div className="flex justify-between items-center p-4">
-            <h1 className="text-xl font-bold">BoatManager</h1>
+            <h1 className="text-xl font-bold">{appName}</h1>
             <button onClick={() => setSidebarOpen(true)}>
               <Menu size={24} />
             </button>
