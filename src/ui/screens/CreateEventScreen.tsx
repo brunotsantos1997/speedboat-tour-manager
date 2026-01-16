@@ -357,6 +357,16 @@ export const CreateEventScreen: React.FC = () => {
                   </select>
               </div>
 
+              {/* Boarding Location Selection */}
+              <div className="mb-4">
+                  <label htmlFor="boarding-location-select" className="block text-sm font-medium text-gray-700 mb-1">Local de Embarque</label>
+                  <select id="boarding-location-select" value={vm.selectedBoardingLocation?.id || ''} onChange={(e) => vm.handleBoardingLocationSelection(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
+                      {vm.availableBoardingLocations.map(location => (
+                          <option key={location.id} value={location.id}>{location.name}</option>
+                      ))}
+                  </select>
+              </div>
+
               {/* Calendar */}
               <DayPicker
                 mode="single"

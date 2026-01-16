@@ -367,7 +367,8 @@ export const useCreateEventViewModel = () => {
     subtotal,
     total,
     navigate,
-    editingEventId
+    editingEventId,
+    selectedBoardingLocation
   ]);
 
   // Side Effects: Loyalty Checks (same as before)
@@ -400,6 +401,9 @@ export const useCreateEventViewModel = () => {
     availableBoats,
     selectedBoat,
     isCapacityExceeded,
+    // Boarding Location State
+    availableBoardingLocations,
+    selectedBoardingLocation,
     // State & Derived State
     availableProducts,
     selectedProducts,

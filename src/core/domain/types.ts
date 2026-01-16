@@ -91,3 +91,21 @@ export interface LoyaltyRule {
   date?: string; // e.g., '2024-12-25'
   message: string;
 }
+
+export interface CompanyData {
+  id: string;
+  cnpj: string;
+  phone: string;
+  appName: string;
+}
+
+export interface VoucherTerms {
+  id: string;
+  terms: string;
+}
+
+export interface RentalPrice {
+  id: string;
+  pricePerHour: number;
+  pricePerHalfHour: number;
+}
