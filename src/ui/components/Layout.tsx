@@ -11,7 +11,7 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
 
   useEffect(() => {
-    if (currentUser?.role === 'SUPER_ADMIN') {
+    if (currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'OWNER') {
       const fetchPendingUsers = async () => {
         try {
           const users = await getAllUsers();
@@ -57,7 +57,7 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
             <span>Criar Passeio</span>
           </NavLink>
 
-          {currentUser?.role === 'SUPER_ADMIN' && (
+          {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'OWNER') && (
             <NavLink to="/admin/users" className={navLinkClass} onClick={onClose}>
               <div className="flex items-center">
                 <UserCog className="mr-3" />

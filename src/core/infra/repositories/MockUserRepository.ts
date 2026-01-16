@@ -1,13 +1,34 @@
 import type { User } from '../../domain/User';
 import type { IUserRepository } from '../../domain/repositories/IUserRepository';
+import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 
 const STORAGE_KEY = 'mock_users';
+const OWNER_EMAIL = 'bruno.t.santos1997@hotmail.com';
 
 export class MockUserRepository implements IUserRepository {
   private users: User[] = [];
 
   constructor() {
     this.loadUsersFromStorage();
+    this.seedOwner();
+  }
+
+  private async seedOwner() {
+    const ownerExists = this.users.some(user => user.email === OWNER_EMAIL);
+    if (!ownerExists) {
+      const passwordHash = await bcrypt.hash('Bruno@06252422', 10);
+      const owner: User = {
+        id: uuidv4(),
+        name: 'Bruno',
+        email: OWNER_EMAIL,
+        passwordHash,
+        role: 'OWNER',
+        status: 'APPROVED',
+      };
+      this.users.push(owner);
+      this.commit();
+    }
   }
 
   private loadUsersFromStorage() {

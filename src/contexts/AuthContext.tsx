@@ -74,7 +74,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const allUsers = await userRepository.findAll();
-    const isFirstUser = allUsers.length === 0;
+    const isFirstUser = allUsers.length === 1; // The first user signs up when only the OWNER exists
 
     const passwordHash = await bcrypt.hash(password, 10);
 

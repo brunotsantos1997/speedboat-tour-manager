@@ -44,8 +44,8 @@ function App() {
           </Route>
         </Route>
 
-        {/* SUPER_ADMIN Routes */}
-        <Route path="/admin" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']} />}>
+        {/* SUPER_ADMIN and OWNER Routes */}
+        <Route path="/admin" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'OWNER']} />}>
             <Route element={<Layout />}>
                 <Route path="users" element={<UserManagementScreen />} />
             </Route>

@@ -15,7 +15,14 @@ export function UserManagementScreen() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const allUsers = await getAllUsers();
+      let allUsers = await getAllUsers();
+
+      // Implement visibility rules
+      if (currentUser?.role === 'SUPER_ADMIN') {
+        // Super admins cannot see the owner
+        allUsers = allUsers.filter(user => user.role !== 'OWNER');
+      }
+
       // Filter out the current user from the list to prevent self-modification
       setUsers(allUsers.filter(user => user.id !== currentUser?.id));
     } catch (err) {
@@ -72,10 +79,15 @@ export function UserManagementScreen() {
                     value={user.role}
                     onChange={(e) => handleRoleChange(user.id, e.target.value as UserRole)}
                     className="border border-gray-300 rounded-md p-1"
-                    disabled={user.role === 'SUPER_ADMIN'}
+                    disabled={
+                      (currentUser?.role === 'SUPER_ADMIN' && user.role === 'SUPER_ADMIN') ||
+                      user.role === 'OWNER'
+                    }
                   >
                     <option value="ADMIN">ADMIN</option>
-                    <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                    {currentUser?.role === 'OWNER' && (
+                      <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                    )}
                   </select>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -86,7 +98,16 @@ export function UserManagementScreen() {
                     </>
                   )}
                    {user.status === 'APPROVED' && (
-                      <button onClick={() => handleStatusChange(user.id, 'REJECTED')} className="text-red-600 hover:text-red-900">Disable</button>
+                      <button
+                        onClick={() => handleStatusChange(user.id, 'REJECTED')}
+                        className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                        disabled={
+                            (currentUser?.role === 'SUPER_ADMIN' && user.role === 'SUPER_ADMIN') ||
+                             user.role === 'OWNER'
+                        }
+                      >
+                        Disable
+                      </button>
                    )}
                 </td>
               </tr>
