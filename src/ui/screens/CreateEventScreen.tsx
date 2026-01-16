@@ -124,20 +124,13 @@ const NewClientModal: React.FC<{
             onChange={(e) => setName(e.target.value)}
             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           />
-          <InputMask
-            mask="+55 (99) 99999-9999"
-            value={phone}
+          <input
+            type="tel"
+            placeholder="Telefone (WhatsApp)"
+            value={phone || ''}
             onChange={(e) => setPhone(e.target.value)}
-          >
-            {(inputProps: any) => (
-              <input
-                {...inputProps}
-                type="tel"
-                placeholder="Telefone (WhatsApp)"
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            )}
-          </InputMask>
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          />
         </div>
         <div className="flex justify-end space-x-3 mt-6">
           <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">
