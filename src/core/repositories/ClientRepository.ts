@@ -5,6 +5,7 @@ import { MOCK_CLIENTS } from '../data/mocks';
 // The repository interface defines the contract for data operations.
 export interface IClientRepository {
   search(term: string): Promise<ClientProfile[]>;
+  getById(clientId: string): Promise<ClientProfile | null>;
   add(newClient: Omit<ClientProfile, 'id' | 'totalTrips'>): Promise<ClientProfile>;
   update(client: ClientProfile): Promise<ClientProfile>;
   delete(clientId: string): Promise<void>;
@@ -33,6 +34,11 @@ class MockClientRepository implements IClientRepository {
     await new Promise(resolve => setTimeout(resolve, 300));
 
     return results;
+  }
+
+  async getById(clientId: string): Promise<ClientProfile | null> {
+    const client = this.clients.find(c => c.id === clientId);
+    return client || null;
   }
 
   async add(newClientData: Omit<ClientProfile, 'totalTrips'>): Promise<ClientProfile> {

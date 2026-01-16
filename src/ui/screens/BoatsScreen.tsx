@@ -27,6 +27,10 @@ const BoatModal: React.FC<{
             <input type="number" placeholder="Capacidade" value={boat.capacity} onChange={(e) => onUpdate('capacity', parseInt(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
             <input type="number" placeholder="Tamanho (pés)" value={boat.size} onChange={(e) => onUpdate('size', parseInt(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <input type="number" placeholder="Preço por Hora (R$)" value={boat.pricePerHour} onChange={(e) => onUpdate('pricePerHour', parseInt(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
+            <input type="number" placeholder="Preço por Meia Hora (R$)" value={boat.pricePerHalfHour} onChange={(e) => onUpdate('pricePerHalfHour', parseInt(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
+          </div>
         </div>
         <div className="flex justify-end space-x-3 mt-8">
           <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Cancelar</button>
@@ -68,6 +72,11 @@ export const BoatsScreen: React.FC = () => {
                       <span>{boat.capacity} passageiros</span>
                       <Ruler size={16} className="mx-2" />
                       <span>{boat.size} pés</span>
+                    </div>
+                    <div className="flex items-center text-sm text-gray-600 mt-1">
+                      <span>Preço por Hora: R$ {boat.pricePerHour}</span>
+                      <span className="mx-2">|</span>
+                      <span>Preço por Meia Hora: R$ {boat.pricePerHalfHour}</span>
                     </div>
                   </div>
                 </div>

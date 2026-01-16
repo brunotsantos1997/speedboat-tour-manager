@@ -1,5 +1,6 @@
 // src/viewmodels/useClientHistoryViewModel.ts
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { ClientProfile, Event as EventType } from '../core/domain/types';
 import { clientRepository } from '../core/repositories/ClientRepository';
 import { eventRepository } from '../core/repositories/EventRepository';
@@ -18,17 +19,12 @@ export const useClientHistoryViewModel = () => {
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
 
-  const handleSearch = useCallback(async (term: string) => {
-    setSearchTerm(term);
-    if (term.length > 2) {
-      setIsSearching(true);
-      const results = await clientRepository.search(term);
-      setSearchResults(results);
-      setIsSearching(false);
-    } else {
-      setSearchResults([]);
-    }
-  }, []);
+  // Confirmation Modal State
+  const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
+  const [confirmationAction, setConfirmationAction] = useState<(() => void) | null>(null);
+  const [confirmationMessage, setConfirmationMessage] = useState({ title: '', message: '' });
+
+  const [searchParams] = useSearchParams();
 
   const selectClient = useCallback(async (client: ClientProfile) => {
     setIsLoading(true);
@@ -41,6 +37,29 @@ export const useClientHistoryViewModel = () => {
     setIsLoading(false);
   }, []);
 
+  useEffect(() => {
+    const clientId = searchParams.get('clientId');
+    if (clientId) {
+      clientRepository.getById(clientId).then((client: ClientProfile | null) => {
+        if (client) {
+          selectClient(client);
+        }
+      });
+    }
+  }, [searchParams, selectClient]);
+
+  const handleSearch = useCallback(async (term: string) => {
+    setSearchTerm(term);
+    if (term.length > 2) {
+      setIsSearching(true);
+      const results = await clientRepository.search(term);
+      setSearchResults(results);
+      setIsSearching(false);
+    } else {
+      setSearchResults([]);
+    }
+  }, []);
+
   const clearSelection = () => {
     setSelectedClient(null);
     setClientEvents([]);
@@ -48,23 +67,48 @@ export const useClientHistoryViewModel = () => {
     setSearchResults([]);
   };
 
-  const cancelEvent = useCallback(async (eventId: string) => {
-    if (window.confirm('Tem certeza que deseja cancelar este evento?')) {
-      await eventRepository.updateStatus(eventId, 'CANCELLED');
-      if(selectedClient) {
-        selectClient(selectedClient);
-      }
+  const openConfirmationModal = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmationMessage({ title, message });
+    setConfirmationAction(() => onConfirm);
+    setIsConfirmationModalOpen(true);
+  };
+
+  const closeConfirmationModal = () => {
+    setIsConfirmationModalOpen(false);
+    setConfirmationAction(null);
+  };
+
+  const confirmAction = () => {
+    if (confirmationAction) {
+      confirmationAction();
     }
+    closeConfirmationModal();
+  };
+
+  const cancelEvent = useCallback(async (eventId: string) => {
+    openConfirmationModal(
+      'Cancelar Evento',
+      'Tem certeza que deseja cancelar este evento?',
+      async () => {
+        await eventRepository.updateStatus(eventId, 'CANCELLED');
+        if(selectedClient) {
+          selectClient(selectedClient);
+        }
+      }
+    );
   }, [selectedClient, selectClient]);
 
   const confirmPayment = useCallback(async (eventId: string) => {
-    if (window.confirm('Tem certeza que deseja confirmar o pagamento da reserva?')) {
-      await eventRepository.updatePaymentStatus(eventId, 'CONFIRMED');
-      if(selectedClient) {
-        // Re-fetch events to update the UI
-        selectClient(selectedClient);
+    openConfirmationModal(
+      'Confirmar Pagamento',
+      'Tem certeza que deseja confirmar o pagamento da reserva?',
+      async () => {
+        await eventRepository.updatePaymentStatus(eventId, 'CONFIRMED');
+        if(selectedClient) {
+          selectClient(selectedClient);
+        }
       }
-    }
+    );
   }, [selectedClient, selectClient]);
 
   // --- Client Edit Handlers ---
@@ -117,5 +161,9 @@ export const useClientHistoryViewModel = () => {
     openEditModal,
     closeEditModal,
     handleSaveChanges,
+    isConfirmationModalOpen,
+    confirmationMessage,
+    confirmAction,
+    closeConfirmationModal,
   };
 };

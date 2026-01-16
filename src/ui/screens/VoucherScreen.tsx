@@ -79,6 +79,7 @@ export const VoucherScreen: React.FC = () => {
     total,
     reservationFee,
     remainingBalance,
+    observations,
   } = voucher;
 
   const watermarkStyle = watermark
@@ -165,6 +166,16 @@ export const VoucherScreen: React.FC = () => {
                 ))}
               </div>
             </section>
+
+            {/* Observations */}
+            {observations && (
+              <section className="mb-8">
+                <h3 className="font-bold text-lg mb-4 text-gray-700">Observações</h3>
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-gray-700 whitespace-pre-line">{observations}</p>
+                </div>
+              </section>
+            )}
 
             {/* Financial Summary */}
             <section className="flex justify-end mb-8">

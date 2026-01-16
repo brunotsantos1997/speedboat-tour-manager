@@ -9,6 +9,7 @@ import InputMask from 'react-input-mask';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import { ptBR } from 'date-fns/locale';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 // --- Components ---
 
@@ -107,6 +108,17 @@ const NewClientModal: React.FC<{
   onSave: () => void;
   onClose: () => void;
 }> = ({ isOpen, editingClient, name, phone, setName, setPhone, onSave, onClose }) => {
+  const { showToast } = useToastContext();
+
+  const handleSaveClick = async () => {
+    try {
+      await onSave();
+      showToast(editingClient ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!');
+    } catch (error: any) {
+      showToast(error.message || 'Ocorreu um erro.');
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -142,7 +154,7 @@ const NewClientModal: React.FC<{
           <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">
             Cancelar
           </button>
-          <button onClick={onSave} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <button onClick={handleSaveClick} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             {editingClient ? 'Atualizar' : 'Salvar Cliente'}
           </button>
         </div>
@@ -341,6 +353,18 @@ export const CreateEventScreen: React.FC = () => {
                 </div>
               </section>
             )}
+
+            {/* Section: Observations */}
+            <section>
+              <h2 className="text-lg font-semibold mb-3">Observações</h2>
+              <textarea
+                value={vm.observations}
+                onChange={(e) => vm.setObservations(e.target.value)}
+                placeholder="Adicione observações que aparecerão no voucher do cliente..."
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                rows={4}
+              />
+            </section>
           </div>
 
           {/* Right Column: Scheduling */}
@@ -422,12 +446,13 @@ export const CreateEventScreen: React.FC = () => {
           </div>
           {/* Action Button */}
           <button
-            onClick={() => {
-              vm.createEvent().then(() => {
+            onClick={async () => {
+              try {
+                await vm.createEvent();
                 showToast(vm.editingEventId ? 'Passeio atualizado com sucesso!' : 'Passeio agendado com sucesso!');
-              }).catch(() => {
-                showToast('Ocorreu um erro ao salvar o passeio.');
-              });
+              } catch (error: any) {
+                showToast(error.message || 'Ocorreu um erro ao salvar o passeio.');
+              }
             }}
             className="px-8 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 text-lg font-bold shadow-lg"
           >
@@ -445,6 +470,14 @@ export const CreateEventScreen: React.FC = () => {
         setPhone={vm.setNewClientPhone}
         onSave={vm.handleSaveClient}
         onClose={vm.handleCloseModal}
+      />
+
+      <ConfirmationModal
+        isOpen={vm.isConfirmationModalOpen}
+        title={vm.confirmationMessage.title}
+        message={vm.confirmationMessage.message}
+        onConfirm={vm.confirmAction}
+        onCancel={vm.closeConfirmationModal}
       />
     </div>
   );
