@@ -2,7 +2,7 @@
 import React from 'react';
 import { useDashboardViewModel } from '../../viewmodels/useDashboardViewModel';
 import { Link } from 'react-router-dom';
-import { DollarSign, Hash, PlusCircle, Search, Clock, AlertTriangle, Anchor, CheckCircle } from 'lucide-react';
+import { DollarSign, Hash, PlusCircle, Search, Clock, AlertTriangle, Anchor, CheckCircle, Bell, Ban } from 'lucide-react';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import type { Event } from '../../core/domain/types';
@@ -56,12 +56,58 @@ export const DashboardScreen: React.FC = () => {
   const {
     isLoading,
     error,
+    notificationEvents,
     eventsToday,
     pendingPayments,
     monthlyStats,
     calendarEvents,
-    confirmPayment
+    confirmPayment,
+    acknowledgeEvent
   } = useDashboardViewModel();
+
+  // A new component for notifications
+  const NotificationCard: React.FC<{ event: Event; onAcknowledge: (id: string) => void; }> = ({ event, onAcknowledge }) => {
+    const styleMap = {
+      CANCELLED: {
+        container: 'bg-red-50 border-l-4 border-red-500',
+        iconContainer: 'text-red-700',
+        button: 'bg-red-500 hover:bg-red-600',
+        icon: Ban,
+        actionText: 'Confirmar Estorno',
+        message: `O passeio de ${event.client.name} foi cancelado.`
+      },
+      COMPLETED: {
+        container: 'bg-green-50 border-l-4 border-green-500',
+        iconContainer: 'text-green-700',
+        button: 'bg-green-500 hover:bg-green-600',
+        icon: CheckCircle,
+        actionText: 'Confirmar Conclusão',
+        message: `O passeio de ${event.client.name} foi concluído.`
+      }
+    };
+
+    const status = event.status as 'CANCELLED' | 'COMPLETED';
+    const { container, iconContainer, button, icon: Icon, actionText, message } = styleMap[status];
+
+    return (
+      <div className={`${container} p-3 flex justify-between items-center`}>
+        <div>
+          <div className={`${iconContainer} flex items-center`}>
+            <Icon size={18} className="mr-2"/>
+            <span className="font-semibold">{message}</span>
+          </div>
+          <p className="text-sm text-gray-600 ml-7">{new Date(event.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} - {event.boat.name}</p>
+        </div>
+        <button
+          onClick={() => onAcknowledge(event.id)}
+          className={`${button} text-white px-3 py-1 rounded-lg text-sm transition-colors`}
+        >
+          {actionText}
+        </button>
+      </div>
+    );
+  };
+
 
   if (isLoading) {
     return <div className="p-6">Carregando dashboard...</div>;
@@ -90,6 +136,21 @@ export const DashboardScreen: React.FC = () => {
 
         {/* Left Column: Event Lists */}
         <div className="lg:col-span-2 space-y-6">
+
+          {/* Notifications */}
+          {notificationEvents.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md">
+              <div className="p-4 border-b">
+                <h2 className="text-xl font-semibold flex items-center"><Bell className="mr-2 text-gray-600"/> Avisos</h2>
+              </div>
+              <div className="space-y-2 p-2">
+                {notificationEvents.map(event =>
+                  <NotificationCard key={event.id} event={event} onAcknowledge={acknowledgeEvent} />
+                )}
+              </div>
+            </div>
+          )}
+
 
           {/* Pending Payments */}
           <div className="bg-white p-4 rounded-lg shadow-md">

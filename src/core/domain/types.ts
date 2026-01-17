@@ -51,7 +51,7 @@ export interface BoardingLocation {
   mapLink?: string;
 }
 
-export type EventStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
+export type EventStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'PRE_SCHEDULED';
 export type PaymentStatus = 'PENDING' | 'CONFIRMED';
 
 /**
@@ -64,6 +64,7 @@ export interface Event {
   endTime: string; // HH:MM
   status: EventStatus;
   paymentStatus?: PaymentStatus;
+  preScheduledAt?: number; // Timestamp for pre-booking expiration
   boat: Boat;
   boardingLocation: BoardingLocation;
   products: SelectedProduct[];
@@ -73,6 +74,7 @@ export interface Event {
   subtotal: number;
   total: number;
   observations?: string;
+  isAcknowledged?: boolean; // For dashboard notifications
 }
 
 /**
