@@ -25,8 +25,6 @@ export const useBoatsViewModel = () => {
       name: '',
       capacity: 10,
       size: 30,
-      pricePerHour: 0,
-      pricePerHalfHour: 0,
     });
     setIsModalOpen(true);
   };
@@ -55,7 +53,7 @@ export const useBoatsViewModel = () => {
   };
 
   const handleDelete = async (boatId: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta embarcação?')) {
+    if (window.confirm('Tem certeza que deseja excluir esta lancha?')) {
       await boatRepository.remove(boatId);
       await fetchBoats();
     }
