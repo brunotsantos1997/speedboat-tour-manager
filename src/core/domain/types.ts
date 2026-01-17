@@ -38,6 +38,8 @@ export interface Boat {
   name: string;
   capacity: number;
   size: number; // in feet
+  pricePerHour: number;
+  pricePerHalfHour: number;
 }
 
 /**
@@ -70,6 +72,7 @@ export interface Event {
   passengerCount: number;
   subtotal: number;
   total: number;
+  observations?: string;
 }
 
 /**
@@ -104,8 +107,3 @@ export interface VoucherTerms {
   terms: string;
 }
 
-export interface RentalPrice {
-  id: string;
-  pricePerHour: number;
-  pricePerHalfHour: number;
-}

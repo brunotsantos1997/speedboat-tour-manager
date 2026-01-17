@@ -16,6 +16,8 @@ class MockBoatRepository implements IBoatRepository {
       name: 'Focker 30 Pés',
       capacity: 10,
       size: 30,
+      pricePerHour: 700,
+      pricePerHalfHour: 400,
     },
   ];
 

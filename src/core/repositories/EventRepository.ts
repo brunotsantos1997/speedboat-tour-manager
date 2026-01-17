@@ -1,7 +1,7 @@
 // src/core/repositories/EventRepository.ts
 import { v4 as uuidv4 } from 'uuid';
 import type { Event, EventStatus, PaymentStatus } from '../domain/types';
-import { MOCK_CLIENTS } from '../data/mocks';
+import { MOCK_CLIENTS, AVAILABLE_PRODUCTS } from '../data/mocks';
 import { boatRepository } from './BoatRepository';
 import { MockBoardingLocationRepository } from './MockBoardingLocationRepository';
 
@@ -49,7 +49,10 @@ class MockEventRepository implements IEventRepository {
       boardingLocation: boardingLocations[0],
       client: MOCK_CLIENTS[0],
       passengerCount: 5,
-      products: [],
+      products: [
+        { ...AVAILABLE_PRODUCTS[1], isCourtesy: false }, // Kit Churrasco
+        { ...AVAILABLE_PRODUCTS[2], isCourtesy: true }, // Bebidas as courtesy
+      ],
       discount: { type: 'FIXED', value: 0 },
       subtotal: 2500,
       total: 2500,
