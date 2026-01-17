@@ -5,7 +5,6 @@ import type { LucideProps } from 'lucide-react';
 import { useCreateEventViewModel } from '../../viewmodels/useCreateEventViewModel';
 import { useToastContext } from '../../ui/contexts/ToastContext';
 import type { Product, ClientProfile } from '../../core/domain/types';
-import InputMask from 'react-input-mask';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import { ptBR } from 'date-fns/locale';
@@ -382,6 +381,26 @@ export const CreateEventScreen: React.FC = () => {
                   </select>
               </div>
 
+              {/* Pre-schedule Toggle */}
+              <div className="mb-4">
+                <label htmlFor="pre-schedule-toggle" className="flex items-center justify-between cursor-pointer">
+                  <span className="font-medium text-gray-700">Pré-reserva</span>
+                  <div className="relative inline-flex items-center">
+                    <input
+                      type="checkbox"
+                      id="pre-schedule-toggle"
+                      className="sr-only peer"
+                      checked={vm.isPreScheduled}
+                      onChange={(e) => vm.setIsPreScheduled(e.target.checked)}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                  </div>
+                </label>
+                <p className="text-xs text-gray-500 mt-1">
+                  A pré-reserva fica pendente por 24h. Se não for confirmada, a vaga é liberada.
+                </p>
+              </div>
+
               {/* Calendar */}
               <DayPicker
                 mode="single"
@@ -445,9 +464,9 @@ export const CreateEventScreen: React.FC = () => {
                 showToast(error.message || 'Ocorreu um erro ao salvar o passeio.');
               }
             }}
-            className="px-8 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 text-lg font-bold shadow-lg"
+            className={`px-8 py-4 text-white rounded-lg text-lg font-bold shadow-lg transition-colors ${vm.isPreScheduled ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-600 hover:bg-green-700'}`}
           >
-            Agendar Passeio
+            {vm.isPreScheduled ? 'Pré-agendar Passeio' : 'Agendar Passeio'}
           </button>
         </div>
       </footer>

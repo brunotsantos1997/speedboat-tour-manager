@@ -75,6 +75,7 @@ const PaymentStatusBadge: React.FC<{ status: PaymentStatus }> = ({ status }) => 
 const StatusBadge: React.FC<{ status: EventStatus }> = ({ status }) => {
   const statusMap = {
     SCHEDULED: { text: 'Agendado', color: 'blue', icon: <Clock size={14} /> },
+    PRE_SCHEDULED: { text: 'Pré-Agendado', color: 'yellow', icon: <Clock size={14} /> },
     COMPLETED: { text: 'Realizado', color: 'green', icon: <CheckCircle size={14} /> },
     CANCELLED: { text: 'Cancelado', color: 'red', icon: <Ban size={14} /> },
   };
@@ -148,7 +149,7 @@ export const ClientHistoryScreen: React.FC = () => {
     const navigate = useNavigate();
 
     const handleEditEvent = (eventId: string) => {
-        navigate(`/?eventId=${eventId}`);
+        navigate(`/create-event?eventId=${eventId}`);
     };
 
     return (

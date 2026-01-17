@@ -3,25 +3,25 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Event } from '../core/domain/types';
 import { eventRepository } from '../core/repositories/EventRepository';
 import { startOfDay, isToday, isWithinInterval, addDays, startOfWeek, endOfWeek, getMonth } from 'date-fns';
+import { useToastContext } from '../ui/contexts/ToastContext';
 
 export const useDashboardViewModel = () => {
-  const [events, setEvents] = useState<Event[]>([]);
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
+  const { showToast } = useToastContext();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchEvents = useCallback(async () => {
     setIsLoading(true);
     try {
-      // This is not efficient, but it's for mock data. A real API would have a better method.
-      const datePromises: Promise<Event[]>[] = [];
-      for (let i = 0; i < 60; i++) {
+      // In a real app, this would be a single API call.
+      const datePromises = Array.from({ length: 60 }, (_, i) => {
         const date = addDays(new Date(), i);
         const dateString = date.toISOString().split('T')[0];
-        datePromises.push(eventRepository.getEventsByDate(dateString));
-      }
+        return eventRepository.getEventsByDate(dateString);
+      });
       const eventsPerDay = await Promise.all(datePromises);
-      const allEvents = eventsPerDay.flat();
-      setEvents(allEvents.filter(event => event.status === 'SCHEDULED'));
+      setAllEvents(eventsPerDay.flat());
     } catch (err) {
       setError('Failed to fetch events.');
       console.error(err);
@@ -34,53 +34,115 @@ export const useDashboardViewModel = () => {
     fetchEvents();
   }, [fetchEvents]);
 
+  // --- Actions ---
   const confirmPayment = useCallback(async (eventId: string) => {
-    if (window.confirm('Confirmar o pagamento da reserva?')) {
-      await eventRepository.updatePaymentStatus(eventId, 'CONFIRMED');
-      fetchEvents(); // Re-fetch to update the UI
-    }
-  }, [fetchEvents]);
+    try {
+      const eventToUpdate = allEvents.find(e => e.id === eventId);
+      if (!eventToUpdate) return;
 
+      const updatedEvent = { ...eventToUpdate, paymentStatus: 'CONFIRMED' as const };
+
+      if (updatedEvent.status === 'PRE_SCHEDULED') {
+        updatedEvent.status = 'SCHEDULED';
+      }
+
+      await eventRepository.updateEvent(updatedEvent);
+
+      setAllEvents(prev =>
+        prev.map(event =>
+          event.id === eventId ? updatedEvent : event
+        )
+      );
+      showToast('Pagamento confirmado com sucesso!');
+    } catch (error) {
+      console.error('Failed to confirm payment:', error);
+      showToast('Erro ao confirmar o pagamento.');
+    }
+  }, [allEvents, showToast]);
+
+  const acknowledgeEvent = useCallback(async (eventId: string) => {
+    try {
+      const eventToUpdate = allEvents.find(e => e.id === eventId);
+      if (!eventToUpdate) return;
+
+      const updatedEvent = { ...eventToUpdate, isAcknowledged: true };
+      await eventRepository.updateEvent(updatedEvent);
+
+      setAllEvents(prev =>
+        prev.map(event =>
+          event.id === eventId ? updatedEvent : event
+        )
+      );
+      showToast('Notificação arquivada.');
+    } catch (error) {
+      console.error('Failed to acknowledge event:', error);
+      showToast('Erro ao arquivar a notificação.');
+    }
+  }, [allEvents, showToast]);
+
+
+  // --- Derived State ---
   const today = startOfDay(new Date());
 
+  const upcomingEvents = useMemo(() => {
+    const now = new Date();
+    return allEvents.filter(event => {
+      if (event.status !== 'SCHEDULED' && event.status !== 'PRE_SCHEDULED') return false;
+
+      const [year, month, day] = event.date.split('-').map(Number);
+      const [hours, minutes] = event.endTime.split(':').map(Number);
+      const eventEndTime = new Date(year, month - 1, day, hours, minutes);
+
+      return eventEndTime > now;
+    });
+  }, [allEvents]);
+
+  const notificationEvents = useMemo(() =>
+    allEvents.filter(event =>
+      (event.status === 'COMPLETED' || event.status === 'CANCELLED') && !event.isAcknowledged
+    ), [allEvents]);
+
   const eventsToday = useMemo(() =>
-    events.filter(event => isToday(new Date(event.date))),
-    [events]
+    upcomingEvents.filter(event => isToday(new Date(event.date))),
+    [upcomingEvents]
   );
 
   const eventsThisWeek = useMemo(() => {
     const start = startOfWeek(today);
     const end = endOfWeek(today);
-    return events.filter(event => isWithinInterval(new Date(event.date), { start, end }));
-  }, [events, today]);
+    return upcomingEvents.filter(event => isWithinInterval(new Date(event.date), { start, end }));
+  }, [upcomingEvents, today]);
 
   const pendingPayments = useMemo(() =>
-    events.filter(event => event.paymentStatus === 'PENDING'),
-    [events]
+    upcomingEvents.filter(event => event.paymentStatus === 'PENDING'),
+    [upcomingEvents]
   );
 
   const monthlyStats = useMemo(() => {
     const currentMonth = getMonth(today);
-    const monthlyEvents = events.filter(event => getMonth(new Date(event.date)) === currentMonth);
+    const monthlyEvents = allEvents.filter(event => getMonth(new Date(event.date)) === currentMonth);
 
     const totalRevenue = monthlyEvents.reduce((acc, event) => acc + event.total, 0);
     const totalEvents = monthlyEvents.length;
 
     return { totalRevenue, totalEvents };
-  }, [events, today]);
+  }, [allEvents, today]);
 
   const calendarEvents = useMemo(() =>
-    events.map(event => new Date(event.date)),
-  [events]);
+    upcomingEvents.map(event => new Date(event.date)),
+  [upcomingEvents]);
 
   return {
     isLoading,
     error,
+    upcomingEvents, // Renamed from 'events' for clarity
+    notificationEvents,
     eventsToday,
     eventsThisWeek,
     pendingPayments,
     monthlyStats,
     calendarEvents,
     confirmPayment,
+    acknowledgeEvent,
   };
 };

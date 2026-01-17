@@ -90,26 +90,35 @@ export const useClientHistoryViewModel = () => {
       'Cancelar Evento',
       'Tem certeza que deseja cancelar este evento?',
       async () => {
-        await eventRepository.updateStatus(eventId, 'CANCELLED');
+        const eventToUpdate = clientEvents.find(e => e.id === eventId);
+        if (!eventToUpdate) return;
+        const updatedEvent = { ...eventToUpdate, status: 'CANCELLED' as const };
+        await eventRepository.updateEvent(updatedEvent);
         if(selectedClient) {
           selectClient(selectedClient);
         }
       }
     );
-  }, [selectedClient, selectClient]);
+  }, [clientEvents, selectedClient, selectClient]);
 
   const confirmPayment = useCallback(async (eventId: string) => {
     openConfirmationModal(
       'Confirmar Pagamento',
       'Tem certeza que deseja confirmar o pagamento da reserva?',
       async () => {
-        await eventRepository.updatePaymentStatus(eventId, 'CONFIRMED');
+        const eventToUpdate = clientEvents.find(e => e.id === eventId);
+        if (!eventToUpdate) return;
+        const updatedEvent = { ...eventToUpdate, paymentStatus: 'CONFIRMED' as const };
+        if (updatedEvent.status === 'PRE_SCHEDULED') {
+          updatedEvent.status = 'SCHEDULED';
+        }
+        await eventRepository.updateEvent(updatedEvent);
         if(selectedClient) {
           selectClient(selectedClient);
         }
       }
     );
-  }, [selectedClient, selectClient]);
+  }, [clientEvents, selectedClient, selectClient]);
 
   // --- Client Edit Handlers ---
   const openEditModal = () => {

@@ -21,6 +21,7 @@ export const useCreateEventViewModel = () => {
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('13:00');
   const [scheduledEvents, setScheduledEvents] = useState<EventType[]>([]);
+  const [isPreScheduled, setIsPreScheduled] = useState(false);
 
   // Boat State
   const [availableBoats, setAvailableBoats] = useState<Boat[]>([]);
@@ -75,6 +76,7 @@ export const useCreateEventViewModel = () => {
           setSelectedClient(event.client);
           setClientSearchTerm(event.client.name);
           setObservations(event.observations || '');
+          setIsPreScheduled(event.status === 'PRE_SCHEDULED');
         } else {
           console.error("Event to edit not found!");
           setEditingEventId(null); // Clear ID if not found
@@ -350,11 +352,13 @@ export const useCreateEventViewModel = () => {
       throw new Error('Por favor, preencha todos os campos obrigatórios: Data, Cliente, Lancha e Local de Embarque.');
     }
 
+    const eventStatus = isPreScheduled ? 'PRE_SCHEDULED' : 'SCHEDULED';
     const eventData = {
       date: formatDate(selectedDate),
       startTime: startTime,
       endTime: endTime,
-      status: 'SCHEDULED' as const,
+      status: eventStatus as EventType['status'],
+      preScheduledAt: isPreScheduled ? Date.now() : undefined,
       boat: selectedBoat,
       boardingLocation: selectedBoardingLocation,
       products: selectedProducts,
@@ -368,7 +372,7 @@ export const useCreateEventViewModel = () => {
 
     if (editingEventId) {
       const updatedEvent = { ...eventData, id: editingEventId };
-      await eventRepository.update(updatedEvent);
+      await eventRepository.updateEvent(updatedEvent);
     } else {
       await eventRepository.add(eventData);
     }
@@ -387,7 +391,8 @@ export const useCreateEventViewModel = () => {
     navigate,
     editingEventId,
     selectedBoardingLocation,
-    observations
+    observations,
+    isPreScheduled
   ]);
 
   // Side Effects: Loyalty Checks (same as before)
@@ -416,6 +421,7 @@ export const useCreateEventViewModel = () => {
     startTime,
     endTime,
     scheduledEvents,
+    isPreScheduled,
     // Boat State
     availableBoats,
     selectedBoat,
@@ -453,6 +459,7 @@ export const useCreateEventViewModel = () => {
     setSelectedDate,
     setStartTime,
     setEndTime,
+    setIsPreScheduled,
     handleBoatSelection,
     handleBoardingLocationSelection,
     updateHourlyProductTime,
