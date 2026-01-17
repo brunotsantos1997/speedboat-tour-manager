@@ -106,6 +106,7 @@ export const VoucherScreen: React.FC = () => {
               </div>
             </div>
             <button
+              id="download-pdf-button"
               onClick={handleDownloadPdf}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
@@ -159,9 +160,18 @@ export const VoucherScreen: React.FC = () => {
                           )}
                       </div>
                     </div>
-                    <p className={`font-semibold ${item.isCourtesy ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                      R$ {item.price?.toFixed(2)}
-                    </p>
+                    <div className="text-right">
+                      <p className={`font-semibold ${item.isCourtesy ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                        {item.pricingType === 'PER_PERSON' && !item.isCourtesy
+                          ? `R$ ${(item.price * passengerCount).toFixed(2)}`
+                          : `R$ ${item.price?.toFixed(2)}`}
+                      </p>
+                      {item.pricingType === 'PER_PERSON' && (
+                        <p className="text-xs text-gray-500">
+                          {item.isCourtesy ? "" : `(${passengerCount}x R$ ${item.price?.toFixed(2)})`}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

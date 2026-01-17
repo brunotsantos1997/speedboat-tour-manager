@@ -414,6 +414,47 @@ export const useCreateEventViewModel = () => {
     setLoyaltySuggestion(suggestion);
   }, [selectedClient]);
 
+  const availableTimeSlots = useMemo(() => {
+    const allSlots = [];
+    for (let h = 8; h <= 20; h++) {
+      allSlots.push(`${h.toString().padStart(2, '0')}:00`);
+      allSlots.push(`${h.toString().padStart(2, '0')}:30`);
+    }
+
+    if (!selectedBoat || scheduledEvents.length === 0) {
+      return allSlots;
+    }
+
+    const boatEvents = scheduledEvents.filter(event => event.boat.id === selectedBoat.id);
+
+    // An event can be edited, so we should not check for conflicts with itself
+    const otherBoatEvents = boatEvents.filter(event => event.id !== editingEventId);
+    if (otherBoatEvents.length === 0) {
+      return allSlots;
+    }
+
+    const isSlotBooked = (slot: string) => {
+      return otherBoatEvents.some(event => {
+        return slot >= event.startTime && slot < event.endTime;
+      });
+    };
+
+    return allSlots.filter(slot => !isSlotBooked(slot));
+  }, [scheduledEvents, selectedBoat, editingEventId]);
+
+  // Effect to reset time if it becomes invalid
+  useEffect(() => {
+    if (!availableTimeSlots.includes(startTime)) {
+      setStartTime(availableTimeSlots[0] || '');
+    }
+    // Ensure endTime is always after startTime
+    const availableEndTimes = availableTimeSlots.filter(t => t > startTime);
+    if (!availableEndTimes.includes(endTime)) {
+      setEndTime(availableEndTimes[0] || '');
+    }
+  }, [availableTimeSlots, startTime, endTime]);
+
+
   return {
     // Event State
     editingEventId,
@@ -445,6 +486,7 @@ export const useCreateEventViewModel = () => {
     clientSearchResults,
     isSearching,
     loyaltySuggestion,
+    availableTimeSlots,
     // Modal state
     isModalOpen,
     editingClient,

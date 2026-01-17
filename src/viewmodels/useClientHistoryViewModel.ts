@@ -86,15 +86,21 @@ export const useClientHistoryViewModel = () => {
   };
 
   const cancelEvent = useCallback(async (eventId: string) => {
+    const eventToUpdate = clientEvents.find(e => e.id === eventId);
+    if (!eventToUpdate) return;
+
+    const message = eventToUpdate.paymentStatus === 'CONFIRMED'
+      ? 'Este evento já foi pago. Ao cancelar, o status será alterado para "Pendente de Reembolso". Deseja continuar?'
+      : 'Tem certeza que deseja cancelar este evento?';
+
     openConfirmationModal(
       'Cancelar Evento',
-      'Tem certeza que deseja cancelar este evento?',
+      message,
       async () => {
-        const eventToUpdate = clientEvents.find(e => e.id === eventId);
-        if (!eventToUpdate) return;
-        const updatedEvent = { ...eventToUpdate, status: 'CANCELLED' as const };
+        const newStatus = eventToUpdate.paymentStatus === 'CONFIRMED' ? 'PENDING_REFUND' : 'CANCELLED';
+        const updatedEvent = { ...eventToUpdate, status: newStatus as EventType['status'] };
         await eventRepository.updateEvent(updatedEvent);
-        if(selectedClient) {
+        if (selectedClient) {
           selectClient(selectedClient);
         }
       }

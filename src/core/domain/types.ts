@@ -11,6 +11,7 @@ export interface Product {
   pricingType: 'FIXED' | 'PER_PERSON' | 'HOURLY';
   iconKey: string;
   isDefaultCourtesy: boolean;
+  isArchived?: boolean;
 }
 
 /**
@@ -40,6 +41,7 @@ export interface Boat {
   size: number; // in feet
   pricePerHour: number;
   pricePerHalfHour: number;
+  isArchived?: boolean;
 }
 
 /**
@@ -49,9 +51,10 @@ export interface BoardingLocation {
   id: string;
   name: string;
   mapLink?: string;
+  isArchived?: boolean;
 }
 
-export type EventStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'PRE_SCHEDULED';
+export type EventStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'PRE_SCHEDULED' | 'PENDING_REFUND' | 'REFUNDED' | 'ARCHIVED_COMPLETED' | 'ARCHIVED_CANCELLED';
 export type PaymentStatus = 'PENDING' | 'CONFIRMED';
 
 /**
@@ -102,6 +105,7 @@ export interface CompanyData {
   cnpj: string;
   phone: string;
   appName: string;
+  reservationFeePercentage: number;
 }
 
 export interface VoucherTerms {

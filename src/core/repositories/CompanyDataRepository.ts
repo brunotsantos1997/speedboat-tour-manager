@@ -18,6 +18,7 @@ export class CompanyDataRepository {
         cnpj: '00.000.000/0001-00',
         phone: '(00) 00000-0000',
         appName: 'BoatManager',
+        reservationFeePercentage: 30, // Default to 30%
       };
       this.saveToLocalStorage();
     }

@@ -1,6 +1,7 @@
 // src/core/repositories/MockBoardingLocationRepository.ts
 import type { BoardingLocation } from '../domain/types';
 import { v4 as uuid } from 'uuid';
+import { eventRepository } from './EventRepository'; // Import event repository
 
 export class MockBoardingLocationRepository {
   private locations: BoardingLocation[] = [
@@ -9,7 +10,7 @@ export class MockBoardingLocationRepository {
   ];
 
   async getAll(): Promise<BoardingLocation[]> {
-    return Promise.resolve(this.locations);
+    return Promise.resolve(this.locations.filter(l => !l.isArchived));
   }
 
   async add(location: Omit<BoardingLocation, 'id'>): Promise<BoardingLocation> {
@@ -28,7 +29,17 @@ export class MockBoardingLocationRepository {
   }
 
   async delete(id: string): Promise<void> {
-    this.locations = this.locations.filter((l) => l.id !== id);
+    const allEvents = await eventRepository.getAllEvents();
+    const isLocationInUse = allEvents.some(event => event.boardingLocation.id === id);
+
+    if (isLocationInUse) {
+      const locationIndex = this.locations.findIndex(l => l.id === id);
+      if (locationIndex !== -1) {
+        this.locations[locationIndex].isArchived = true;
+      }
+    } else {
+      this.locations = this.locations.filter(l => l.id !== id);
+    }
     return Promise.resolve();
   }
 }

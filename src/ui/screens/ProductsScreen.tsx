@@ -29,7 +29,7 @@ const ProductModal: React.FC<{
             {product.pricingType === 'HOURLY' ? (
               <input type="number" placeholder="Preço por Hora" value={product.hourlyPrice} onChange={(e) => onUpdate('hourlyPrice', parseFloat(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
             ) : (
-              <input type="number" placeholder="Preço" value={product.price} onChange={(e) => onUpdate('price', parseFloat(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
+              <input type="number" placeholder={product.pricingType === 'PER_PERSON' ? 'Preço por Pessoa' : 'Preço Fixo'} value={product.price} onChange={(e) => onUpdate('price', parseFloat(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
             )}
             <select value={product.pricingType} onChange={(e) => onUpdate('pricingType', e.target.value)} className="w-full p-3 border rounded-lg bg-white">
               <option value="FIXED">Preço Fixo</option>

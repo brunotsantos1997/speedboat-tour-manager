@@ -9,6 +9,7 @@ export const CompanyDataScreen: React.FC = () => {
     cnpj: '',
     phone: '',
     appName: '',
+    reservationFeePercentage: 30,
   });
   const { showToast } = useToastContext();
 
@@ -18,6 +19,7 @@ export const CompanyDataScreen: React.FC = () => {
         cnpj: companyData.cnpj,
         phone: companyData.phone,
         appName: companyData.appName,
+        reservationFeePercentage: companyData.reservationFeePercentage,
       });
     }
   }, [companyData]);
@@ -86,6 +88,19 @@ export const CompanyDataScreen: React.FC = () => {
                 id="phone"
                 name="phone"
                 value={formData.phone}
+                onChange={handleChange}
+                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="reservationFeePercentage" className="block text-lg font-medium text-gray-700">
+                Percentual do Sinal de Reserva (%)
+              </label>
+              <input
+                type="number"
+                id="reservationFeePercentage"
+                name="reservationFeePercentage"
+                value={formData.reservationFeePercentage}
                 onChange={handleChange}
                 className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
               />

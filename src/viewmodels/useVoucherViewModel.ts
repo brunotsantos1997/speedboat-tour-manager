@@ -6,7 +6,6 @@ import { eventRepository } from '../core/repositories/EventRepository';
 import { CompanyDataRepository } from '../core/repositories/CompanyDataRepository';
 import { VoucherTermsRepository } from '../core/repositories/VoucherTermsRepository';
 import { VoucherAppearanceRepository } from '../core/repositories/VoucherAppearanceRepository';
-import { RESERVATION_FEE_PERCENTAGE } from '../core/config';
 import html2pdf from 'html2pdf.js';
 
 interface VoucherDetails extends Event {
@@ -33,18 +32,20 @@ export const useVoucherViewModel = () => {
 
       try {
         setIsLoading(true);
+        const companyRepo = CompanyDataRepository.getInstance();
+        const companyInfo = await companyRepo.get();
+        setCompanyData(companyInfo);
+
         const eventData = await eventRepository.getById(eventId);
         if (!eventData) {
           setError('Evento não encontrado.');
           return;
         }
 
-        const reservationFee = eventData.total * RESERVATION_FEE_PERCENTAGE;
+        const feePercentage = (companyInfo.reservationFeePercentage || 30) / 100;
+        const reservationFee = eventData.total * feePercentage;
         const remainingBalance = eventData.total - reservationFee;
         setVoucher({ ...eventData, reservationFee, remainingBalance });
-
-        const companyRepo = CompanyDataRepository.getInstance();
-        setCompanyData(await companyRepo.get());
 
         const termsRepo = VoucherTermsRepository.getInstance();
         setVoucherTerms(await termsRepo.get());
@@ -66,7 +67,11 @@ export const useVoucherViewModel = () => {
 
   const handleDownloadPdf = () => {
     const element = document.getElementById('voucher-content');
+    const button = document.getElementById('download-pdf-button');
     if (element && voucher) {
+      // Hide the button before generating the PDF
+      if (button) button.style.display = 'none';
+
       const opt = {
         margin: 0.5,
         filename: `voucher-${voucher.client.name.replace(/\s+/g, '-')}-${voucher.id}.pdf`,
@@ -74,7 +79,11 @@ export const useVoucherViewModel = () => {
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' as const }
       };
-      html2pdf().from(element).set(opt).save();
+
+      html2pdf().from(element).set(opt).save().then(() => {
+        // Show the button again after the PDF is generated
+        if (button) button.style.display = 'flex';
+      });
     }
   };
 

@@ -78,8 +78,10 @@ const StatusBadge: React.FC<{ status: EventStatus }> = ({ status }) => {
     PRE_SCHEDULED: { text: 'Pré-Agendado', color: 'yellow', icon: <Clock size={14} /> },
     COMPLETED: { text: 'Realizado', color: 'green', icon: <CheckCircle size={14} /> },
     CANCELLED: { text: 'Cancelado', color: 'red', icon: <Ban size={14} /> },
+    PENDING_REFUND: { text: 'Reembolso Pendente', color: 'orange', icon: <AlertTriangle size={14} /> },
+    REFUNDED: { text: 'Reembolsado', color: 'gray', icon: <CheckCircle size={14} /> },
   };
-  const { text, color, icon } = statusMap[status];
+  const { text, color, icon } = statusMap[status] || statusMap.CANCELLED;
 
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-${color}-100 text-${color}-800`}>

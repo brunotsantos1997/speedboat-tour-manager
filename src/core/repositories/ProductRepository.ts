@@ -2,6 +2,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Product } from '../domain/types';
 import { AVAILABLE_PRODUCTS } from '../data/mocks';
+import { eventRepository } from './EventRepository'; // Import event repository
 
 // Rename for semantic clarity
 let MOCK_PRODUCTS: Product[] = AVAILABLE_PRODUCTS;
@@ -20,7 +21,8 @@ export interface IProductRepository {
 class MockProductRepository implements IProductRepository {
   async getAll(): Promise<Product[]> {
     await new Promise(resolve => setTimeout(resolve, 200)); // Simulate delay
-    return [...MOCK_PRODUCTS];
+    // Return only non-archived products
+    return MOCK_PRODUCTS.filter(p => !p.isArchived);
   }
 
   async add(productData: Omit<Product, 'id'>): Promise<Product> {
@@ -41,7 +43,20 @@ class MockProductRepository implements IProductRepository {
   }
 
   async remove(productId: string): Promise<void> {
-    MOCK_PRODUCTS = MOCK_PRODUCTS.filter(p => p.id !== productId);
+    // Check if the product is used in any event
+    const allEvents = await eventRepository.getAllEvents(); // Assuming getAllEvents exists
+    const isProductInUse = allEvents.some(event => event.products.some(p => p.id === productId));
+
+    if (isProductInUse) {
+      // If in use, archive it (soft delete)
+      const productIndex = MOCK_PRODUCTS.findIndex(p => p.id === productId);
+      if (productIndex !== -1) {
+        MOCK_PRODUCTS[productIndex].isArchived = true;
+      }
+    } else {
+      // If not in use, delete it permanently (hard delete)
+      MOCK_PRODUCTS = MOCK_PRODUCTS.filter(p => p.id !== productId);
+    }
     await new Promise(resolve => setTimeout(resolve, 300));
   }
 }
