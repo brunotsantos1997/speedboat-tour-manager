@@ -16,6 +16,7 @@ export const useCreateEventViewModel = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [editingEventId, setEditingEventId] = useState<string | null>(searchParams.get('eventId'));
+  const [originalPaymentStatus, setOriginalPaymentStatus] = useState<PaymentStatus | undefined>(undefined);
 
   // Event State
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -78,6 +79,7 @@ export const useCreateEventViewModel = () => {
           setClientSearchTerm(event.client.name);
           setObservations(event.observations || '');
           setIsPreScheduled(event.status === 'PRE_SCHEDULED');
+          setOriginalPaymentStatus(event.paymentStatus);
         } else {
           console.error("Event to edit not found!");
           setEditingEventId(null); // Clear ID if not found
@@ -361,7 +363,7 @@ export const useCreateEventViewModel = () => {
       startTime: startTime,
       endTime: endTime,
       status: eventStatus as EventType['status'],
-      paymentStatus: 'PENDING' as const,
+      paymentStatus: editingEventId && originalPaymentStatus === 'CONFIRMED' ? 'CONFIRMED' : 'PENDING',
       preScheduledAt: isPreScheduled ? Date.now() : undefined,
       boat: selectedBoat,
       boardingLocation: selectedBoardingLocation,
