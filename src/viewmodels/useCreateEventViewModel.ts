@@ -8,8 +8,9 @@ import { productRepository } from '../core/repositories/ProductRepository';
 import { boatRepository } from '../core/repositories/BoatRepository';
 import { eventRepository } from '../core/repositories/EventRepository';
 import { formatDate } from '../core/utils/formatDate';
+import { format } from 'date-fns';
 import type { BoardingLocation } from '../core/domain/types';
-import { MockBoardingLocationRepository } from '../core/repositories/MockBoardingLocationRepository';
+import { boardingLocationRepository } from '../core/repositories/MockBoardingLocationRepository';
 
 export const useCreateEventViewModel = () => {
   const navigate = useNavigate();
@@ -92,7 +93,7 @@ export const useCreateEventViewModel = () => {
     const loadInitialData = async () => {
       const products = await productRepository.getAll();
       const boats = await boatRepository.getAll();
-      const boardingLocations = await new MockBoardingLocationRepository().getAll();
+      const boardingLocations = await boardingLocationRepository.getAll();
 
       setAvailableProducts(products);
       setAvailableBoats(boats);
@@ -119,7 +120,7 @@ export const useCreateEventViewModel = () => {
   // Fetch scheduled events when selected date changes
   useEffect(() => {
     if (selectedDate) {
-      const dateString = formatDate(selectedDate);
+      const dateString = format(selectedDate, 'yyyy-MM-dd');
       eventRepository.getEventsByDate(dateString).then(setScheduledEvents);
     }
   }, [selectedDate]);
@@ -211,9 +212,11 @@ export const useCreateEventViewModel = () => {
       setNewClientName(client.name);
       setNewClientPhone(client.phone);
     } else {
+      // Pre-fill from search term if creating a new client
       setEditingClient(null);
-      setNewClientName('');
-      setNewClientPhone('');
+      const isPhone = /^\d+$/.test(clientSearchTerm);
+      setNewClientName(isPhone ? '' : clientSearchTerm);
+      setNewClientPhone(isPhone ? clientSearchTerm : '');
     }
     setIsModalOpen(true);
   };
@@ -354,10 +357,11 @@ export const useCreateEventViewModel = () => {
 
     const eventStatus = isPreScheduled ? 'PRE_SCHEDULED' : 'SCHEDULED';
     const eventData = {
-      date: formatDate(selectedDate),
+      date: format(selectedDate, 'yyyy-MM-dd'),
       startTime: startTime,
       endTime: endTime,
       status: eventStatus as EventType['status'],
+      paymentStatus: 'PENDING' as const,
       preScheduledAt: isPreScheduled ? Date.now() : undefined,
       boat: selectedBoat,
       boardingLocation: selectedBoardingLocation,
@@ -414,6 +418,47 @@ export const useCreateEventViewModel = () => {
     setLoyaltySuggestion(suggestion);
   }, [selectedClient]);
 
+  const availableTimeSlots = useMemo(() => {
+    const allSlots = [];
+    for (let h = 8; h <= 20; h++) {
+      allSlots.push(`${h.toString().padStart(2, '0')}:00`);
+      allSlots.push(`${h.toString().padStart(2, '0')}:30`);
+    }
+
+    if (!selectedBoat || scheduledEvents.length === 0) {
+      return allSlots;
+    }
+
+    const boatEvents = scheduledEvents.filter(event => event.boat.id === selectedBoat.id);
+
+    // An event can be edited, so we should not check for conflicts with itself
+    const otherBoatEvents = boatEvents.filter(event => event.id !== editingEventId);
+    if (otherBoatEvents.length === 0) {
+      return allSlots;
+    }
+
+    const isSlotBooked = (slot: string) => {
+      return otherBoatEvents.some(event => {
+        return slot >= event.startTime && slot < event.endTime;
+      });
+    };
+
+    return allSlots.filter(slot => !isSlotBooked(slot));
+  }, [scheduledEvents, selectedBoat, editingEventId]);
+
+  // Effect to reset time if it becomes invalid
+  useEffect(() => {
+    if (!availableTimeSlots.includes(startTime)) {
+      setStartTime(availableTimeSlots[0] || '');
+    }
+    // Ensure endTime is always after startTime
+    const availableEndTimes = availableTimeSlots.filter(t => t > startTime);
+    if (!availableEndTimes.includes(endTime)) {
+      setEndTime(availableEndTimes[0] || '');
+    }
+  }, [availableTimeSlots, startTime, endTime]);
+
+
   return {
     // Event State
     editingEventId,
@@ -445,6 +490,7 @@ export const useCreateEventViewModel = () => {
     clientSearchResults,
     isSearching,
     loyaltySuggestion,
+    availableTimeSlots,
     // Modal state
     isModalOpen,
     editingClient,

@@ -12,11 +12,18 @@ import { BoardingLocationsScreen } from './ui/screens/BoardingLocationsScreen';
 import { VoucherTermsScreen } from './ui/screens/VoucherTermsScreen';
 import { CompanyDataScreen } from './ui/screens/CompanyDataScreen';
 import { VoucherAppearanceScreen } from './ui/screens/VoucherAppearanceScreen';
+import { initializeMockRepositories } from './core/repositories';
+
+// Initialize mock data on app startup to prevent race conditions in development
+initializeMockRepositories();
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Rota Pública para o Voucher (não usa o Layout principal) */}
+        <Route path="/voucher/:eventId" element={<PublicLayout><VoucherScreen /></PublicLayout>} />
+
         {/* Rotas Administrativas com Layout Principal */}
         <Route path="/" element={<Layout />}>
           <Route index element={<DashboardScreen />} />
@@ -29,9 +36,6 @@ function App() {
           <Route path="company-data" element={<CompanyDataScreen />} />
           <Route path="voucher-appearance" element={<VoucherAppearanceScreen />} />
         </Route>
-
-        {/* Rota Pública para o Voucher */}
-        <Route path="/voucher/:eventId" element={<PublicLayout><VoucherScreen /></PublicLayout>} />
       </Routes>
     </BrowserRouter>
   );

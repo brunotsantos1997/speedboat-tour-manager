@@ -1,12 +1,12 @@
 // src/viewmodels/useBoardingLocationsViewModel.ts
 import { useState, useEffect } from 'react';
 import type { BoardingLocation } from '../core/domain/types';
-import { MockBoardingLocationRepository } from '../core/repositories/MockBoardingLocationRepository';
+import { boardingLocationRepository } from '../core/repositories/MockBoardingLocationRepository';
 
 export const useBoardingLocationsViewModel = () => {
   const [locations, setLocations] = useState<BoardingLocation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const repository = new MockBoardingLocationRepository();
+  const repository = boardingLocationRepository;
 
   useEffect(() => {
     repository.getAll().then((data) => {

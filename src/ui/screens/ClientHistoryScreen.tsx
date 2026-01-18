@@ -78,8 +78,10 @@ const StatusBadge: React.FC<{ status: EventStatus }> = ({ status }) => {
     PRE_SCHEDULED: { text: 'Pré-Agendado', color: 'yellow', icon: <Clock size={14} /> },
     COMPLETED: { text: 'Realizado', color: 'green', icon: <CheckCircle size={14} /> },
     CANCELLED: { text: 'Cancelado', color: 'red', icon: <Ban size={14} /> },
+    PENDING_REFUND: { text: 'Reembolso Pendente', color: 'orange', icon: <AlertTriangle size={14} /> },
+    REFUNDED: { text: 'Reembolsado', color: 'gray', icon: <CheckCircle size={14} /> },
   };
-  const { text, color, icon } = statusMap[status];
+  const { text, color, icon } = statusMap[status] || statusMap.CANCELLED;
 
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-${color}-100 text-${color}-800`}>
@@ -129,7 +131,7 @@ const EventCard: React.FC<{
         <button onClick={() => shareVoucher(event.id)} className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 flex items-center"><Share2 size={14} className="mr-1" /> Compartilhar</button>
         <a href={`/voucher/${event.id}`} target="_blank" rel="noopener noreferrer" className="px-3 py-1 text-sm bg-indigo-500 text-white rounded hover:bg-indigo-600 flex items-center"><FileText size={14} className="mr-1" /> Ver Voucher</a>
 
-        {event.status === 'SCHEDULED' && (
+        {(event.status === 'SCHEDULED' || event.status === 'PRE_SCHEDULED') && (
           <>
             {event.paymentStatus === 'PENDING' && (
               <button onClick={() => onConfirmPayment(event.id)} className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 flex items-center"><DollarSign size={14} className="mr-1" /> Confirmar Pagamento</button>

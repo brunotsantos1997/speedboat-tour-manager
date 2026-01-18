@@ -162,16 +162,6 @@ export const CreateEventScreen: React.FC = () => {
 
   const bookedDays = vm.scheduledEvents.map(event => new Date(event.date));
 
-  // --- Time Slot Generation ---
-  const timeOptions = useMemo(() => {
-    const options = [];
-    for (let h = 8; h <= 20; h++) {
-      options.push(`${h.toString().padStart(2, '0')}:00`);
-      options.push(`${h.toString().padStart(2, '0')}:30`);
-    }
-    return options;
-  }, []);
-
   return (
     <div className="bg-gray-50 font-sans text-gray-800">
       <main className="max-w-7xl mx-auto p-4 pb-48">
@@ -310,13 +300,13 @@ export const CreateEventScreen: React.FC = () => {
                               label="Início"
                               value={selectedProd?.startTime || ''}
                               onChange={(time) => vm.updateHourlyProductTime(product.id, time, 'start')}
-                              options={timeOptions}
+                              options={vm.availableTimeSlots}
                             />
                             <TimePicker
                               label="Fim"
                               value={selectedProd?.endTime || ''}
                               onChange={(time) => vm.updateHourlyProductTime(product.id, time, 'end')}
-                              options={timeOptions.filter(t => t > (selectedProd?.startTime || ''))}
+                              options={vm.availableTimeSlots.filter(t => t > (selectedProd?.startTime || ''))}
                             />
                           </div>
                         )}
@@ -418,13 +408,13 @@ export const CreateEventScreen: React.FC = () => {
                   label="Início"
                   value={vm.startTime}
                   onChange={vm.setStartTime}
-                  options={timeOptions}
+                  options={vm.availableTimeSlots}
                 />
                 <TimePicker
                   label="Término"
                   value={vm.endTime}
                   onChange={vm.setEndTime}
-                  options={timeOptions.filter(t => t > vm.startTime)}
+                  options={vm.availableTimeSlots.filter(t => t > vm.startTime)}
                 />
               </div>
             </section>

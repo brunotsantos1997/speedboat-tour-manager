@@ -57,12 +57,14 @@ export const DashboardScreen: React.FC = () => {
     isLoading,
     error,
     notificationEvents,
-    eventsToday,
+    eventsForSelectedDate,
     pendingPayments,
     monthlyStats,
     calendarEvents,
+    selectedDate,
+    setSelectedDate,
     confirmPayment,
-    acknowledgeEvent
+    processNotification
   } = useDashboardViewModel();
 
   // A new component for notifications
@@ -71,22 +73,30 @@ export const DashboardScreen: React.FC = () => {
       CANCELLED: {
         container: 'bg-red-50 border-l-4 border-red-500',
         iconContainer: 'text-red-700',
-        button: 'bg-red-500 hover:bg-red-600',
+        button: 'bg-gray-500 hover:bg-gray-600',
         icon: Ban,
-        actionText: 'Confirmar Estorno',
+        actionText: 'Arquivar',
         message: `O passeio de ${event.client.name} foi cancelado.`
       },
       COMPLETED: {
         container: 'bg-green-50 border-l-4 border-green-500',
         iconContainer: 'text-green-700',
-        button: 'bg-green-500 hover:bg-green-600',
+        button: 'bg-gray-500 hover:bg-gray-600',
         icon: CheckCircle,
-        actionText: 'Confirmar Conclusão',
+        actionText: 'Arquivar',
         message: `O passeio de ${event.client.name} foi concluído.`
+      },
+      PENDING_REFUND: {
+        container: 'bg-yellow-50 border-l-4 border-yellow-500',
+        iconContainer: 'text-yellow-700',
+        button: 'bg-yellow-500 hover:bg-yellow-600',
+        icon: AlertTriangle,
+        actionText: 'Confirmar Estorno',
+        message: `Reembolso pendente para ${event.client.name}.`
       }
     };
 
-    const status = event.status as 'CANCELLED' | 'COMPLETED';
+    const status = event.status as 'CANCELLED' | 'COMPLETED' | 'PENDING_REFUND';
     const { container, iconContainer, button, icon: Icon, actionText, message } = styleMap[status];
 
     return (
@@ -145,7 +155,7 @@ export const DashboardScreen: React.FC = () => {
               </div>
               <div className="space-y-2 p-2">
                 {notificationEvents.map(event =>
-                  <NotificationCard key={event.id} event={event} onAcknowledge={acknowledgeEvent} />
+                  <NotificationCard key={event.id} event={event} onAcknowledge={processNotification} />
                 )}
               </div>
             </div>
@@ -165,11 +175,11 @@ export const DashboardScreen: React.FC = () => {
 
           {/* Today's Events */}
           <div className="bg-white p-4 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-3 flex items-center"><Clock className="mr-2 text-blue-500"/> Passeios de Hoje</h2>
+            <h2 className="text-xl font-semibold mb-3 flex items-center"><Clock className="mr-2 text-blue-500"/> Passeios do Dia</h2>
             <div className="space-y-3">
-              {eventsToday.length > 0
-                ? eventsToday.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={confirmPayment} />)
-                : <p className="text-gray-500">Nenhum passeio agendado para hoje.</p>
+              {eventsForSelectedDate.length > 0
+                ? eventsForSelectedDate.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={confirmPayment} />)
+                : <p className="text-gray-500">Nenhum passeio agendado para a data selecionada.</p>
               }
             </div>
           </div>
@@ -180,8 +190,11 @@ export const DashboardScreen: React.FC = () => {
         <div className="bg-white p-4 rounded-lg shadow-md">
           <h2 className="text-xl font-semibold mb-3">Calendário de Eventos</h2>
           <DayPicker
-            mode="multiple"
-            selected={calendarEvents}
+            mode="single"
+            selected={selectedDate}
+            onSelect={setSelectedDate}
+            modifiers={{ booked: calendarEvents }}
+            modifiersStyles={{ booked: { color: 'red', fontWeight: 'bold' } }}
             className="w-full"
           />
         </div>

@@ -1,6 +1,7 @@
 // src/core/repositories/BoatRepository.ts
 import { v4 as uuidv4 } from 'uuid';
 import type { Boat } from '../domain/types';
+import { eventRepository } from './EventRepository'; // Import event repository
 
 export interface IBoatRepository {
   getAll(): Promise<Boat[]>;
@@ -10,6 +11,7 @@ export interface IBoatRepository {
 }
 
 class MockBoatRepository implements IBoatRepository {
+  private static instance: MockBoatRepository;
   private boats: Boat[] = [
     {
       id: 'boat-1',
@@ -21,8 +23,17 @@ class MockBoatRepository implements IBoatRepository {
     },
   ];
 
+  private constructor() {}
+
+  public static getInstance(): MockBoatRepository {
+    if (!MockBoatRepository.instance) {
+      MockBoatRepository.instance = new MockBoatRepository();
+    }
+    return MockBoatRepository.instance;
+  }
+
   async getAll(): Promise<Boat[]> {
-    return [...this.boats];
+    return this.boats.filter(b => !b.isArchived);
   }
 
   async add(boatData: Omit<Boat, 'id'>): Promise<Boat> {
@@ -39,8 +50,18 @@ class MockBoatRepository implements IBoatRepository {
   }
 
   async remove(boatId: string): Promise<void> {
-    this.boats = this.boats.filter(b => b.id !== boatId);
+    const allEvents = await eventRepository.getAllEvents();
+    const isBoatInUse = allEvents.some(event => event.boat.id === boatId);
+
+    if (isBoatInUse) {
+      const boatIndex = this.boats.findIndex(b => b.id === boatId);
+      if (boatIndex !== -1) {
+        this.boats[boatIndex].isArchived = true;
+      }
+    } else {
+      this.boats = this.boats.filter(b => b.id !== boatId);
+    }
   }
 }
 
-export const boatRepository = new MockBoatRepository();
+export const boatRepository = MockBoatRepository.getInstance();

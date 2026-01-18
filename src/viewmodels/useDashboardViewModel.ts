@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Event } from '../core/domain/types';
 import { eventRepository } from '../core/repositories/EventRepository';
-import { startOfDay, isToday, isWithinInterval, addDays, startOfWeek, endOfWeek, getMonth } from 'date-fns';
+import { startOfDay, isToday, isWithinInterval, addDays, startOfWeek, endOfWeek, getMonth, isSameDay } from 'date-fns';
 import { useToastContext } from '../ui/contexts/ToastContext';
 
 export const useDashboardViewModel = () => {
@@ -10,6 +10,7 @@ export const useDashboardViewModel = () => {
   const { showToast } = useToastContext();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
 
   const fetchEvents = useCallback(async () => {
     setIsLoading(true);
@@ -60,12 +61,27 @@ export const useDashboardViewModel = () => {
     }
   }, [allEvents, showToast]);
 
-  const acknowledgeEvent = useCallback(async (eventId: string) => {
+  const processNotification = useCallback(async (eventId: string) => {
     try {
       const eventToUpdate = allEvents.find(e => e.id === eventId);
       if (!eventToUpdate) return;
 
-      const updatedEvent = { ...eventToUpdate, isAcknowledged: true };
+      let updatedEvent: Event;
+      let toastMessage = '';
+
+      if (eventToUpdate.status === 'COMPLETED') {
+        updatedEvent = { ...eventToUpdate, status: 'ARCHIVED_COMPLETED' };
+        toastMessage = 'Conclusão de passeio arquivada.';
+      } else if (eventToUpdate.status === 'CANCELLED') {
+        updatedEvent = { ...eventToUpdate, status: 'ARCHIVED_CANCELLED' };
+        toastMessage = 'Cancelamento arquivado.';
+      } else if (eventToUpdate.status === 'PENDING_REFUND') {
+        updatedEvent = { ...eventToUpdate, status: 'REFUNDED' };
+        toastMessage = 'Estorno confirmado.';
+      } else {
+        return;
+      }
+
       await eventRepository.updateEvent(updatedEvent);
 
       setAllEvents(prev =>
@@ -73,10 +89,10 @@ export const useDashboardViewModel = () => {
           event.id === eventId ? updatedEvent : event
         )
       );
-      showToast('Notificação arquivada.');
+      showToast(toastMessage);
     } catch (error) {
-      console.error('Failed to acknowledge event:', error);
-      showToast('Erro ao arquivar a notificação.');
+      console.error('Failed to process notification:', error);
+      showToast('Erro ao processar a notificação.');
     }
   }, [allEvents, showToast]);
 
@@ -99,12 +115,12 @@ export const useDashboardViewModel = () => {
 
   const notificationEvents = useMemo(() =>
     allEvents.filter(event =>
-      (event.status === 'COMPLETED' || event.status === 'CANCELLED') && !event.isAcknowledged
+      (event.status === 'COMPLETED' || event.status === 'CANCELLED' || event.status === 'PENDING_REFUND')
     ), [allEvents]);
 
-  const eventsToday = useMemo(() =>
-    upcomingEvents.filter(event => isToday(new Date(event.date))),
-    [upcomingEvents]
+  const eventsForSelectedDate = useMemo(() =>
+    upcomingEvents.filter(event => isSameDay(new Date(event.date), selectedDate)),
+    [upcomingEvents, selectedDate]
   );
 
   const eventsThisWeek = useMemo(() => {
@@ -120,7 +136,10 @@ export const useDashboardViewModel = () => {
 
   const monthlyStats = useMemo(() => {
     const currentMonth = getMonth(today);
-    const monthlyEvents = allEvents.filter(event => getMonth(new Date(event.date)) === currentMonth);
+    const monthlyEvents = allEvents.filter(event =>
+      getMonth(new Date(event.date)) === currentMonth &&
+      event.status === 'COMPLETED'
+    );
 
     const totalRevenue = monthlyEvents.reduce((acc, event) => acc + event.total, 0);
     const totalEvents = monthlyEvents.length;
@@ -137,12 +156,14 @@ export const useDashboardViewModel = () => {
     error,
     upcomingEvents, // Renamed from 'events' for clarity
     notificationEvents,
-    eventsToday,
+    eventsForSelectedDate,
     eventsThisWeek,
     pendingPayments,
     monthlyStats,
     calendarEvents,
+    selectedDate,
+    setSelectedDate,
     confirmPayment,
-    acknowledgeEvent,
+    processNotification,
   };
 };
