@@ -11,7 +11,6 @@ export interface IEventRepository {
   getEventsByClient(clientId: string): Promise<Event[]>;
   add(event: Omit<Event, 'id'>): Promise<Event>;
   updateEvent(event: Event): Promise<Event>;
-  getAllEvents(): Promise<Event[]>; // Added method
 }
 
 class MockEventRepository implements IEventRepository {
@@ -88,11 +87,6 @@ class MockEventRepository implements IEventRepository {
   async getEventsByClient(clientId: string): Promise<Event[]> {
     await this.initializationPromise;
     return this.events.filter(e => e.client.id === clientId);
-  }
-
-  async getAllEvents(): Promise<Event[]> {
-    await this.initializationPromise;
-    return [...this.events];
   }
 
   private isTimeConflict(eventA: Omit<Event, 'id'>, eventB: Event): boolean {

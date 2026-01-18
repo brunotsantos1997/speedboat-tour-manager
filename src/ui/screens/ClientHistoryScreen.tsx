@@ -131,7 +131,7 @@ const EventCard: React.FC<{
         <button onClick={() => shareVoucher(event.id)} className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 flex items-center"><Share2 size={14} className="mr-1" /> Compartilhar</button>
         <a href={`/voucher/${event.id}`} target="_blank" rel="noopener noreferrer" className="px-3 py-1 text-sm bg-indigo-500 text-white rounded hover:bg-indigo-600 flex items-center"><FileText size={14} className="mr-1" /> Ver Voucher</a>
 
-        {event.status === 'SCHEDULED' && (
+        {(event.status === 'SCHEDULED' || event.status === 'PRE_SCHEDULED') && (
           <>
             {event.paymentStatus === 'PENDING' && (
               <button onClick={() => onConfirmPayment(event.id)} className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 flex items-center"><DollarSign size={14} className="mr-1" /> Confirmar Pagamento</button>

@@ -361,6 +361,7 @@ export const useCreateEventViewModel = () => {
       startTime: startTime,
       endTime: endTime,
       status: eventStatus as EventType['status'],
+      paymentStatus: 'PENDING' as const,
       preScheduledAt: isPreScheduled ? Date.now() : undefined,
       boat: selectedBoat,
       boardingLocation: selectedBoardingLocation,
