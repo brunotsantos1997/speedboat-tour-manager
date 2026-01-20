@@ -143,9 +143,12 @@ export const CompanyDataScreen: React.FC = () => {
             <h2 className="text-2xl font-bold text-gray-800">Horário de Funcionamento</h2>
             <div className="space-y-4 mt-4">
               {weekDays.map(({ key, label }) => (
-                <div key={key} className="grid grid-cols-4 items-center gap-4 p-2 rounded-md hover:bg-gray-50">
-                  <span className="font-medium text-gray-700 col-span-1">{label}</span>
-                  <div className="col-span-1">
+                <div
+                  key={key}
+                  className="grid grid-cols-1 lg:grid-cols-4 items-center gap-4 p-4 border rounded-lg hover:bg-gray-50"
+                >
+                  <span className="font-medium text-gray-700 lg:col-span-1">{label}</span>
+                  <div className="grid grid-cols-2 gap-4 lg:col-span-2">
                     <input
                       type="time"
                       value={formData.businessHours[key].startTime}
@@ -153,8 +156,6 @@ export const CompanyDataScreen: React.FC = () => {
                       disabled={formData.businessHours[key].isClosed}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-200"
                     />
-                  </div>
-                  <div className="col-span-1">
                     <input
                       type="time"
                       value={formData.businessHours[key].endTime}
@@ -163,8 +164,10 @@ export const CompanyDataScreen: React.FC = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-200"
                     />
                   </div>
-                  <div className="flex items-center gap-2 col-span-1 justify-self-end">
-                    <label htmlFor={`closed-${key}`} className="text-gray-600">Fechado</label>
+                  <div className="flex items-center gap-2 lg:col-span-1 lg:justify-self-end">
+                    <label htmlFor={`closed-${key}`} className="text-gray-600">
+                      Fechado
+                    </label>
                     <input
                       type="checkbox"
                       id={`closed-${key}`}
