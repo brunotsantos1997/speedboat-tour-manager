@@ -2,8 +2,12 @@
 import { eventRepository } from './EventRepository';
 
 export const initializeMockRepositories = async () => {
-  // Although getInstance ensures a single instance, ensureInitialized
-  // is what populates the mock data. We call it here to make sure
-  // all mock data is loaded before any part of the app tries to access it.
-  await (eventRepository as any).constructor.ensureInitialized();
+  // The repository constructor triggers an async load. We await its internal
+  // promise to ensure mock data is loaded before the app uses it.
+  await (eventRepository as any).initializationPromise;
+
+  // Set a global flag for test automation environments like Playwright
+  if (typeof window !== 'undefined') {
+    (window as any).MOCK_DATA_INITIALIZED = true;
+  }
 };

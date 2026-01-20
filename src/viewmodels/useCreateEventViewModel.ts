@@ -493,17 +493,48 @@ export const useCreateEventViewModel = () => {
     return businessHourSlots.filter(slot => !isSlotBooked(slot));
   }, [scheduledEvents, selectedBoat, editingEventId, companyData, dayOfWeek, isBusinessClosed]);
 
+  const availableEndTimeSlots = useMemo(() => {
+    if (!startTime || !companyData || isBusinessClosed || !dayOfWeek) {
+      return [];
+    }
+
+    // All possible slots after the selected start time
+    const allPossibleSlots = availableTimeSlots.filter(slot => slot > startTime);
+
+    // Find the next scheduled event for the selected boat
+    const nextEvent = scheduledEvents
+      .filter(event => event.boat.id === selectedBoat?.id && event.id !== editingEventId && event.startTime > startTime)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
+
+    if (!nextEvent) {
+      // No upcoming events, so all slots until the end of the business day are available
+      const { endTime: businessEndTime } = companyData.businessHours[dayOfWeek];
+      return allPossibleSlots.filter(slot => slot <= businessEndTime);
+    }
+
+    // Upcoming event exists, calculate the maximum allowed end time
+    const [nextStartHour, nextStartMinute] = nextEvent.startTime.split(':').map(Number);
+    const nextStartTimeInMinutes = nextStartHour * 60 + nextStartMinute;
+    const maxEndTimeInMinutes = nextStartTimeInMinutes - companyData.eventIntervalMinutes;
+
+    const maxEndHour = Math.floor(maxEndTimeInMinutes / 60);
+    const maxEndMinute = maxEndTimeInMinutes % 60;
+    const maxEndTime = `${maxEndHour.toString().padStart(2, '0')}:${maxEndMinute.toString().padStart(2, '0').padEnd(2, '0')}`;
+
+    return allPossibleSlots.filter(slot => slot <= maxEndTime);
+  }, [startTime, availableTimeSlots, scheduledEvents, selectedBoat, editingEventId, companyData, dayOfWeek, isBusinessClosed]);
+
+
   // Effect to reset time if it becomes invalid
   useEffect(() => {
     if (!availableTimeSlots.includes(startTime)) {
       setStartTime(availableTimeSlots[0] || '');
     }
-    // Ensure endTime is always after startTime
-    const availableEndTimes = availableTimeSlots.filter(t => t > startTime);
-    if (!availableEndTimes.includes(endTime)) {
-      setEndTime(availableEndTimes[0] || '');
+    // Ensure endTime is always after startTime and is valid
+    if (!availableEndTimeSlots.includes(endTime) || endTime <= startTime) {
+      setEndTime(availableEndTimeSlots[0] || '');
     }
-  }, [availableTimeSlots, startTime, endTime]);
+  }, [availableTimeSlots, availableEndTimeSlots, startTime, endTime]);
 
 
   return {
@@ -539,6 +570,7 @@ export const useCreateEventViewModel = () => {
     isSearching,
     loyaltySuggestion,
     availableTimeSlots,
+    availableEndTimeSlots,
     // Modal state
     isModalOpen,
     editingClient,

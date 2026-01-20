@@ -18,19 +18,23 @@ const TimePicker: React.FC<{
   onChange: (value: string) => void;
   options: string[];
   disabled?: boolean;
-}> = ({ label, value, onChange, options, disabled }) => (
-  <div>
-    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
+}> = ({ label, value, onChange, options, disabled }) => {
+  const id = `time-picker-${label.toLowerCase().replace(/\s+/g, '-')}`;
+  return (
+    <div>
+      <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <select
+        id={id}
+        value={value}
+        onChange={e => onChange(e.target.value)}
       disabled={disabled}
       className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 disabled:bg-gray-200 disabled:cursor-not-allowed"
     >
       {options.map(time => <option key={time} value={time}>{time}</option>)}
     </select>
   </div>
-);
+  );
+};
 
 
 const DynamicIcon = ({ name, ...props }: { name: string } & LucideProps) => {
@@ -424,7 +428,7 @@ export const CreateEventScreen: React.FC = () => {
                       label="Término"
                       value={vm.endTime}
                       onChange={vm.setEndTime}
-                      options={vm.availableTimeSlots.filter(t => t > vm.startTime)}
+                      options={vm.availableEndTimeSlots}
                       disabled={vm.isBusinessClosed}
                     />
                   </>
