@@ -1,7 +1,7 @@
 // src/viewmodels/useCreateEventViewModel.ts
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import type { BusinessHours, DayOfWeek, Product, Discount, SelectedProduct, ClientProfile, Boat, EventType, PaymentStatus } from '../core/domain/types';
+import type { BusinessHours, DayOfWeek, Product, Discount, SelectedProduct, ClientProfile, Boat, EventType, PaymentStatus, CompanyData } from '../core/domain/types';
 import { LOYALTY_RULES } from '../core/data/mocks';
 import { clientRepository } from '../core/repositories/ClientRepository';
 import { productRepository } from '../core/repositories/ProductRepository';
@@ -58,8 +58,8 @@ export const useCreateEventViewModel = () => {
   const [confirmationAction, setConfirmationAction] = useState<(() => void) | null>(null);
   const [confirmationMessage, setConfirmationMessage] = useState({ title: '', message: '' });
 
-  // Business Hours
-  const [businessHours, setBusinessHours] = useState<BusinessHours | null>(null);
+  // Company Data
+  const [companyData, setCompanyData] = useState<CompanyData | null>(null);
 
   // Effect to load event for editing
   useEffect(() => {
@@ -99,9 +99,9 @@ export const useCreateEventViewModel = () => {
       const products = await productRepository.getAll();
       const boats = await boatRepository.getAll();
       const boardingLocations = await boardingLocationRepository.getAll();
-      const companyData = await CompanyDataRepository.getInstance().get();
+      const companyDataResponse = await CompanyDataRepository.getInstance().get();
 
-      setBusinessHours(companyData.businessHours);
+      setCompanyData(companyDataResponse);
       setAvailableProducts(products);
       setAvailableBoats(boats);
       setAvailableBoardingLocations(boardingLocations);
@@ -431,57 +431,67 @@ export const useCreateEventViewModel = () => {
   }, [selectedDate]);
 
   const isBusinessClosed = useMemo(() => {
-    if (!businessHours || !dayOfWeek) return true;
-    const dayConfig = businessHours[dayOfWeek];
+    if (!companyData?.businessHours || !dayOfWeek) return true;
+    const dayConfig = companyData.businessHours[dayOfWeek];
     return dayConfig.isClosed || !dayConfig.startTime || !dayConfig.endTime;
-  }, [businessHours, dayOfWeek]);
+  }, [companyData, dayOfWeek]);
 
   const availableTimeSlots = useMemo(() => {
-    // 1. Generate all possible 30-minute slots in a 24-hour day
-    const allDaySlots = [];
-    for (let h = 0; h < 24; h++) {
-      allDaySlots.push(`${h.toString().padStart(2, '0')}:00`);
-      allDaySlots.push(`${h.toString().padStart(2, '0')}:30`);
-    }
+    // 1. Generate all possible 30-minute slots
+    const allDaySlots = Array.from({ length: 48 }, (_, i) => {
+      const hours = Math.floor(i / 2).toString().padStart(2, '0');
+      const minutes = (i % 2 === 0 ? '00' : '30');
+      return `${hours}:${minutes}`;
+    });
 
     // 2. Filter by business hours
-    let businessHourSlots = allDaySlots;
-    if (businessHours && dayOfWeek && !isBusinessClosed) {
-      const { startTime, endTime } = businessHours[dayOfWeek];
-
-      // Subtract 30 minutes from the end time
-      const [endHour, endMinute] = endTime.split(':').map(Number);
-      let closingTime = new Date();
-      closingTime.setHours(endHour, endMinute, 0, 0);
-      closingTime.setMinutes(closingTime.getMinutes() - 30);
-      const finalEndTime = `${closingTime.getHours().toString().padStart(2, '0')}:${closingTime.getMinutes().toString().padStart(2, '0')}`;
-
-      businessHourSlots = allDaySlots.filter(slot => slot >= startTime && slot <= finalEndTime);
-    } else {
-      // If the business is closed, return no slots.
+    if (!companyData || isBusinessClosed || !dayOfWeek) {
       return [];
     }
+    const { startTime, endTime } = companyData.businessHours[dayOfWeek];
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+    const closingDate = new Date();
+    closingDate.setHours(endHour, endMinute, 0, 0);
+    closingDate.setMinutes(closingDate.getMinutes() - 30); // Last event must start 30 mins before closing
+    const finalEndTime = `${closingDate.getHours().toString().padStart(2, '0')}:${closingDate.getMinutes().toString().padStart(2, '0')}`;
 
-    // 3. Filter by existing events for the selected boat
+    let businessHourSlots = allDaySlots.filter(slot => slot >= startTime && slot <= finalEndTime);
+
+    // 3. Filter by existing events for the selected boat, including interval
     if (!selectedBoat) {
       return businessHourSlots;
     }
-    const boatEvents = scheduledEvents.filter(event => event.boat.id === selectedBoat.id);
-
-    // An event can be edited, so we should not check for conflicts with itself
-    const otherBoatEvents = boatEvents.filter(event => event.id !== editingEventId);
+    const otherBoatEvents = scheduledEvents.filter(event => event.boat.id === selectedBoat.id && event.id !== editingEventId);
     if (otherBoatEvents.length === 0) {
       return businessHourSlots;
     }
 
+    const { eventIntervalMinutes } = companyData;
+
     const isSlotBooked = (slot: string) => {
+      const [slotHour, slotMinute] = slot.split(':').map(Number);
+      const slotTime = slotHour * 60 + slotMinute;
+
       return otherBoatEvents.some(event => {
-        return slot >= event.startTime && slot < event.endTime;
+        const [eventStartHour, eventStartMinute] = event.startTime.split(':').map(Number);
+        const eventStartTime = eventStartHour * 60 + eventStartMinute;
+
+        const [eventEndHour, eventEndMinute] = event.endTime.split(':').map(Number);
+        const eventEndTime = eventEndHour * 60 + eventEndMinute;
+
+        // Create a "blocked" window around the event
+        const blockedWindowStart = eventStartTime - eventIntervalMinutes;
+        const blockedWindowEnd = eventEndTime + eventIntervalMinutes;
+
+        // A new event cannot start if its start time falls within the blocked window
+        // Note: The check is `< blockedWindowEnd` because if an event ends at 14:00 and interval is 30,
+        // the next can start at 14:30. The blocked window is up to, but not including, 14:30.
+        return slotTime >= blockedWindowStart && slotTime < blockedWindowEnd;
       });
     };
 
     return businessHourSlots.filter(slot => !isSlotBooked(slot));
-  }, [scheduledEvents, selectedBoat, editingEventId, businessHours, dayOfWeek, isBusinessClosed]);
+  }, [scheduledEvents, selectedBoat, editingEventId, companyData, dayOfWeek, isBusinessClosed]);
 
   // Effect to reset time if it becomes invalid
   useEffect(() => {

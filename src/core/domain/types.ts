@@ -124,6 +124,7 @@ export interface CompanyData {
   appName: string;
   reservationFeePercentage: number;
   businessHours: BusinessHours;
+  eventIntervalMinutes: number;
 }
 
 export interface VoucherTerms {
