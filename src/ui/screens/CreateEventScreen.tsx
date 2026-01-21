@@ -355,25 +355,6 @@ export const CreateEventScreen: React.FC = () => {
           <aside className="lg:col-span-1 space-y-6">
             <section className="bg-white p-4 rounded-lg shadow">
               <h2 className="text-lg font-semibold mb-3 border-b pb-2">Agendamento</h2>
-              {/* Boat Selection */}
-              <div className="mb-4">
-                  <label htmlFor="boat-select" className="block text-sm font-medium text-gray-700 mb-1">Lancha</label>
-                  <select id="boat-select" value={vm.selectedBoat?.id || ''} onChange={(e) => vm.handleBoatSelection(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
-                      {vm.availableBoats.map(boat => (
-                          <option key={boat.id} value={boat.id}>{boat.name} (Cap: {boat.capacity})</option>
-                      ))}
-                  </select>
-              </div>
-
-              {/* Boarding Location Selection */}
-              <div className="mb-4">
-                  <label htmlFor="boarding-location-select" className="block text-sm font-medium text-gray-700 mb-1">Local de Embarque</label>
-                  <select id="boarding-location-select" value={vm.selectedBoardingLocation?.id || ''} onChange={(e) => vm.handleBoardingLocationSelection(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
-                      {vm.availableBoardingLocations.map(location => (
-                          <option key={location.id} value={location.id}>{location.name}</option>
-                      ))}
-                  </select>
-              </div>
 
               {/* Pre-schedule Toggle */}
               <div className="mb-4">
@@ -433,6 +414,26 @@ export const CreateEventScreen: React.FC = () => {
                     />
                   </>
                 )}
+              </div>
+
+              {/* Boat Selection */}
+              <div className="mt-4">
+                  <label htmlFor="boat-select" className="block text-sm font-medium text-gray-700 mb-1">Lancha</label>
+                  <select id="boat-select" value={vm.selectedBoat?.id || ''} onChange={(e) => vm.handleBoatSelection(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
+                      {vm.availableBoats.map(boat => (
+                          <option key={boat.id} value={boat.id}>{boat.name} (Cap: {boat.capacity})</option>
+                      ))}
+                  </select>
+              </div>
+
+              {/* Boarding Location Selection */}
+              <div className="mt-4">
+                  <label htmlFor="boarding-location-select" className="block text-sm font-medium text-gray-700 mb-1">Local de Embarque</label>
+                  <select id="boarding-location-select" value={vm.selectedBoardingLocation?.id || ''} onChange={(e) => vm.handleBoardingLocationSelection(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
+                      {vm.availableBoardingLocations.map(location => (
+                          <option key={location.id} value={location.id}>{location.name}</option>
+                      ))}
+                  </select>
               </div>
             </section>
           </aside>
