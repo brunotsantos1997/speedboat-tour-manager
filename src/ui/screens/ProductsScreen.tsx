@@ -13,7 +13,7 @@ const ProductModal: React.FC<{
   product: Partial<Product> | null;
   onSave: () => void;
   onClose: () => void;
-  onUpdate: (field: keyof Product, value: any) => void;
+  onUpdate: (field: keyof Product, value: string | number | boolean) => void;
 }> = ({ isOpen, product, onSave, onClose, onUpdate }) => {
   if (!isOpen || !product) return null;
 

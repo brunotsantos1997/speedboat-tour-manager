@@ -19,7 +19,7 @@ export const VoucherAppearanceScreen: React.FC = () => {
             setPreview(newImage);
           }
           showToast('Marca d\'água atualizada com sucesso!');
-        } catch (err) {
+        } catch {
           showToast('Erro ao atualizar a marca d\'água.');
         }
       }

@@ -15,6 +15,7 @@ import { LoginScreen } from './ui/screens/LoginScreen';
 import { SignupScreen } from './ui/screens/SignupScreen';
 import { PendingApprovalScreen } from './ui/screens/PendingApprovalScreen';
 import { UserManagementScreen } from './ui/screens/UserManagementScreen';
+import { CommissionReportScreen } from './ui/screens/CommissionReportScreen'; // Import new screen
 import { ProtectedRoute } from './ui/components/ProtectedRoute';
 import { initializeMockRepositories } from './core/repositories';
 
@@ -25,14 +26,16 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public routes */}
+        {/* Public routes that don't use any layout */}
         <Route path="/login" element={<LoginScreen />} />
         <Route path="/signup" element={<SignupScreen />} />
         <Route path="/pending-approval" element={<PendingApprovalScreen />} />
+
+        {/* Public voucher route with a specific public layout */}
         <Route path="/voucher/:eventId" element={<PublicLayout><VoucherScreen /></PublicLayout>} />
 
-        {/* Protected Admin Routes */}
-        <Route path="/" element={<ProtectedRoute />}>
+        {/* Protected Admin Routes with the main Layout */}
+        <Route path="/" element={<ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'OWNER']} />}>
           <Route element={<Layout />}>
             <Route index element={<DashboardScreen />} />
             <Route path="create-event" element={<CreateEventScreen />} />
@@ -43,31 +46,15 @@ function App() {
             <Route path="clients" element={<ClientHistoryScreen />} />
             <Route path="company-data" element={<CompanyDataScreen />} />
             <Route path="voucher-appearance" element={<VoucherAppearanceScreen />} />
+
+            {/* Routes for SUPER_ADMIN and OWNER only */}
+            <Route path="admin/users" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'OWNER']}><UserManagementScreen /></ProtectedRoute>} />
+            <Route path="commission-report" element={<ProtectedRoute allowedRoles={['ADMIN', 'OWNER']}><CommissionReportScreen /></ProtectedRoute>} />
           </Route>
         </Route>
 
-        {/* SUPER_ADMIN and OWNER Routes */}
-        <Route path="/admin" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'OWNER']} />}>
-            <Route element={<Layout />}>
-                <Route path="users" element={<UserManagementScreen />} />
-            </Route>
-        </Route>
-
-        {/* Rota Pública para o Voucher (não usa o Layout principal) */}
-        <Route path="/voucher/:eventId" element={<PublicLayout><VoucherScreen /></PublicLayout>} />
-
-        {/* Rotas Administrativas com Layout Principal */}
-        <Route path="/" element={<Layout />}>
-          <Route index element={<DashboardScreen />} />
-          <Route path="create-event" element={<CreateEventScreen />} />
-          <Route path="products" element={<ProductsScreen />} />
-          <Route path="boats" element={<BoatsScreen />} />
-          <Route path="boarding-locations" element={<BoardingLocationsScreen />} />
-          <Route path="voucher-terms" element={<VoucherTermsScreen />} />
-          <Route path="clients" element={<ClientHistoryScreen />} />
-          <Route path="company-data" element={<CompanyDataScreen />} />
-          <Route path="voucher-appearance" element={<VoucherAppearanceScreen />} />
-        </Route>
+        {/* Fallback for any other route could be a 404 page, but for now, we redirect to login or dashboard */}
+        <Route path="*" element={<LoginScreen />} />
       </Routes>
     </BrowserRouter>
   );

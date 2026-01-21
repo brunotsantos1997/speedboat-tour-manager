@@ -8,4 +8,5 @@ export interface User {
   passwordHash: string;
   status: UserStatus;
   role: UserRole;
+  commissionPercentage?: number;
 }

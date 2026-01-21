@@ -13,12 +13,13 @@ interface AuthContextType {
   logout: () => void;
   updateUserStatus: (userId: string, status: UserStatus) => Promise<void>;
   updateUserRole: (userId: string, role: UserRole) => Promise<void>;
+  updateUserCommission: (userId: string, commission: number) => Promise<void>;
   getAllUsers: () => Promise<User[]>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const userRepository: IUserRepository = new MockUserRepository();
+const userRepository: IUserRepository = MockUserRepository.getInstance();
 const SESSION_KEY = 'auth_user_id';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -127,6 +128,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await userRepository.update(user);
   };
 
+  const updateUserCommission = async (userId: string, commission: number): Promise<void> => {
+    if (commission < 0 || commission > 100) {
+      throw new Error('Commission percentage must be between 0 and 100.');
+    }
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new Error('User not found.');
+    }
+    user.commissionPercentage = commission;
+    await userRepository.update(user);
+  };
+
 
   const value = {
     currentUser,
@@ -136,6 +149,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     logout,
     updateUserStatus,
     updateUserRole,
+    updateUserCommission,
     getAllUsers
   };
 

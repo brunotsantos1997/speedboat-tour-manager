@@ -16,7 +16,7 @@ export const useVoucherTermsViewModel = () => {
         setIsLoading(true);
         const data = await repository.get();
         setVoucherTerms(data);
-      } catch (e) {
+      } catch {
         setError('Failed to load voucher terms.');
       } finally {
         setIsLoading(false);

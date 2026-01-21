@@ -7,26 +7,47 @@ const STORAGE_KEY = 'mock_users';
 const OWNER_EMAIL = 'bruno.t.santos1997@hotmail.com';
 
 export class MockUserRepository implements IUserRepository {
+  private static instance: MockUserRepository;
   private users: User[] = [];
 
-  constructor() {
+  private constructor() {
     this.loadUsersFromStorage();
     this.seedOwner();
+  }
+
+  public static getInstance(): MockUserRepository {
+    if (!MockUserRepository.instance) {
+      MockUserRepository.instance = new MockUserRepository();
+    }
+    return MockUserRepository.instance;
   }
 
   private async seedOwner() {
     const ownerExists = this.users.some(user => user.email === OWNER_EMAIL);
     if (!ownerExists) {
-      const passwordHash = await bcrypt.hash('Bruno@06252422', 10);
+      const ownerPasswordHash = await bcrypt.hash('Bruno@06252422', 10);
       const owner: User = {
         id: uuidv4(),
         name: 'Bruno',
         email: OWNER_EMAIL,
-        passwordHash,
+        passwordHash: ownerPasswordHash,
         role: 'OWNER',
         status: 'APPROVED',
+        commissionPercentage: 0,
       };
-      this.users.push(owner);
+
+      const adminPasswordHash = await bcrypt.hash('admin', 10);
+      const adminUser: User = {
+        id: uuidv4(),
+        name: 'Admin User',
+        email: 'admin@test.com',
+        passwordHash: adminPasswordHash,
+        role: 'ADMIN',
+        status: 'APPROVED',
+        commissionPercentage: 10,
+      };
+
+      this.users.push(owner, adminUser);
       this.commit();
     }
   }
@@ -34,7 +55,11 @@ export class MockUserRepository implements IUserRepository {
   private loadUsersFromStorage() {
     const storedUsers = localStorage.getItem(STORAGE_KEY);
     if (storedUsers) {
-      this.users = JSON.parse(storedUsers);
+      const parsedUsers: User[] = JSON.parse(storedUsers);
+      this.users = parsedUsers.map(user => ({
+        ...user,
+        commissionPercentage: user.commissionPercentage ?? 0,
+      }));
     }
   }
 
