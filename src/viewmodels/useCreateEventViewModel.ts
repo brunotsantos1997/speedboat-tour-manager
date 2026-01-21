@@ -1,6 +1,7 @@
 // src/viewmodels/useCreateEventViewModel.ts
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import type { DayOfWeek, Product, Discount, SelectedProduct, ClientProfile, Boat, EventType, PaymentStatus, CompanyData } from '../core/domain/types';
 import { LOYALTY_RULES } from '../core/data/mocks';
 import { clientRepository } from '../core/repositories/ClientRepository';
@@ -13,9 +14,11 @@ import type { BoardingLocation } from '../core/domain/types';
 import { boardingLocationRepository } from '../core/repositories/MockBoardingLocationRepository';
 
 export const useCreateEventViewModel = () => {
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [editingEventId, setEditingEventId] = useState<string | null>(searchParams.get('eventId'));
+  const [originalEvent, setOriginalEvent] = useState<EventType | null>(null);
   const [originalPaymentStatus, setOriginalPaymentStatus] = useState<PaymentStatus | undefined>(undefined);
 
   // Event State
@@ -67,6 +70,7 @@ export const useCreateEventViewModel = () => {
       if (editingEventId) {
         const event = await eventRepository.getById(editingEventId);
         if (event) {
+          setOriginalEvent(event);
           // Be careful with date parsing, ensure correct timezone handling
           const eventDate = new Date(event.date);
           const userTimezoneOffset = eventDate.getTimezoneOffset() * 60000;
@@ -87,6 +91,8 @@ export const useCreateEventViewModel = () => {
           console.error("Event to edit not found!");
           setEditingEventId(null); // Clear ID if not found
         }
+      } else {
+        setOriginalEvent(null);
       }
     };
 
@@ -382,10 +388,19 @@ export const useCreateEventViewModel = () => {
     };
 
     if (editingEventId) {
-      const updatedEvent = { ...eventData, id: editingEventId };
-      await eventRepository.updateEvent(updatedEvent);
+      const updatedEvent = {
+        ...eventData,
+        id: editingEventId,
+        // Preserve the original creator, do not assign a new one
+        createdByUserId: originalEvent?.createdByUserId,
+      };
+      await eventRepository.updateEvent(updatedEvent as EventType);
     } else {
-      await eventRepository.add(eventData);
+      const newEventData = {
+        ...eventData,
+        createdByUserId: currentUser?.id,
+      };
+      await eventRepository.add(newEventData);
     }
     navigate(`/clients?clientId=${selectedClient.id}`);
   }, [
@@ -403,7 +418,10 @@ export const useCreateEventViewModel = () => {
     editingEventId,
     selectedBoardingLocation,
     observations,
-    isPreScheduled
+    isPreScheduled,
+    currentUser,
+    originalEvent,
+    originalPaymentStatus,
   ]);
 
   // Side Effects: Loyalty Checks (same as before)
@@ -455,7 +473,7 @@ export const useCreateEventViewModel = () => {
     closingDate.setMinutes(closingDate.getMinutes() - 30); // Last event must start 30 mins before closing
     const finalEndTime = `${closingDate.getHours().toString().padStart(2, '0')}:${closingDate.getMinutes().toString().padStart(2, '0')}`;
 
-    let businessHourSlots = allDaySlots.filter(slot => slot >= startTime && slot <= finalEndTime);
+    const businessHourSlots = allDaySlots.filter(slot => slot >= startTime && slot <= finalEndTime);
 
     // 3. Filter by existing events for the selected boat, including interval
     if (!selectedBoat) {

@@ -16,7 +16,7 @@ export const useVoucherAppearanceViewModel = () => {
         setIsLoading(true);
         const data = await repository.get();
         setAppearanceData(data);
-      } catch (e) {
+      } catch {
         setError('Failed to load voucher appearance data.');
       } finally {
         setIsLoading(false);

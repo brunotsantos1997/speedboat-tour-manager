@@ -1,7 +1,7 @@
 // src/ui/components/Layout.tsx
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Menu, PlusCircle, Settings, Users, LayoutDashboard, Palette, UserCog } from 'lucide-react';
+import { Menu, PlusCircle, Settings, Users, LayoutDashboard, Palette, UserCog, TrendingUp } from 'lucide-react';
 import { useCompanyDataViewModel } from '../../viewmodels/CompanyDataViewModel';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -71,6 +71,15 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
             </NavLink>
           )}
 
+          {(currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN') && (
+            <NavLink to="/commission-report" className={navLinkClass} onClick={onClose}>
+              <div className="flex items-center">
+                <TrendingUp className="mr-3" />
+                <span>Relatório de Comissão</span>
+              </div>
+            </NavLink>
+          )}
+
           {/* Settings Dropdown */}
           <div>
             <button
@@ -129,7 +138,7 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
   );
 };
 
-export const Layout: React.FC = () => {
+export const Layout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const { companyData } = useCompanyDataViewModel();
   const [appName, setAppName] = useState('BoatManager');
@@ -155,7 +164,7 @@ export const Layout: React.FC = () => {
         </header>
 
         <main className="flex-1 overflow-y-auto">
-          <Outlet />
+          {children || <Outlet />}
         </main>
       </div>
     </div>

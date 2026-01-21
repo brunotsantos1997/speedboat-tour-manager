@@ -13,7 +13,7 @@ export const useBoardingLocationsViewModel = () => {
       setLocations(data);
       setIsLoading(false);
     });
-  }, []);
+  }, [repository]);
 
   const addLocation = async (location: Omit<BoardingLocation, 'id'>) => {
     const newLocation = await repository.add(location);

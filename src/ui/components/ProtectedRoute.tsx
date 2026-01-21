@@ -1,15 +1,16 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import React from 'react';
 
 interface ProtectedRouteProps {
   allowedRoles?: string[];
+  children?: React.ReactNode;
 }
 
-export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
+export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) {
   const { currentUser, loading } = useAuth();
 
   if (loading) {
-    // You can replace this with a proper loading spinner component
     return <div>Loading...</div>;
   }
 
@@ -22,14 +23,12 @@ export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
   }
 
   if (currentUser.status === 'REJECTED') {
-      // You might want to create a specific page for this
       return <Navigate to="/login?error=rejected" replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
-    // Redirect to a 'not authorized' page or to the home page
     return <Navigate to="/" replace />;
   }
 
-  return <Outlet />;
+  return children ? <>{children}</> : <Outlet />;
 }

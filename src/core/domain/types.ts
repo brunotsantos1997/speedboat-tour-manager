@@ -78,6 +78,7 @@ export interface EventType {
   total: number;
   observations?: string;
   isAcknowledged?: boolean; // For dashboard notifications
+  createdByUserId?: string;
 }
 
 /**
@@ -132,3 +133,13 @@ export interface VoucherTerms {
   terms: string;
 }
 
+export interface CommissionReportEntry {
+  userId: string;
+  userName: string;
+  eventId: string;
+  eventDate: string;
+  eventTotalPrice: number;
+  commissionPercentage: number;
+  commissionValue: number;
+  clientName: string;
+}
