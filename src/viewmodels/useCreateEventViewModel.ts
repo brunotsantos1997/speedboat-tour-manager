@@ -516,31 +516,39 @@ export const useCreateEventViewModel = () => {
       return [];
     }
 
-    // All possible slots after the selected start time
-    const allPossibleSlots = availableTimeSlots.filter(slot => slot > startTime);
+    // 1. Generate all possible 30-minute slots for the entire day
+    const allDaySlots = Array.from({ length: 48 }, (_, i) => {
+      const hours = Math.floor(i / 2).toString().padStart(2, '0');
+      const minutes = (i % 2 === 0 ? '00' : '30');
+      return `${hours}:${minutes}`;
+    });
 
-    // Find the next scheduled event for the selected boat
+    // 2. Filter for slots strictly after the selected start time and up to business closing time
+    const { endTime: businessEndTime } = companyData.businessHours[dayOfWeek];
+    let possibleEndTimes = allDaySlots.filter(slot => slot > startTime && slot <= businessEndTime);
+
+    // 3. Find the next scheduled event for the selected boat
     const nextEvent = scheduledEvents
       .filter(event => event.boat.id === selectedBoat?.id && event.id !== editingEventId && event.startTime > startTime)
       .sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
 
-    if (!nextEvent) {
-      // No upcoming events, so all slots until the end of the business day are available
-      const { endTime: businessEndTime } = companyData.businessHours[dayOfWeek];
-      return allPossibleSlots.filter(slot => slot <= businessEndTime);
+    // 4. If there's a next event, limit the end time to before the interval
+    if (nextEvent) {
+      const [nextStartHour, nextStartMinute] = nextEvent.startTime.split(':').map(Number);
+      const nextStartTimeInMinutes = nextStartHour * 60 + nextStartMinute;
+      const maxEndTimeInMinutes = nextStartTimeInMinutes - companyData.eventIntervalMinutes;
+
+      const maxEndHour = Math.floor(maxEndTimeInMinutes / 60);
+      const maxEndMinute = maxEndTimeInMinutes % 60;
+      // Ensure minutes are correctly formatted (e.g., '00', '30')
+      const formattedMaxEndMinute = maxEndMinute.toString().padStart(2, '0');
+      const maxEndTime = `${maxEndHour.toString().padStart(2, '0')}:${formattedMaxEndMinute}`;
+
+      possibleEndTimes = possibleEndTimes.filter(slot => slot <= maxEndTime);
     }
 
-    // Upcoming event exists, calculate the maximum allowed end time
-    const [nextStartHour, nextStartMinute] = nextEvent.startTime.split(':').map(Number);
-    const nextStartTimeInMinutes = nextStartHour * 60 + nextStartMinute;
-    const maxEndTimeInMinutes = nextStartTimeInMinutes - companyData.eventIntervalMinutes;
-
-    const maxEndHour = Math.floor(maxEndTimeInMinutes / 60);
-    const maxEndMinute = maxEndTimeInMinutes % 60;
-    const maxEndTime = `${maxEndHour.toString().padStart(2, '0')}:${maxEndMinute.toString().padStart(2, '0').padEnd(2, '0')}`;
-
-    return allPossibleSlots.filter(slot => slot <= maxEndTime);
-  }, [startTime, availableTimeSlots, scheduledEvents, selectedBoat, editingEventId, companyData, dayOfWeek, isBusinessClosed]);
+    return possibleEndTimes;
+  }, [startTime, scheduledEvents, selectedBoat, editingEventId, companyData, dayOfWeek, isBusinessClosed]);
 
 
   // Effect to reset time if it becomes invalid
