@@ -1,12 +1,32 @@
 // src/ui/components/Layout.tsx
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Menu, PlusCircle, Settings, Users, LayoutDashboard, Palette } from 'lucide-react';
+import { Menu, PlusCircle, Settings, Users, LayoutDashboard, Palette, UserCog } from 'lucide-react';
 import { useCompanyDataViewModel } from '../../viewmodels/CompanyDataViewModel';
+import { useAuth } from '../../contexts/AuthContext';
+
 
 const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string }> = ({ isOpen, onClose, appName }) => {
+  const { currentUser, getAllUsers } = useAuth();
+  const [pendingUsersCount, setPendingUsersCount] = useState(0);
+
+  useEffect(() => {
+    if (currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'OWNER') {
+      const fetchPendingUsers = async () => {
+        try {
+          const users = await getAllUsers();
+          const pendingCount = users.filter(u => u.status === 'PENDING').length;
+          setPendingUsersCount(pendingCount);
+        } catch (error) {
+          console.error("Failed to fetch pending users:", error);
+        }
+      };
+      fetchPendingUsers();
+    }
+  }, [currentUser, getAllUsers]);
+
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center px-4 py-3 text-lg font-semibold rounded-lg transition-colors ${
+    `flex items-center justify-between px-4 py-3 text-lg font-semibold rounded-lg transition-colors ${
       isActive ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-200'
     }`;
 
@@ -34,8 +54,23 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
           </NavLink>
           <NavLink to="/create-event" className={navLinkClass} onClick={onClose}>
             <PlusCircle className="mr-3" />
-            Criar Passeio
+            <span>Criar Passeio</span>
           </NavLink>
+
+          {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'OWNER') && (
+            <NavLink to="/admin/users" className={navLinkClass} onClick={onClose}>
+              <div className="flex items-center">
+                <UserCog className="mr-3" />
+                <span>Gerenciar Usuários</span>
+              </div>
+              {pendingUsersCount > 0 && (
+                <span className="flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-500 rounded-full">
+                  {pendingUsersCount}
+                </span>
+              )}
+            </NavLink>
+          )}
+
           {/* Settings Dropdown */}
           <div>
             <button
