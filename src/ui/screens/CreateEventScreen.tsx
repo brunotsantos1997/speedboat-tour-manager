@@ -1,14 +1,14 @@
 // src/ui/screens/CreateEventScreen.tsx
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Anchor, Utensils, Beer, User, Circle, HelpCircle, Users, Search, X, Package, Pencil, Trash2, AlertTriangle, Minus, Plus } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import { useCreateEventViewModel } from '../../viewmodels/useCreateEventViewModel';
 import { useToastContext } from '../../ui/contexts/ToastContext';
 import type { Product, ClientProfile } from '../../core/domain/types';
-import InputMask from 'react-input-mask';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import { ptBR } from 'date-fns/locale';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 // --- Components ---
 
@@ -17,13 +17,15 @@ const TimePicker: React.FC<{
   value: string;
   onChange: (value: string) => void;
   options: string[];
-}> = ({ label, value, onChange, options }) => (
+  disabled?: boolean;
+}> = ({ label, value, onChange, options, disabled }) => (
   <div>
     <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
     <select
       value={value}
       onChange={e => onChange(e.target.value)}
-      className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
+      disabled={disabled}
+      className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 disabled:bg-gray-200 disabled:cursor-not-allowed"
     >
       {options.map(time => <option key={time} value={time}>{time}</option>)}
     </select>
@@ -123,20 +125,13 @@ const NewClientModal: React.FC<{
             onChange={(e) => setName(e.target.value)}
             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           />
-          <InputMask
-            mask="+55 (99) 99999-9999"
-            value={phone}
+          <input
+            type="tel"
+            placeholder="Telefone (WhatsApp)"
+            value={phone || ''}
             onChange={(e) => setPhone(e.target.value)}
-          >
-            {(inputProps: any) => (
-              <input
-                {...inputProps}
-                type="tel"
-                placeholder="Telefone (WhatsApp)"
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            )}
-          </InputMask>
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          />
         </div>
         <div className="flex justify-end space-x-3 mt-6">
           <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">
@@ -158,17 +153,16 @@ export const CreateEventScreen: React.FC = () => {
   const { showToast } = useToastContext();
   const isProductSelected = (product: Product) => vm.selectedProducts.some(p => p.id === product.id);
 
-  const bookedDays = vm.scheduledEvents.map(event => new Date(event.date));
-
-  // --- Time Slot Generation ---
-  const timeOptions = useMemo(() => {
-    const options = [];
-    for (let h = 8; h <= 20; h++) {
-      options.push(`${h.toString().padStart(2, '0')}:00`);
-      options.push(`${h.toString().padStart(2, '0')}:30`);
+  const handleSaveClientWithToast = async () => {
+    try {
+      await vm.handleSaveClient();
+      showToast(vm.editingClient ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!');
+    } catch (error: any) {
+      showToast(error.message || 'Ocorreu um erro ao salvar o cliente.');
     }
-    return options;
-  }, []);
+  };
+
+  const bookedDays = vm.scheduledEvents.map(event => new Date(event.date));
 
   return (
     <div className="bg-gray-50 font-sans text-gray-800">
@@ -308,13 +302,13 @@ export const CreateEventScreen: React.FC = () => {
                               label="Início"
                               value={selectedProd?.startTime || ''}
                               onChange={(time) => vm.updateHourlyProductTime(product.id, time, 'start')}
-                              options={timeOptions}
+                              options={vm.availableTimeSlots}
                             />
                             <TimePicker
                               label="Fim"
                               value={selectedProd?.endTime || ''}
                               onChange={(time) => vm.updateHourlyProductTime(product.id, time, 'end')}
-                              options={timeOptions.filter(t => t > (selectedProd?.startTime || ''))}
+                              options={vm.availableTimeSlots.filter(t => t > (selectedProd?.startTime || ''))}
                             />
                           </div>
                         )}
@@ -341,6 +335,18 @@ export const CreateEventScreen: React.FC = () => {
                 </div>
               </section>
             )}
+
+            {/* Section: Observations */}
+            <section>
+              <h2 className="text-lg font-semibold mb-3">Observações</h2>
+              <textarea
+                value={vm.observations}
+                onChange={(e) => vm.setObservations(e.target.value)}
+                placeholder="Adicione observações que aparecerão no voucher do cliente..."
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                rows={4}
+              />
+            </section>
           </div>
 
           {/* Right Column: Scheduling */}
@@ -367,6 +373,26 @@ export const CreateEventScreen: React.FC = () => {
                   </select>
               </div>
 
+              {/* Pre-schedule Toggle */}
+              <div className="mb-4">
+                <label htmlFor="pre-schedule-toggle" className="flex items-center justify-between cursor-pointer">
+                  <span className="font-medium text-gray-700">Pré-reserva</span>
+                  <div className="relative inline-flex items-center">
+                    <input
+                      type="checkbox"
+                      id="pre-schedule-toggle"
+                      className="sr-only peer"
+                      checked={vm.isPreScheduled}
+                      onChange={(e) => vm.setIsPreScheduled(e.target.checked)}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                  </div>
+                </label>
+                <p className="text-xs text-gray-500 mt-1">
+                  A pré-reserva fica pendente por 24h. Se não for confirmada, a vaga é liberada.
+                </p>
+              </div>
+
               {/* Calendar */}
               <DayPicker
                 mode="single"
@@ -380,18 +406,29 @@ export const CreateEventScreen: React.FC = () => {
 
               {/* Time Pickers */}
               <div className="grid grid-cols-2 gap-4 mt-4">
-                <TimePicker
-                  label="Início"
-                  value={vm.startTime}
-                  onChange={vm.setStartTime}
-                  options={timeOptions}
-                />
-                <TimePicker
-                  label="Término"
-                  value={vm.endTime}
-                  onChange={vm.setEndTime}
-                  options={timeOptions.filter(t => t > vm.startTime)}
-                />
+                {vm.isBusinessClosed ? (
+                  <div className="col-span-2 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 rounded-md">
+                    <p className="font-bold">Fechado neste dia</p>
+                    <p className="text-sm">Por favor, selecione outra data para ver os horários disponíveis.</p>
+                  </div>
+                ) : (
+                  <>
+                    <TimePicker
+                      label="Início"
+                      value={vm.startTime}
+                      onChange={vm.setStartTime}
+                      options={vm.availableTimeSlots}
+                      disabled={vm.isBusinessClosed}
+                    />
+                    <TimePicker
+                      label="Término"
+                      value={vm.endTime}
+                      onChange={vm.setEndTime}
+                      options={vm.availableEndTimeSlots}
+                      disabled={vm.isBusinessClosed}
+                    />
+                  </>
+                )}
               </div>
             </section>
           </aside>
@@ -422,16 +459,17 @@ export const CreateEventScreen: React.FC = () => {
           </div>
           {/* Action Button */}
           <button
-            onClick={() => {
-              vm.createEvent().then(() => {
+            onClick={async () => {
+              try {
+                await vm.createEvent();
                 showToast(vm.editingEventId ? 'Passeio atualizado com sucesso!' : 'Passeio agendado com sucesso!');
-              }).catch(() => {
-                showToast('Ocorreu um erro ao salvar o passeio.');
-              });
+              } catch (error: any) {
+                showToast(error.message || 'Ocorreu um erro ao salvar o passeio.');
+              }
             }}
-            className="px-8 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 text-lg font-bold shadow-lg"
+            className={`px-8 py-4 text-white rounded-lg text-lg font-bold shadow-lg transition-colors ${vm.isPreScheduled ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-600 hover:bg-green-700'}`}
           >
-            Agendar Passeio
+            {vm.isPreScheduled ? 'Pré-agendar Passeio' : 'Agendar Passeio'}
           </button>
         </div>
       </footer>
@@ -443,8 +481,16 @@ export const CreateEventScreen: React.FC = () => {
         phone={vm.newClientPhone}
         setName={vm.setNewClientName}
         setPhone={vm.setNewClientPhone}
-        onSave={vm.handleSaveClient}
+        onSave={handleSaveClientWithToast}
         onClose={vm.handleCloseModal}
+      />
+
+      <ConfirmationModal
+        isOpen={vm.isConfirmationModalOpen}
+        title={vm.confirmationMessage.title}
+        message={vm.confirmationMessage.message}
+        onConfirm={vm.confirmAction}
+        onCancel={vm.closeConfirmationModal}
       />
     </div>
   );

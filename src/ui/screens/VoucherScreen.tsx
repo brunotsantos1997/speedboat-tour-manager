@@ -79,6 +79,7 @@ export const VoucherScreen: React.FC = () => {
     total,
     reservationFee,
     remainingBalance,
+    observations,
   } = voucher;
 
   const watermarkStyle = watermark
@@ -105,6 +106,7 @@ export const VoucherScreen: React.FC = () => {
               </div>
             </div>
             <button
+              id="download-pdf-button"
               onClick={handleDownloadPdf}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
@@ -158,13 +160,32 @@ export const VoucherScreen: React.FC = () => {
                           )}
                       </div>
                     </div>
-                    <p className={`font-semibold ${item.isCourtesy ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                      R$ {item.price?.toFixed(2)}
-                    </p>
+                    <div className="text-right">
+                      <p className={`font-semibold ${item.isCourtesy ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                        {item.pricingType === 'PER_PERSON' && !item.isCourtesy
+                          ? `R$ ${((item.price || 0) * passengerCount).toFixed(2)}`
+                          : `R$ ${(item.price || 0).toFixed(2)}`}
+                      </p>
+                      {item.pricingType === 'PER_PERSON' && (
+                        <p className="text-xs text-gray-500">
+                          {item.isCourtesy ? "" : `(${passengerCount}x R$ ${(item.price || 0).toFixed(2)})`}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             </section>
+
+            {/* Observations */}
+            {observations && (
+              <section className="mb-8">
+                <h3 className="font-bold text-lg mb-4 text-gray-700">Observações</h3>
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-gray-700 whitespace-pre-line">{observations}</p>
+                </div>
+              </section>
+            )}
 
             {/* Financial Summary */}
             <section className="flex justify-end mb-8">

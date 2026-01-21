@@ -5,7 +5,6 @@ import { DashboardScreen } from './ui/screens/DashboardScreen';
 import { CreateEventScreen } from './ui/screens/CreateEventScreen';
 import { ProductsScreen } from './ui/screens/ProductsScreen';
 import { BoatsScreen } from './ui/screens/BoatsScreen';
-import { RentalPricesScreen } from './ui/screens/RentalPricesScreen';
 import { ClientHistoryScreen } from './ui/screens/ClientHistoryScreen';
 import { VoucherScreen } from './ui/screens/VoucherScreen';
 import { BoardingLocationsScreen } from './ui/screens/BoardingLocationsScreen';
@@ -17,6 +16,10 @@ import { SignupScreen } from './ui/screens/SignupScreen';
 import { PendingApprovalScreen } from './ui/screens/PendingApprovalScreen';
 import { UserManagementScreen } from './ui/screens/UserManagementScreen';
 import { ProtectedRoute } from './ui/components/ProtectedRoute';
+import { initializeMockRepositories } from './core/repositories';
+
+// Initialize mock data on app startup to prevent race conditions in development
+initializeMockRepositories();
 
 function App() {
   return (
@@ -51,6 +54,21 @@ function App() {
             </Route>
         </Route>
 
+        {/* Rota Pública para o Voucher (não usa o Layout principal) */}
+        <Route path="/voucher/:eventId" element={<PublicLayout><VoucherScreen /></PublicLayout>} />
+
+        {/* Rotas Administrativas com Layout Principal */}
+        <Route path="/" element={<Layout />}>
+          <Route index element={<DashboardScreen />} />
+          <Route path="create-event" element={<CreateEventScreen />} />
+          <Route path="products" element={<ProductsScreen />} />
+          <Route path="boats" element={<BoatsScreen />} />
+          <Route path="boarding-locations" element={<BoardingLocationsScreen />} />
+          <Route path="voucher-terms" element={<VoucherTermsScreen />} />
+          <Route path="clients" element={<ClientHistoryScreen />} />
+          <Route path="company-data" element={<CompanyDataScreen />} />
+          <Route path="voucher-appearance" element={<VoucherAppearanceScreen />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );

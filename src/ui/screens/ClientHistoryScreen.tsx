@@ -1,9 +1,12 @@
+/** @jsxImportSource react */
 // src/ui/screens/ClientHistoryScreen.tsx
 import React from 'react';
 import { useClientHistoryViewModel } from '../../viewmodels/useClientHistoryViewModel';
 import { Search, X, Calendar, Edit, Ban, CheckCircle, Clock, Pencil, FileText, Share2, DollarSign, AlertTriangle } from 'lucide-react';
-import type { EventStatus, PaymentStatus, Event as EventType, ClientProfile } from '../../core/domain/types';
+import type { EventStatus, PaymentStatus, EventType, ClientProfile } from '../../core/domain/types';
 import { useNavigate } from 'react-router-dom';
+import { useToastContext } from '../contexts/ToastContext';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 // This is the shared modal component. Let's define it here for simplicity,
 // but in a real app, it would be in its own file.
@@ -71,12 +74,17 @@ const PaymentStatusBadge: React.FC<{ status: PaymentStatus }> = ({ status }) => 
 
 
 const StatusBadge: React.FC<{ status: EventStatus }> = ({ status }) => {
-  const statusMap = {
+  const statusMap: Record<EventStatus, { text: string; color: string; icon: React.ReactElement }> = {
     SCHEDULED: { text: 'Agendado', color: 'blue', icon: <Clock size={14} /> },
+    PRE_SCHEDULED: { text: 'Pré-Agendado', color: 'yellow', icon: <Clock size={14} /> },
     COMPLETED: { text: 'Realizado', color: 'green', icon: <CheckCircle size={14} /> },
     CANCELLED: { text: 'Cancelado', color: 'red', icon: <Ban size={14} /> },
+    PENDING_REFUND: { text: 'Reembolso Pendente', color: 'orange', icon: <AlertTriangle size={14} /> },
+    REFUNDED: { text: 'Reembolsado', color: 'gray', icon: <CheckCircle size={14} /> },
+    ARCHIVED_COMPLETED: { text: 'Arquivado (Realizado)', color: 'gray', icon: <CheckCircle size={14} /> },
+    ARCHIVED_CANCELLED: { text: 'Arquivado (Cancelado)', color: 'gray', icon: <Ban size={14} /> },
   };
-  const { text, color, icon } = statusMap[status];
+  const { text, color, icon } = statusMap[status] ?? statusMap.CANCELLED;
 
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-${color}-100 text-${color}-800`}>
@@ -87,19 +95,20 @@ const StatusBadge: React.FC<{ status: EventStatus }> = ({ status }) => {
 };
 
 const EventCard: React.FC<{
-  event: EventType;
+  eventType: EventType;
   onCancel: (id: string) => void;
   onEdit: (id: string) => void;
   onConfirmPayment: (id: string) => void;
-}> = ({ event, onCancel, onEdit, onConfirmPayment }) => {
+}> = ({ eventType, onCancel, onEdit, onConfirmPayment }) => {
+  const { showToast } = useToastContext();
 
   const shareVoucher = (eventId: string) => {
     const url = `${window.location.origin}/voucher/${eventId}`;
     navigator.clipboard.writeText(url).then(() => {
-      alert('Link do voucher copiado para a área de transferência!');
+      showToast('Link do voucher copiado para a área de transferência!');
     }, (err) => {
       console.error('Falha ao copiar o link: ', err);
-      alert('Falha ao copiar o link.');
+      showToast('Falha ao copiar o link.');
     });
   };
 
@@ -107,31 +116,31 @@ const EventCard: React.FC<{
     <div className="bg-white p-4 rounded-lg shadow-md border transition-shadow hover:shadow-lg">
       <div className="flex justify-between items-start">
         <div>
-          <p className="font-bold text-lg text-gray-800">{event.boat.name}</p>
+          <p className="font-bold text-lg text-gray-800">{eventType.boat.name}</p>
           <p className="flex items-center text-gray-600 mt-1">
             <Calendar size={16} className="mr-2" />
-            {new Date(event.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} às {event.startTime}
+            {new Date(eventType.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} às {eventType.startTime}
           </p>
         </div>
         <div className="text-right">
-          <StatusBadge status={event.status} />
+          <StatusBadge status={eventType.status} />
           <div className="mt-1">
-            <PaymentStatusBadge status={event.paymentStatus || 'PENDING'} />
+            <PaymentStatusBadge status={eventType.paymentStatus || 'PENDING'} />
           </div>
         </div>
       </div>
 
       <div className="mt-4 border-t pt-4 flex flex-wrap justify-end gap-2">
-        <button onClick={() => shareVoucher(event.id)} className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 flex items-center"><Share2 size={14} className="mr-1" /> Compartilhar</button>
-        <a href={`/voucher/${event.id}`} target="_blank" rel="noopener noreferrer" className="px-3 py-1 text-sm bg-indigo-500 text-white rounded hover:bg-indigo-600 flex items-center"><FileText size={14} className="mr-1" /> Ver Voucher</a>
+        <button onClick={() => shareVoucher(eventType.id)} className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 flex items-center"><Share2 size={14} className="mr-1" /> Compartilhar</button>
+        <a href={`/voucher/${eventType.id}`} target="_blank" rel="noopener noreferrer" className="px-3 py-1 text-sm bg-indigo-500 text-white rounded hover:bg-indigo-600 flex items-center"><FileText size={14} className="mr-1" /> Ver Voucher</a>
 
-        {event.status === 'SCHEDULED' && (
+        {(eventType.status === 'SCHEDULED' || eventType.status === 'PRE_SCHEDULED') && (
           <>
-            {event.paymentStatus === 'PENDING' && (
-              <button onClick={() => onConfirmPayment(event.id)} className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 flex items-center"><DollarSign size={14} className="mr-1" /> Confirmar Pagamento</button>
+            {eventType.paymentStatus === 'PENDING' && (
+              <button onClick={() => onConfirmPayment(eventType.id)} className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 flex items-center"><DollarSign size={14} className="mr-1" /> Confirmar Pagamento</button>
             )}
-            <button onClick={() => onEdit(event.id)} className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"><Edit size={14} className="mr-1" /> Alterar</button>
-            <button onClick={() => onCancel(event.id)} className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 flex items-center"><Ban size={14} className="mr-1" /> Cancelar</button>
+            <button onClick={() => onEdit(eventType.id)} className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"><Edit size={14} className="mr-1" /> Alterar</button>
+            <button onClick={() => onCancel(eventType.id)} className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 flex items-center"><Ban size={14} className="mr-1" /> Cancelar</button>
           </>
         )}
       </div>
@@ -145,7 +154,7 @@ export const ClientHistoryScreen: React.FC = () => {
     const navigate = useNavigate();
 
     const handleEditEvent = (eventId: string) => {
-        navigate(`/?eventId=${eventId}`);
+        navigate(`/create-event?eventId=${eventId}`);
     };
 
     return (
@@ -190,10 +199,10 @@ export const ClientHistoryScreen: React.FC = () => {
                         {vm.isLoading ? <p>Carregando eventos...</p> : (
                             <div className="space-y-4">
                                 {vm.clientEvents.length > 0 ? (
-                                    vm.clientEvents.map(event => (
+                                    vm.clientEvents.map(eventType => (
                                        <EventCard
-                                          key={event.id}
-                                          event={event}
+                                          key={eventType.id}
+                                          eventType={eventType}
                                           onCancel={vm.cancelEvent}
                                           onEdit={handleEditEvent}
                                           onConfirmPayment={vm.confirmPayment}
@@ -216,6 +225,14 @@ export const ClientHistoryScreen: React.FC = () => {
                 onSave={vm.handleSaveChanges}
                 onClose={vm.closeEditModal}
             />
+
+      <ConfirmationModal
+        isOpen={vm.isConfirmationModalOpen}
+        title={vm.confirmationMessage.title}
+        message={vm.confirmationMessage.message}
+        onConfirm={vm.confirmAction}
+        onCancel={vm.closeConfirmationModal}
+      />
         </div>
     );
 };

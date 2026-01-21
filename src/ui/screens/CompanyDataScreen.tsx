@@ -1,34 +1,52 @@
 // src/ui/screens/CompanyDataScreen.tsx
 import React, { useState, useEffect } from 'react';
+import type { DayOfWeek } from '../../core/domain/types';
 import { useCompanyDataViewModel } from '../../viewmodels/CompanyDataViewModel';
 import { useToastContext } from '../contexts/ToastContext';
 
+const weekDays: { key: DayOfWeek; label: string }[] = [
+  { key: 'sunday', label: 'Domingo' },
+  { key: 'monday', label: 'Segunda-feira' },
+  { key: 'tuesday', label: 'Terça-feira' },
+  { key: 'wednesday', label: 'Quarta-feira' },
+  { key: 'thursday', label: 'Quinta-feira' },
+  { key: 'friday', label: 'Sexta-feira' },
+  { key: 'saturday', label: 'Sábado' },
+];
+
 export const CompanyDataScreen: React.FC = () => {
   const { companyData, isLoading, error, updateCompanyData } = useCompanyDataViewModel();
-  const [formData, setFormData] = useState({
-    cnpj: '',
-    phone: '',
-    appName: '',
-  });
+  const [formData, setFormData] = useState(companyData);
   const { showToast } = useToastContext();
 
   useEffect(() => {
     if (companyData) {
-      setFormData({
-        cnpj: companyData.cnpj,
-        phone: companyData.phone,
-        appName: companyData.appName,
-      });
+      setFormData(companyData);
     }
   }, [companyData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    const val = type === 'checkbox' ? checked : value;
+    setFormData((prev) => (prev ? { ...prev, [name]: val } : null));
+  };
+
+  const handleBusinessHoursChange = (
+    day: DayOfWeek,
+    field: 'startTime' | 'endTime' | 'isClosed',
+    value: string | boolean,
+  ) => {
+    setFormData((prev) => {
+      if (!prev) return null;
+      const updatedBusinessHours = { ...prev.businessHours };
+      updatedBusinessHours[day] = { ...updatedBusinessHours[day], [field]: value };
+      return { ...prev, businessHours: updatedBusinessHours };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData) return;
     try {
       await updateCompanyData(formData);
       showToast('Dados da empresa atualizados com sucesso!');
@@ -37,7 +55,7 @@ export const CompanyDataScreen: React.FC = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || !formData) {
     return <div className="p-6">Carregando...</div>;
   }
 
@@ -90,7 +108,79 @@ export const CompanyDataScreen: React.FC = () => {
                 className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
+            <div>
+              <label htmlFor="reservationFeePercentage" className="block text-lg font-medium text-gray-700">
+                Percentual do Sinal de Reserva (%)
+              </label>
+              <input
+                type="number"
+                id="reservationFeePercentage"
+                name="reservationFeePercentage"
+                value={formData.reservationFeePercentage}
+                onChange={handleChange}
+                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="eventIntervalMinutes"
+                className="block text-lg font-medium text-gray-700"
+              >
+                Intervalo Mínimo entre Eventos (minutos)
+              </label>
+              <input
+                type="number"
+                id="eventIntervalMinutes"
+                name="eventIntervalMinutes"
+                value={formData.eventIntervalMinutes}
+                onChange={handleChange}
+                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
           </div>
+
+          <div className="mt-8 pt-6 border-t border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-800">Horário de Funcionamento</h2>
+            <div className="space-y-4 mt-4">
+              {weekDays.map(({ key, label }) => (
+                <div
+                  key={key}
+                  className="grid grid-cols-1 lg:grid-cols-4 items-center gap-4 p-4 border rounded-lg hover:bg-gray-50"
+                >
+                  <span className="font-medium text-gray-700 lg:col-span-1">{label}</span>
+                  <div className="grid grid-cols-2 gap-4 lg:col-span-2">
+                    <input
+                      type="time"
+                      value={formData.businessHours[key].startTime}
+                      onChange={(e) => handleBusinessHoursChange(key, 'startTime', e.target.value)}
+                      disabled={formData.businessHours[key].isClosed}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-200"
+                    />
+                    <input
+                      type="time"
+                      value={formData.businessHours[key].endTime}
+                      onChange={(e) => handleBusinessHoursChange(key, 'endTime', e.target.value)}
+                      disabled={formData.businessHours[key].isClosed}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-200"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 lg:col-span-1 lg:justify-self-end">
+                    <label htmlFor={`closed-${key}`} className="text-gray-600">
+                      Fechado
+                    </label>
+                    <input
+                      type="checkbox"
+                      id={`closed-${key}`}
+                      checked={formData.businessHours[key].isClosed}
+                      onChange={(e) => handleBusinessHoursChange(key, 'isClosed', e.target.checked)}
+                      className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="mt-8 text-right">
             <button
               type="submit"

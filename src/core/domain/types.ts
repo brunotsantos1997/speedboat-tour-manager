@@ -11,6 +11,7 @@ export interface Product {
   pricingType: 'FIXED' | 'PER_PERSON' | 'HOURLY';
   iconKey: string;
   isDefaultCourtesy: boolean;
+  isArchived?: boolean;
 }
 
 /**
@@ -38,6 +39,9 @@ export interface Boat {
   name: string;
   capacity: number;
   size: number; // in feet
+  pricePerHour: number;
+  pricePerHalfHour: number;
+  isArchived?: boolean;
 }
 
 /**
@@ -47,21 +51,23 @@ export interface BoardingLocation {
   id: string;
   name: string;
   mapLink?: string;
+  isArchived?: boolean;
 }
 
-export type EventStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
+export type EventStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'PRE_SCHEDULED' | 'PENDING_REFUND' | 'REFUNDED' | 'ARCHIVED_COMPLETED' | 'ARCHIVED_CANCELLED';
 export type PaymentStatus = 'PENDING' | 'CONFIRMED';
 
 /**
  * Represents the main event being created.
  */
-export interface Event {
+export interface EventType {
   id: string;
   date: string; // YYYY-MM-DD
   startTime: string; // HH:MM
   endTime: string; // HH:MM
   status: EventStatus;
   paymentStatus?: PaymentStatus;
+  preScheduledAt?: number; // Timestamp for pre-booking expiration
   boat: Boat;
   boardingLocation: BoardingLocation;
   products: SelectedProduct[];
@@ -70,6 +76,8 @@ export interface Event {
   passengerCount: number;
   subtotal: number;
   total: number;
+  observations?: string;
+  isAcknowledged?: boolean; // For dashboard notifications
 }
 
 /**
@@ -92,11 +100,31 @@ export interface LoyaltyRule {
   message: string;
 }
 
+export type DayOfWeek =
+  | 'sunday'
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday';
+
+export interface BusinessDayHours {
+  startTime: string;
+  endTime: string;
+  isClosed: boolean;
+}
+
+export type BusinessHours = Record<DayOfWeek, BusinessDayHours>;
+
 export interface CompanyData {
   id: string;
   cnpj: string;
   phone: string;
   appName: string;
+  reservationFeePercentage: number;
+  businessHours: BusinessHours;
+  eventIntervalMinutes: number;
 }
 
 export interface VoucherTerms {
@@ -104,8 +132,3 @@ export interface VoucherTerms {
   terms: string;
 }
 
-export interface RentalPrice {
-  id: string;
-  pricePerHour: number;
-  pricePerHalfHour: number;
-}

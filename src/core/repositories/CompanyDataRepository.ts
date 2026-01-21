@@ -9,18 +9,50 @@ export class CompanyDataRepository {
   private data: CompanyData;
 
   private constructor() {
+    const defaultData: CompanyData = {
+      id: uuidv4(),
+      cnpj: '00.000.000/0001-00',
+      phone: '(00) 00000-0000',
+      appName: 'BoatManager',
+      reservationFeePercentage: 30,
+      businessHours: {
+        sunday: { startTime: '08:00', endTime: '18:00', isClosed: true },
+        monday: { startTime: '08:00', endTime: '18:00', isClosed: false },
+        tuesday: { startTime: '08:00', endTime: '18:00', isClosed: false },
+        wednesday: { startTime: '08:00', endTime: '18:00', isClosed: false },
+        thursday: { startTime: '08:00', endTime: '18:00', isClosed: false },
+        friday: { startTime: '08:00', endTime: '18:00', isClosed: false },
+        saturday: { startTime: '08:00', endTime: '18:00', isClosed: true },
+      },
+      eventIntervalMinutes: 30,
+    };
+
     const storedData = localStorage.getItem(STORAGE_KEY);
+    let loadedData = defaultData;
+
     if (storedData) {
-      this.data = JSON.parse(storedData);
-    } else {
-      this.data = {
-        id: uuidv4(),
-        cnpj: '00.000.000/0001-00',
-        phone: '(00) 00000-0000',
-        appName: 'BoatManager',
-      };
-      this.saveToLocalStorage();
+      try {
+        const parsedData = JSON.parse(storedData);
+        // Ensure parsedData is a valid object before merging
+        if (parsedData && typeof parsedData === 'object') {
+          loadedData = {
+            ...defaultData,
+            ...parsedData,
+            businessHours: {
+              ...defaultData.businessHours,
+              ...(parsedData.businessHours || {}),
+            },
+          };
+        }
+      } catch (error) {
+        console.error('Failed to parse company data from localStorage, falling back to default.', error);
+        // If parsing fails, we stick with the default data
+        loadedData = defaultData;
+      }
     }
+
+    this.data = loadedData;
+    this.saveToLocalStorage();
   }
 
   public static getInstance(): CompanyDataRepository {

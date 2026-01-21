@@ -1,122 +1,177 @@
 // src/core/repositories/EventRepository.ts
 import { v4 as uuidv4 } from 'uuid';
-import type { Event, EventStatus, PaymentStatus } from '../domain/types';
-import { MOCK_CLIENTS } from '../data/mocks';
+import type { EventType } from '../domain/types';
+import { MOCK_CLIENTS, AVAILABLE_PRODUCTS } from '../data/mocks';
 import { boatRepository } from './BoatRepository';
 import { MockBoardingLocationRepository } from './MockBoardingLocationRepository';
 
 export interface IEventRepository {
-  getById(eventId: string): Promise<Event | undefined>;
-  getEventsByDate(date: string): Promise<Event[]>;
-  getEventsByClient(clientId: string): Promise<Event[]>;
-  add(event: Omit<Event, 'id'>): Promise<Event>;
-  update(event: Event): Promise<Event>;
-  updateStatus(eventId: string, status: EventStatus): Promise<Event>;
-  updatePaymentStatus(eventId: string, paymentStatus: PaymentStatus): Promise<Event>;
+  getById(eventId: string): Promise<EventType | undefined>;
+  getEventsByDate(date: string): Promise<EventType[]>;
+  getEventsByClient(clientId: string): Promise<EventType[]>;
+  add(event: Omit<EventType, 'id'>): Promise<EventType>;
+  updateEvent(event: EventType): Promise<EventType>;
 }
 
 class MockEventRepository implements IEventRepository {
-  private events: Event[] = [];
+  private static readonly STORAGE_KEY = 'events';
+  private events: EventType[] = [];
   private initializationPromise: Promise<void>;
 
   constructor() {
-    this.initializationPromise = this.initializeMocks();
+    this.initializationPromise = this.loadEvents();
+  }
+
+  private async loadEvents(): Promise<void> {
+    const storedEvents = localStorage.getItem(MockEventRepository.STORAGE_KEY);
+    if (storedEvents) {
+      this.events = JSON.parse(storedEvents);
+    } else {
+      await this.initializeMocks();
+      this.saveEvents();
+    }
+  }
+
+  private saveEvents(): void {
+    localStorage.setItem(MockEventRepository.STORAGE_KEY, JSON.stringify(this.events));
   }
 
   private async initializeMocks(): Promise<void> {
-    // Make sure we don't run initialization more than once.
-    if (this.events.length > 0) {
-        return;
-    }
     const boats = await boatRepository.getAll();
-    const boardingLocations = await new MockBoardingLocationRepository().getAll();
+    const boardingLocations = await MockBoardingLocationRepository.getInstance().getAll();
     if (boats.length === 0 || boardingLocations.length === 0) return;
 
     const today = new Date();
     const tomorrow = new Date();
     tomorrow.setDate(today.getDate() + 1);
-
     const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
-    this.events.push({
-      id: "event-1-id", // Using a stable ID for testing
-      date: formatDate(today),
-      startTime: '10:00',
-      endTime: '14:00',
-      status: 'SCHEDULED',
-      paymentStatus: 'PENDING',
-      boat: boats[0],
-      boardingLocation: boardingLocations[0],
-      client: MOCK_CLIENTS[0],
-      passengerCount: 5,
-      products: [],
-      discount: { type: 'FIXED', value: 0 },
-      subtotal: 2500,
-      total: 2500,
-    });
-
-    this.events.push({
-      id: "event-2-id", // Using a stable ID for testing
-      date: formatDate(tomorrow),
-      startTime: '14:00',
-      endTime: '18:00',
-      status: 'SCHEDULED',
-      paymentStatus: 'PENDING',
-      boat: boats[0],
-      boardingLocation: boardingLocations[1],
-      client: MOCK_CLIENTS[1],
-      passengerCount: 8,
-      products: [],
-      discount: { type: 'FIXED', value: 0 },
-      subtotal: 3000,
-      total: 3000,
-    });
+    this.events = [
+      {
+        id: "event-1-id",
+        date: formatDate(today),
+        startTime: '10:00',
+        endTime: '14:00',
+        status: 'SCHEDULED',
+        paymentStatus: 'PENDING',
+        boat: boats[0],
+        boardingLocation: boardingLocations[0],
+        client: MOCK_CLIENTS[0],
+        passengerCount: 5,
+        products: [
+          { ...AVAILABLE_PRODUCTS[1], isCourtesy: false },
+          { ...AVAILABLE_PRODUCTS[2], isCourtesy: true },
+        ],
+        discount: { type: 'FIXED', value: 0 },
+        subtotal: 2500,
+        total: 2500,
+      },
+      {
+        id: "event-2-id",
+        date: formatDate(tomorrow),
+        startTime: '14:00',
+        endTime: '18:00',
+        status: 'SCHEDULED',
+        paymentStatus: 'PENDING',
+        boat: boats[0],
+        boardingLocation: boardingLocations[1],
+        client: MOCK_CLIENTS[1],
+        passengerCount: 8,
+        products: [],
+        discount: { type: 'FIXED', value: 0 },
+        subtotal: 3000,
+        total: 3000,
+      },
+    ];
   }
 
-  async getById(eventId: string): Promise<Event | undefined> {
+  async getById(eventId: string): Promise<EventType | undefined> {
     await this.initializationPromise;
     return this.events.find(e => e.id === eventId);
   }
 
-  async getEventsByDate(date: string): Promise<Event[]> {
+  async getEventsByDate(date: string): Promise<EventType[]> {
     await this.initializationPromise;
     return this.events.filter(e => e.date === date);
   }
 
-  async getEventsByClient(clientId: string): Promise<Event[]> {
+  async getEventsByClient(clientId: string): Promise<EventType[]> {
     await this.initializationPromise;
     return this.events.filter(e => e.client.id === clientId);
   }
 
-  async add(eventData: Omit<Event, 'id'>): Promise<Event> {
+  async getAll(): Promise<EventType[]> {
     await this.initializationPromise;
-    const newEvent: Event = { ...eventData, id: uuidv4() };
+    return this.events;
+  }
+
+  private isTimeConflict(eventA: Omit<EventType, 'id'>, eventB: EventType): boolean {
+    if (eventA.date !== eventB.date || eventA.boat.id !== eventB.boat.id) {
+      return false;
+    }
+
+    const startA = eventA.startTime;
+    const endA = eventA.endTime;
+    const startB = eventB.startTime;
+    const endB = eventB.endTime;
+
+    return startA < endB && endA > startB;
+  }
+
+  async add(eventData: Omit<EventType, 'id'>): Promise<EventType> {
+    await this.initializationPromise;
+
+    const now = Date.now();
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+
+    const conflictingEvents = this.events.filter(existingEvent =>
+      this.isTimeConflict(eventData, existingEvent)
+    );
+
+    for (const conflict of conflictingEvents) {
+      if (conflict.status === 'SCHEDULED') {
+        throw new Error('Este horário já está agendado e confirmado.');
+      }
+      if (conflict.status === 'PRE_SCHEDULED' && conflict.preScheduledAt && (now - conflict.preScheduledAt < twentyFourHours)) {
+        throw new Error('Este horário está pré-reservado. A vaga será liberada se o pagamento não for confirmado em 24h.');
+      }
+      if (conflict.status === 'PRE_SCHEDULED' && conflict.preScheduledAt && (now - conflict.preScheduledAt >= twentyFourHours)) {
+        if (eventData.status === 'SCHEDULED') {
+          conflict.status = 'CANCELLED';
+        }
+      }
+    }
+
+    const newEvent: EventType = { ...eventData, id: uuidv4() };
     this.events.push(newEvent);
+    this.saveEvents();
     return newEvent;
   }
 
-  async update(updatedEvent: Event): Promise<Event> {
+  async updateEvent(updatedEvent: EventType): Promise<EventType> {
     await this.initializationPromise;
     const index = this.events.findIndex(e => e.id === updatedEvent.id);
     if (index === -1) throw new Error('Event not found');
+
+    const now = Date.now();
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+
+    const conflictingEvents = this.events.filter(existingEvent =>
+      existingEvent.id !== updatedEvent.id && this.isTimeConflict(updatedEvent, existingEvent)
+    );
+
+    for (const conflict of conflictingEvents) {
+      if (conflict.status === 'SCHEDULED') {
+        throw new Error('Este horário já está agendado e confirmado por outro evento.');
+      }
+      if (conflict.status === 'PRE_SCHEDULED' && conflict.preScheduledAt && (now - conflict.preScheduledAt < twentyFourHours)) {
+        throw new Error('Este horário está pré-reservado por outro evento.');
+      }
+    }
+
     this.events[index] = updatedEvent;
+    this.saveEvents();
     return updatedEvent;
-  }
-
-  async updateStatus(eventId: string, status: EventStatus): Promise<Event> {
-    await this.initializationPromise;
-    const index = this.events.findIndex(e => e.id === eventId);
-    if (index === -1) throw new Error('Event not found');
-    this.events[index].status = status;
-    return this.events[index];
-  }
-
-  async updatePaymentStatus(eventId: string, paymentStatus: PaymentStatus): Promise<Event> {
-    await this.initializationPromise;
-    const index = this.events.findIndex(e => e.id === eventId);
-    if (index === -1) throw new Error('Event not found');
-    this.events[index].paymentStatus = paymentStatus;
-    return this.events[index];
   }
 }
 
