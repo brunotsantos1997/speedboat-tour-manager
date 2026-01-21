@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import type { DayOfWeek } from '../../core/domain/types';
 import { useCompanyDataViewModel } from '../../viewmodels/CompanyDataViewModel';
 import { useToastContext } from '../contexts/ToastContext';
+import { CustomTimePicker } from '../components/CustomTimePicker';
 
 const weekDays: { key: DayOfWeek; label: string }[] = [
   { key: 'sunday', label: 'Domingo' },
@@ -149,19 +150,15 @@ export const CompanyDataScreen: React.FC = () => {
                 >
                   <span className="font-medium text-gray-700 lg:col-span-1">{label}</span>
                   <div className="grid grid-cols-2 gap-4 lg:col-span-2">
-                    <input
-                      type="time"
+                    <CustomTimePicker
                       value={formData.businessHours[key].startTime}
-                      onChange={(e) => handleBusinessHoursChange(key, 'startTime', e.target.value)}
+                      onChange={(value) => handleBusinessHoursChange(key, 'startTime', value)}
                       disabled={formData.businessHours[key].isClosed}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-200"
                     />
-                    <input
-                      type="time"
+                    <CustomTimePicker
                       value={formData.businessHours[key].endTime}
-                      onChange={(e) => handleBusinessHoursChange(key, 'endTime', e.target.value)}
+                      onChange={(value) => handleBusinessHoursChange(key, 'endTime', value)}
                       disabled={formData.businessHours[key].isClosed}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-200"
                     />
                   </div>
                   <div className="flex items-center gap-2 lg:col-span-1 lg:justify-self-end">

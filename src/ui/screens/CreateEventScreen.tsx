@@ -20,26 +20,24 @@ const TimePicker: React.FC<{
   onChange: (value: string) => void;
   options: string[];
   disabled?: boolean;
-}> = ({ label, name, value, onChange, options, disabled }) => (
-  <div>
-    <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-    <select
-      id={name}
-      name={name}
-}> = ({ id, label, value, onChange, options, disabled }) => (
-  <div>
-    <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-    <select
-      id={id}
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      disabled={disabled}
-      className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 disabled:bg-gray-200 disabled:cursor-not-allowed"
-    >
-      {options.map(time => <option key={time} value={time}>{time}</option>)}
-    </select>
-  </div>
-);
+}> = ({ id, label, name, value, onChange, options, disabled }) => {
+  const selectId = id || name;
+  return (
+    <div>
+      <label htmlFor={selectId} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <select
+        id={selectId}
+        name={name}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        disabled={disabled}
+        className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 disabled:bg-gray-200 disabled:cursor-not-allowed"
+      >
+        {options.map(time => <option key={time} value={time}>{time}</option>)}
+      </select>
+    </div>
+  );
+};
 
 
 const DynamicIcon = ({ name, ...props }: { name: string } & LucideProps) => {
