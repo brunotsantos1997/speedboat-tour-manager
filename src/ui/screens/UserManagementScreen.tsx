@@ -10,7 +10,7 @@ export function UserManagementScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const { getAllUsers, updateUserStatus, updateUserRole, updateUserCommission, currentUser } = useAuth();
+  const { getAllUsers, updateUserStatus, updateUserRole, updateUserCommission, currentUser, resetPassword } = useAuth();
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -77,6 +77,18 @@ export function UserManagementScreen() {
     }
   };
 
+  const handleResetPassword = async (userId: string) => {
+    if (confirm('Tem certeza que deseja resetar a senha deste usuário?')) {
+      try {
+        const tempPassword = await resetPassword(userId);
+        alert(`Senha resetada com sucesso! A nova senha temporária é: ${tempPassword}`);
+        setToastMessage('Senha resetada com sucesso!');
+      } catch (err) {
+        setToastMessage(err instanceof Error ? err.message : 'Falha ao resetar a senha.');
+      }
+    }
+  };
+
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div className="text-red-600">{error}</div>;
@@ -140,21 +152,38 @@ export function UserManagementScreen() {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  {user.status === 'PENDING' && (
-                    <>
-                      <button onClick={() => handleStatusChange(user.id, 'APPROVED')} className="text-indigo-600 hover:text-indigo-900 mr-4">Aprovar</button>
-                      <button onClick={() => handleStatusChange(user.id, 'REJECTED')} className="text-red-600 hover:text-red-900">Rejeitar</button>
-                    </>
-                  )}
-                   {user.status === 'APPROVED' && (
+                  <div className="flex items-center space-x-4">
+                    {user.status === 'PENDING' && (
+                      <>
+                        <button onClick={() => handleStatusChange(user.id, 'APPROVED')} className="text-indigo-600 hover:text-indigo-900">Aprovar</button>
+                        <button onClick={() => handleStatusChange(user.id, 'REJECTED')} className="text-red-600 hover:text-red-900">Rejeitar</button>
+                      </>
+                    )}
+                    {user.status === 'APPROVED' && (
                       <button
                         onClick={() => handleStatusChange(user.id, 'REJECTED')}
                         className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                        disabled={ (currentUser?.role === 'SUPER_ADMIN' && user.role === 'SUPER_ADMIN') || user.role === 'OWNER' }
+                        disabled={(currentUser?.role === 'SUPER_ADMIN' && user.role === 'SUPER_ADMIN') || user.role === 'OWNER'}
                       >
                         Desativar
                       </button>
-                   )}
+                    )}
+                    {user.status === 'REJECTED' && (
+                      <button
+                        onClick={() => handleStatusChange(user.id, 'APPROVED')}
+                        className="text-green-600 hover:text-green-900"
+                      >
+                        Reativar
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleResetPassword(user.id)}
+                      className="text-gray-600 hover:text-gray-900 disabled:opacity-50"
+                      disabled={user.role === 'OWNER' || (currentUser?.role === 'SUPER_ADMIN' && user.role === 'SUPER_ADMIN')}
+                    >
+                      Resetar Senha
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

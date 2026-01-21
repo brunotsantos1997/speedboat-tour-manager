@@ -15,6 +15,8 @@ interface AuthContextType {
   updateUserRole: (userId: string, role: UserRole) => Promise<void>;
   updateUserCommission: (userId: string, commission: number) => Promise<void>;
   getAllUsers: () => Promise<User[]>;
+  resetPassword: (userId: string) => Promise<string>;
+  updateProfile: (userId: string, data: { name?: string; email?: string; password?: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -140,6 +142,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await userRepository.update(user);
   };
 
+  const resetPassword = async (userId: string): Promise<string> => {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new Error('User not found.');
+    }
+    const temporaryPassword = uuidv4().substring(0, 8);
+    user.passwordHash = await bcrypt.hash(temporaryPassword, 10);
+    await userRepository.update(user);
+    return temporaryPassword;
+  };
+
+  const updateProfile = async (userId: string, data: { name?: string; email?: string; password?: string }): Promise<void> => {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new Error('User not found.');
+    }
+
+    if (data.name) {
+      user.name = data.name;
+    }
+    if (data.email) {
+      const existingUser = await userRepository.findByEmail(data.email);
+      if (existingUser && existingUser.id !== userId) {
+        throw new Error('Email already in use.');
+      }
+      user.email = data.email;
+    }
+    if (data.password) {
+      user.passwordHash = await bcrypt.hash(data.password, 10);
+    }
+
+    await userRepository.update(user);
+    if (currentUser?.id === userId) {
+      setCurrentUser(user);
+    }
+  }
 
   const value = {
     currentUser,
@@ -150,7 +188,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     updateUserStatus,
     updateUserRole,
     updateUserCommission,
-    getAllUsers
+    getAllUsers,
+    resetPassword,
+    updateProfile
   };
 
   return (

@@ -132,6 +132,10 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
             <Users className="mr-3" />
             Clientes
           </NavLink>
+          <NavLink to="/profile" className={navLinkClass} onClick={onClose}>
+            <UserCog className="mr-3" />
+            Meu Perfil
+          </NavLink>
         </nav>
       </aside>
     </>
