@@ -15,7 +15,8 @@ import { LoginScreen } from './ui/screens/LoginScreen';
 import { SignupScreen } from './ui/screens/SignupScreen';
 import { PendingApprovalScreen } from './ui/screens/PendingApprovalScreen';
 import { UserManagementScreen } from './ui/screens/UserManagementScreen';
-import { CommissionReportScreen } from './ui/screens/CommissionReportScreen'; // Import new screen
+import { CommissionReportScreen } from './ui/screens/CommissionReportScreen';
+import { ProfileScreen } from './ui/screens/ProfileScreen';
 import { ProtectedRoute } from './ui/components/ProtectedRoute';
 import { initializeMockRepositories } from './core/repositories';
 
@@ -46,6 +47,7 @@ function App() {
             <Route path="clients" element={<ClientHistoryScreen />} />
             <Route path="company-data" element={<CompanyDataScreen />} />
             <Route path="voucher-appearance" element={<VoucherAppearanceScreen />} />
+            <Route path="profile" element={<ProfileScreen />} />
 
             {/* Routes for SUPER_ADMIN and OWNER only */}
             <Route path="admin/users" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'OWNER']}><UserManagementScreen /></ProtectedRoute>} />

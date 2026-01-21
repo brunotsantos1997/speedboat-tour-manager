@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import React from 'react';
 
@@ -9,6 +9,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) {
   const { currentUser, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return <div>Loading...</div>;
@@ -16,6 +17,10 @@ export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) 
 
   if (!currentUser) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (currentUser.mustChangePassword && location.pathname !== '/profile') {
+    return <Navigate to="/profile" replace />;
   }
 
   if (currentUser.status === 'PENDING') {

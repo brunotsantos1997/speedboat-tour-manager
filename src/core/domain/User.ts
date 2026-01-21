@@ -9,4 +9,5 @@ export interface User {
   status: UserStatus;
   role: UserRole;
   commissionPercentage?: number;
+  mustChangePassword?: boolean;
 }

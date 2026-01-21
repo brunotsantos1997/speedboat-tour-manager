@@ -1,14 +1,20 @@
 // src/ui/components/Layout.tsx
 import React, { useState, useEffect } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
-import { Menu, PlusCircle, Settings, Users, LayoutDashboard, Palette, UserCog, TrendingUp } from 'lucide-react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Menu, PlusCircle, Settings, Users, LayoutDashboard, Palette, UserCog, TrendingUp, LogOut } from 'lucide-react';
 import { useCompanyDataViewModel } from '../../viewmodels/CompanyDataViewModel';
 import { useAuth } from '../../contexts/AuthContext';
 
 
 const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string }> = ({ isOpen, onClose, appName }) => {
-  const { currentUser, getAllUsers } = useAuth();
+  const { currentUser, getAllUsers, logout } = useAuth();
+  const navigate = useNavigate();
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   useEffect(() => {
     if (currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'OWNER') {
@@ -132,7 +138,20 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
             <Users className="mr-3" />
             Clientes
           </NavLink>
+          <NavLink to="/profile" className={navLinkClass} onClick={onClose}>
+            <UserCog className="mr-3" />
+            Meu Perfil
+          </NavLink>
         </nav>
+        <div className="p-4 mt-auto border-t">
+            <button
+                onClick={handleLogout}
+                className="flex items-center w-full px-4 py-3 text-lg font-semibold text-left text-red-600 rounded-lg hover:bg-red-100"
+            >
+                <LogOut className="mr-3" />
+                Sair
+            </button>
+        </div>
       </aside>
     </>
   );
