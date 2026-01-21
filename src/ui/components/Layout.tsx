@@ -83,7 +83,7 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
               <Settings className="mr-3" />
               Configurações
             </button>
-            <div className="pl-8 space-y-2 hidden">
+            <div className="pl-10 space-y-2 hidden">
               <NavLink to="/products" className={navLinkClass} onClick={onClose}>
                 Produtos
               </NavLink>
@@ -110,7 +110,7 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
               <Palette className="mr-3" />
               Personalização
             </button>
-            <div className="pl-8 space-y-2 hidden">
+            <div className="pl-10 space-y-2 hidden">
               <NavLink to="/company-data" className={navLinkClass} onClick={onClose}>
                 Dados da Empresa
               </NavLink>

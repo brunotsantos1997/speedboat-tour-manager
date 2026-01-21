@@ -38,7 +38,6 @@ function App() {
             <Route path="create-event" element={<CreateEventScreen />} />
             <Route path="products" element={<ProductsScreen />} />
             <Route path="boats" element={<BoatsScreen />} />
-            <Route path="rental-prices" element={<RentalPricesScreen />} />
             <Route path="boarding-locations" element={<BoardingLocationsScreen />} />
             <Route path="voucher-terms" element={<VoucherTermsScreen />} />
             <Route path="clients" element={<ClientHistoryScreen />} />
