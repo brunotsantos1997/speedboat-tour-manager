@@ -5,6 +5,11 @@ import { eventRepository } from '../core/repositories/EventRepository';
 import { startOfDay, isWithinInterval, addDays, startOfWeek, endOfWeek, getMonth, isSameDay } from 'date-fns';
 import { useToastContext } from '../ui/contexts/ToastContext';
 
+// Helper to parse date string as local time to avoid timezone issues.
+// '2023-10-25' would be parsed as UTC midnight, which can be the previous day in some timezones.
+// Appending T00:00 makes it parse as local midnight.
+const parseLocalDate = (dateString: string) => new Date(`${dateString}T00:00`);
+
 export const useDashboardViewModel = () => {
   const [allEvents, setAllEvents] = useState<EventType[]>([]);
   const { showToast } = useToastContext();
@@ -105,9 +110,9 @@ export const useDashboardViewModel = () => {
     return allEvents.filter(event => {
       if (event.status !== 'SCHEDULED' && event.status !== 'PRE_SCHEDULED') return false;
 
-      const [year, month, day] = event.date.split('-').map(Number);
-      const [hours, minutes] = event.endTime.split(':').map(Number);
-      const eventEndTime = new Date(year, month - 1, day, hours, minutes);
+      // Combine date and time correctly into a local Date object
+      const eventEndDateTimeString = `${event.date}T${event.endTime}`;
+      const eventEndTime = new Date(eventEndDateTimeString);
 
       return eventEndTime > now;
     });
@@ -119,14 +124,14 @@ export const useDashboardViewModel = () => {
     ), [allEvents]);
 
   const eventsForSelectedDate = useMemo(() =>
-    upcomingEvents.filter(event => isSameDay(new Date(event.date), selectedDate)),
+    upcomingEvents.filter(event => isSameDay(parseLocalDate(event.date), selectedDate)),
     [upcomingEvents, selectedDate]
   );
 
   const eventsThisWeek = useMemo(() => {
-    const start = startOfWeek(today);
+    const start = startOfWeek(today); // Sunday is the default
     const end = endOfWeek(today);
-    return upcomingEvents.filter(event => isWithinInterval(new Date(event.date), { start, end }));
+    return upcomingEvents.filter(event => isWithinInterval(parseLocalDate(event.date), { start, end }));
   }, [upcomingEvents, today]);
 
   const pendingPayments = useMemo(() =>
@@ -137,7 +142,7 @@ export const useDashboardViewModel = () => {
   const monthlyStats = useMemo(() => {
     const currentMonth = getMonth(today);
     const monthlyEvents = allEvents.filter(event =>
-      getMonth(new Date(event.date)) === currentMonth &&
+      getMonth(parseLocalDate(event.date)) === currentMonth &&
       event.status === 'COMPLETED'
     );
 
@@ -148,7 +153,7 @@ export const useDashboardViewModel = () => {
   }, [allEvents, today]);
 
   const calendarEvents = useMemo(() =>
-    upcomingEvents.map(event => new Date(event.date)),
+    upcomingEvents.map(event => parseLocalDate(event.date)),
   [upcomingEvents]);
 
   return {

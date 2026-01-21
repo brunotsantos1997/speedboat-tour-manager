@@ -28,28 +28,45 @@ const QuickAccessButton: React.FC<{ to: string; title: string; icon: React.React
   </Link>
 );
 
-const EventListItem: React.FC<{ event: EventType; onConfirmPayment: (id: string) => void; }> = ({ event, onConfirmPayment }) => (
-  <div className="bg-gray-50 p-3 rounded-lg flex flex-col sm:flex-row justify-between sm:items-center">
-    <div className="mb-2 sm:mb-0">
-      <Link to={`/clients?clientId=${event.client.id}`} className="font-semibold text-blue-600 hover:underline">{event.client.name}</Link>
-      <div className="flex items-center text-sm text-gray-500 mt-1">
-        <Anchor size={14} className="mr-2" /> {event.boat.name}
-        <Clock size={14} className="ml-4 mr-2" /> {event.startTime}
+const EventListItem: React.FC<{ event: EventType; onConfirmPayment: (id: string) => void; }> = ({ event, onConfirmPayment }) => {
+  // Parse date string as local to avoid timezone issues.
+  const eventDate = new Date(`${event.date}T00:00`);
+
+  const formattedDate = new Intl.DateTimeFormat('pt-BR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+  }).format(eventDate);
+
+  // Capitalize the first letter of the weekday
+  const capitalizedDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
+
+  return (
+    <div className="bg-gray-50 p-3 rounded-lg flex flex-col sm:flex-row justify-between sm:items-center">
+      <div className="mb-2 sm:mb-0">
+        <div className="flex items-baseline gap-x-3">
+          <Link to={`/clients?clientId=${event.client.id}`} className="font-semibold text-blue-600 hover:underline">{event.client.name}</Link>
+          <span className="font-normal text-sm text-gray-600">{capitalizedDate}</span>
+        </div>
+        <div className="flex items-center text-sm text-gray-500 mt-1">
+          <Anchor size={14} className="mr-2" /> {event.boat.name}
+          <Clock size={14} className="ml-4 mr-2" /> {event.startTime}
+        </div>
+      </div>
+      <div className="flex items-center">
+        {event.paymentStatus === 'PENDING' && (
+          <button
+            onClick={() => onConfirmPayment(event.id)}
+            className="bg-green-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-600 transition-colors flex items-center"
+          >
+            <CheckCircle size={14} className="mr-1"/>
+            Confirmar
+          </button>
+        )}
       </div>
     </div>
-    <div className="flex items-center">
-      {event.paymentStatus === 'PENDING' && (
-        <button
-          onClick={() => onConfirmPayment(event.id)}
-          className="bg-green-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-600 transition-colors flex items-center"
-        >
-          <CheckCircle size={14} className="mr-1"/>
-          Confirmar
-        </button>
-      )}
-    </div>
-  </div>
-);
+  );
+};
 
 
 export const DashboardScreen: React.FC = () => {
@@ -58,6 +75,7 @@ export const DashboardScreen: React.FC = () => {
     error,
     notificationEvents,
     eventsForSelectedDate,
+    eventsThisWeek,
     pendingPayments,
     monthlyStats,
     calendarEvents,
@@ -173,9 +191,22 @@ export const DashboardScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* Today's Events */}
+          {/* Week's Events */}
           <div className="bg-white p-4 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-3 flex items-center"><Clock className="mr-2 text-blue-500"/> Passeios do Dia</h2>
+            <h2 className="text-xl font-semibold mb-3 flex items-center"><Clock className="mr-2 text-purple-500"/> Passeios da Semana</h2>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {eventsThisWeek.length > 0
+                ? eventsThisWeek.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={confirmPayment} />)
+                : <p className="text-gray-500">Nenhum passeio agendado para esta semana.</p>
+              }
+            </div>
+          </div>
+
+          {/* Events for Selected Date */}
+          <div className="bg-white p-4 rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold mb-3 flex items-center"><Clock className="mr-2 text-blue-500"/>
+              Passeios para {selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+            </h2>
             <div className="space-y-3">
               {eventsForSelectedDate.length > 0
                 ? eventsForSelectedDate.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={confirmPayment} />)
