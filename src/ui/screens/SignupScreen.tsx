@@ -14,13 +14,6 @@ export function SignupScreen() {
     e.preventDefault();
     setError(null);
 
-    // Basic password validation
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    if (!passwordRegex.test(password)) {
-      setError('Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, a number, and a special character.');
-      return;
-    }
-
     try {
       const user = await signup(name, email, password);
       if (user.status === 'PENDING') {

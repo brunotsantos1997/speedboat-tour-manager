@@ -4,6 +4,7 @@ import type { IUserRepository } from '../core/domain/repositories/IUserRepositor
 import { MockUserRepository } from '../core/infra/repositories/MockUserRepository';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
+import DOMPurify from 'dompurify';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -27,6 +28,30 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const userRepository: IUserRepository = MockUserRepository.getInstance();
 const SESSION_KEY = 'auth_user_id';
+
+const validatePassword = (password: string) => {
+  const minLength = 8;
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumbers = /\d/.test(password);
+  const hasSpecialChars = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+  if (password.length < minLength) {
+    throw new Error('Password must be at least 8 characters long.');
+  }
+  if (!hasUpperCase) {
+    throw new Error('Password must contain at least one uppercase letter.');
+  }
+  if (!hasLowerCase) {
+    throw new Error('Password must contain at least one lowercase letter.');
+  }
+  if (!hasNumbers) {
+    throw new Error('Password must contain at least one number.');
+  }
+  if (!hasSpecialChars) {
+    throw new Error('Password must contain at least one special character.');
+  }
+};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -75,7 +100,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signup = async (name: string, email: string, password: string): Promise<User> => {
-    const existingUser = await userRepository.findByEmail(email);
+    validatePassword(password);
+    const sanitizedName = DOMPurify.sanitize(name);
+    const sanitizedEmail = DOMPurify.sanitize(email);
+    const existingUser = await userRepository.findByEmail(sanitizedEmail);
     if (existingUser) {
       throw new Error('An account with this email already exists.');
     }
@@ -87,8 +115,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const newUser: User = {
       id: uuidv4(),
-      name,
-      email,
+      name: sanitizedName,
+      email: sanitizedEmail,
       passwordHash,
       status: isFirstUser ? 'APPROVED' : 'PENDING',
       role: isFirstUser ? 'SUPER_ADMIN' : 'ADMIN',
@@ -126,6 +154,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateUserRole = async (userId: string, role: UserRole): Promise<void> => {
+    if (!currentUser || (currentUser.role !== 'SUPER_ADMIN' && currentUser.role !== 'OWNER')) {
+      throw new Error('You do not have permission to change user roles.');
+    }
     const user = await userRepository.findById(userId);
     if (!user) {
       throw new Error('User not found.');
@@ -226,16 +257,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (data.name) {
-      user.name = data.name;
+      user.name = DOMPurify.sanitize(data.name);
     }
     if (data.email) {
-      const existingUser = await userRepository.findByEmail(data.email);
+      const sanitizedEmail = DOMPurify.sanitize(data.email);
+      const existingUser = await userRepository.findByEmail(sanitizedEmail);
       if (existingUser && existingUser.id !== userId) {
         throw new Error('Email already in use.');
       }
-      user.email = data.email;
+      user.email = sanitizedEmail;
     }
     if (data.newPassword) {
+      validatePassword(data.newPassword);
       if (!data.oldPassword) {
         throw new Error('Old password is required to set a new password.');
       }
