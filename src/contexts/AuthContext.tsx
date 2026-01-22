@@ -2,6 +2,8 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import type { User, UserRole, UserStatus } from '../core/domain/User';
 import type { IUserRepository } from '../core/domain/repositories/IUserRepository';
 import { MockUserRepository } from '../core/infra/repositories/MockUserRepository';
+import type { ILoginAttemptRepository } from '../core/domain/repositories/ILoginAttemptRepository';
+import { MockLoginAttemptRepository } from '../core/infra/repositories/MockLoginAttemptRepository';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import DOMPurify from 'dompurify';
@@ -27,7 +29,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const userRepository: IUserRepository = MockUserRepository.getInstance();
+const loginAttemptRepository: ILoginAttemptRepository = MockLoginAttemptRepository.getInstance();
 const SESSION_KEY = 'auth_user_id';
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCK_TIME = 15 * 60 * 1000; // 15 minutes
 
 const validatePassword = (password: string) => {
   const minLength = 8;
@@ -80,6 +85,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (email: string, password: string): Promise<User | null> => {
+    const now = Date.now();
+    const attempt = await loginAttemptRepository.findByEmail(email);
+
+    if (attempt && now - attempt.timestamp < LOCK_TIME && attempt.count >= MAX_LOGIN_ATTEMPTS) {
+      const timeLeft = Math.ceil((LOCK_TIME - (now - attempt.timestamp)) / 1000 / 60);
+      throw new Error(`Too many failed login attempts. Please try again in ${timeLeft} minutes.`);
+    }
+
     const user = await userRepository.findByEmail(email);
     if (!user) {
       throw new Error("Invalid credentials.");
@@ -87,6 +100,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
+      const newAttempt = {
+        email,
+        count: (attempt?.count || 0) + 1,
+        timestamp: now,
+      };
+      await loginAttemptRepository.save(newAttempt);
       throw new Error("Invalid credentials.");
     }
 
@@ -94,6 +113,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("User is not approved.");
     }
 
+    await loginAttemptRepository.delete(email);
     setCurrentUser(user);
     localStorage.setItem(SESSION_KEY, user.id);
     return user;
