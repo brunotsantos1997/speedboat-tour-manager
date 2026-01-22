@@ -43,7 +43,7 @@ export function LoginScreen() {
               htmlFor="password"
               className="text-sm font-medium text-gray-700"
             >
-              Password
+              Senha
             </label>
             <input
               id="password"
@@ -65,13 +65,13 @@ export function LoginScreen() {
         <div className="text-sm text-center text-gray-600">
           <p>
             <Link to="/forgot-password"className="font-medium text-indigo-600 hover:text-indigo-500">
-              Forgot your password?
+              Esqueceu sua senha?
             </Link>
           </p>
           <p>
-            Don't have an account?{' '}
+            Não tem uma conta?{' '}
             <Link to="/signup" className="font-medium text-indigo-600 hover:text-indigo-500">
-              Sign up
+              Cadastre-se
             </Link>
           </p>
         </div>
