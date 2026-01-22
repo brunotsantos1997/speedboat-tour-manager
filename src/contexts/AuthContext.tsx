@@ -15,8 +15,12 @@ interface AuthContextType {
   updateUserRole: (userId: string, role: UserRole) => Promise<void>;
   updateUserCommission: (userId: string, commission: number) => Promise<void>;
   getAllUsers: () => Promise<User[]>;
-  resetPassword: (userId: string) => Promise<string>;
-  updateProfile: (userId: string, data: { name?: string; email?: string; password?: string }) => Promise<void>;
+  updateProfile: (userId: string, data: { name?: string; email?: string; newPassword?: string, oldPassword?: string }) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<User | null>;
+  approvePasswordReset: (approverId: string, targetUserId: string) => Promise<string>;
+  setSecretQuestion: (userId: string, question: string, answer: string) => Promise<void>;
+  verifySecretAnswer: (email: string, answer: string) => Promise<User | null>;
+  resetPasswordAfterVerification: (userId: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -142,19 +146,80 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await userRepository.update(user);
   };
 
-  const resetPassword = async (userId: string): Promise<string> => {
+  const requestPasswordReset = async (email: string): Promise<User | null> => {
+    const user = await userRepository.findByEmail(email);
+    if (!user) {
+      throw new Error('User not found.');
+    }
+    if (user.role !== 'OWNER') {
+      user.status = 'PASSWORD_RESET_REQUESTED';
+      await userRepository.update(user);
+    }
+
+    return user;
+  };
+
+  const approvePasswordReset = async (approverId: string, targetUserId: string): Promise<string> => {
+    const approver = await userRepository.findById(approverId);
+    const targetUser = await userRepository.findById(targetUserId);
+
+    if (!approver || !targetUser) {
+      throw new Error('User not found.');
+    }
+
+    const rolesHierarchy: { [key in UserRole]: number } = {
+      'ADMIN': 1,
+      'SUPER_ADMIN': 2,
+      'OWNER': 3,
+    };
+
+    if (rolesHierarchy[approver.role] < rolesHierarchy[targetUser.role]) {
+      throw new Error('You do not have permission to approve this request.');
+    }
+
+    const temporaryPassword = uuidv4().substring(0, 8);
+    targetUser.passwordHash = await bcrypt.hash(temporaryPassword, 10);
+    targetUser.mustChangePassword = true;
+    targetUser.status = 'APPROVED';
+    await userRepository.update(targetUser);
+    return temporaryPassword;
+  };
+
+  const setSecretQuestion = async (userId: string, question: string, answer: string): Promise<void> => {
+    const user = await userRepository.findById(userId);
+    if (!user || user.role !== 'OWNER') {
+      throw new Error('Unauthorized or user not found.');
+    }
+
+    user.secretQuestion = question;
+    user.secretAnswerHash = await bcrypt.hash(answer, 10);
+    await userRepository.update(user);
+  };
+
+  const verifySecretAnswer = async (email: string, answer: string): Promise<User | null> => {
+    const user = await userRepository.findByEmail(email);
+    if (!user || user.role !== 'OWNER' || !user.secretAnswerHash) {
+      throw new Error('Invalid user or no secret question set.');
+    }
+
+    const isAnswerValid = await bcrypt.compare(answer, user.secretAnswerHash);
+    if (!isAnswerValid) {
+      throw new Error('Incorrect answer.');
+    }
+    return user;
+  };
+
+  const resetPasswordAfterVerification = async (userId: string, newPassword: string): Promise<void> => {
     const user = await userRepository.findById(userId);
     if (!user) {
       throw new Error('User not found.');
     }
-    const temporaryPassword = uuidv4().substring(0, 8);
-    user.passwordHash = await bcrypt.hash(temporaryPassword, 10);
-    user.mustChangePassword = true;
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    user.mustChangePassword = false;
     await userRepository.update(user);
-    return temporaryPassword;
   };
 
-  const updateProfile = async (userId: string, data: { name?: string; email?: string; password?: string }): Promise<void> => {
+  const updateProfile = async (userId: string, data: { name?: string; email?: string; newPassword?: string, oldPassword?: string }): Promise<void> => {
     const user = await userRepository.findById(userId);
     if (!user) {
       throw new Error('User not found.');
@@ -170,8 +235,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       user.email = data.email;
     }
-    if (data.password) {
-      user.passwordHash = await bcrypt.hash(data.password, 10);
+    if (data.newPassword) {
+      if (!data.oldPassword) {
+        throw new Error('Old password is required to set a new password.');
+      }
+      const isPasswordValid = await bcrypt.compare(data.oldPassword, user.passwordHash);
+      if (!isPasswordValid) {
+        throw new Error('Invalid old password.');
+      }
+      user.passwordHash = await bcrypt.hash(data.newPassword, 10);
       user.mustChangePassword = false;
     }
 
@@ -191,8 +263,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     updateUserRole,
     updateUserCommission,
     getAllUsers,
-    resetPassword,
-    updateProfile
+    updateProfile,
+    requestPasswordReset,
+    approvePasswordReset,
+    setSecretQuestion,
+    verifySecretAnswer,
+    resetPasswordAfterVerification,
   };
 
   return (
