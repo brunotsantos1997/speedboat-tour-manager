@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Toast } from '../components/Toast';
+import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
 
 export function ProfileScreen() {
   const { currentUser, updateProfile, setSecretQuestion } = useAuth();
@@ -117,6 +118,7 @@ export function ProfileScreen() {
               onChange={(e) => setNewPassword(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            <PasswordStrengthMeter password={newPassword} />
           </div>
           <div className="mb-6">
             <label htmlFor="confirmPassword" className="block text-gray-700 font-medium mb-2">Confirmar Nova Senha</label>
