@@ -17,6 +17,9 @@ import { PendingApprovalScreen } from './ui/screens/PendingApprovalScreen';
 import { UserManagementScreen } from './ui/screens/UserManagementScreen';
 import { CommissionReportScreen } from './ui/screens/CommissionReportScreen';
 import { ProfileScreen } from './ui/screens/ProfileScreen';
+import { ForgotPasswordScreen } from './ui/screens/ForgotPasswordScreen';
+import { ResetPasswordSecretScreen } from './ui/screens/ResetPasswordSecretScreen';
+import { SetNewPasswordScreen } from './ui/screens/SetNewPasswordScreen';
 import { ProtectedRoute } from './ui/components/ProtectedRoute';
 import { initializeMockRepositories } from './core/repositories';
 
@@ -31,6 +34,9 @@ function App() {
         <Route path="/login" element={<LoginScreen />} />
         <Route path="/signup" element={<SignupScreen />} />
         <Route path="/pending-approval" element={<PendingApprovalScreen />} />
+        <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
+        <Route path="/reset-password-secret" element={<ResetPasswordSecretScreen />} />
+        <Route path="/set-new-password" element={<SetNewPasswordScreen />} />
 
         {/* Public voucher route with a specific public layout */}
         <Route path="/voucher/:eventId" element={<PublicLayout><VoucherScreen /></PublicLayout>} />

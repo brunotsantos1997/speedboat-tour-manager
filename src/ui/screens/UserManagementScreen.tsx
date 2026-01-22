@@ -15,8 +15,9 @@ export function UserManagementScreen() {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [modalAction, setModalAction] = useState<'reset' | 'approve' | null>(null);
   const [temporaryPassword, setTemporaryPassword] = useState<string>('');
-  const { getAllUsers, updateUserStatus, updateUserRole, updateUserCommission, currentUser, resetPassword } = useAuth();
+  const { getAllUsers, updateUserStatus, updateUserRole, updateUserCommission, currentUser, approvePasswordReset } = useAuth();
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -83,21 +84,26 @@ export function UserManagementScreen() {
     }
   };
 
-  const handleResetPassword = (user: User) => {
+  const handleApproveReset = (user: User) => {
     setSelectedUser(user);
+    setModalAction('approve');
     setIsConfirmModalOpen(true);
   };
 
-  const confirmResetPassword = async () => {
-    if (!selectedUser) return;
+  const confirmModalAction = async () => {
+    if (!selectedUser || !currentUser) return;
 
     try {
-      const tempPassword = await resetPassword(selectedUser.id);
+      let tempPassword;
+      if (modalAction === 'approve') {
+        tempPassword = await approvePasswordReset(currentUser.id, selectedUser.id);
+        setToastMessage('Redefinição de senha aprovada com sucesso!');
+      }
       setTemporaryPassword(tempPassword);
       setIsInfoModalOpen(true);
-      setToastMessage('Senha resetada com sucesso!');
+      fetchUsers();
     } catch (err) {
-      setToastMessage(err instanceof Error ? err.message : 'Falha ao resetar a senha.');
+      setToastMessage(err instanceof Error ? err.message : 'Falha ao executar a ação.');
     } finally {
       setIsConfirmModalOpen(false);
     }
@@ -119,9 +125,9 @@ export function UserManagementScreen() {
       <ConfirmationModal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
-        onConfirm={confirmResetPassword}
-        title="Resetar Senha"
-        message={`Tem certeza que deseja resetar a senha para o usuário ${selectedUser?.name}? Esta ação não pode ser desfeita.`}
+        onConfirm={confirmModalAction}
+        title={modalAction === 'approve' ? 'Aprovar Redefinição de Senha' : 'Confirmar Ação'}
+        message={`Tem certeza que deseja ${modalAction === 'approve' ? 'aprovar a redefinição de senha' : 'executar esta ação'} para o usuário ${selectedUser?.name}?`}
       />
 
       <InformationModal
@@ -215,13 +221,18 @@ export function UserManagementScreen() {
                         Reativar
                       </button>
                     )}
-                    <button
-                      onClick={() => handleResetPassword(user)}
-                      className="text-gray-600 hover:text-gray-900 disabled:opacity-50"
-                      disabled={user.role === 'OWNER' || (currentUser?.role === 'SUPER_ADMIN' && user.role === 'SUPER_ADMIN')}
-                    >
-                      Resetar Senha
-                    </button>
+                    {user.status === 'PASSWORD_RESET_REQUESTED' && (
+                      <button
+                        onClick={() => handleApproveReset(user)}
+                        className="text-blue-600 hover:text-blue-900 disabled:opacity-50"
+                        disabled={
+                          (currentUser?.role === 'ADMIN' && user.role !== 'ADMIN') ||
+                          (currentUser?.role === 'SUPER_ADMIN' && user.role === 'OWNER')
+                        }
+                      >
+                        Aprovar Redefinição
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
