@@ -76,6 +76,7 @@ export interface EventType {
   passengerCount: number;
   subtotal: number;
   total: number;
+  tax?: number;
   observations?: string;
   isAcknowledged?: boolean; // For dashboard notifications
   createdByUserId?: string;

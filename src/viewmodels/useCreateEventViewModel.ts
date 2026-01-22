@@ -42,6 +42,7 @@ export const useCreateEventViewModel = () => {
   const [discount, setDiscount] = useState<Discount>({ type: 'FIXED', value: 0 });
   const [passengerCount, setPassengerCount] = useState(1);
   const [observations, setObservations] = useState('');
+  const [tax, setTax] = useState(0);
 
   // Client Management State
   const [selectedClient, setSelectedClient] = useState<ClientProfile | null>(null);
@@ -87,6 +88,7 @@ export const useCreateEventViewModel = () => {
           setObservations(event.observations || '');
           setIsPreScheduled(event.status === 'PRE_SCHEDULED');
           setOriginalPaymentStatus(event.paymentStatus);
+          setTax(event.tax || 0);
         } else {
           console.error("Event to edit not found!");
           setEditingEventId(null); // Clear ID if not found
@@ -166,6 +168,10 @@ export const useCreateEventViewModel = () => {
     if (!isNaN(newCount)) {
       setPassengerCount(newCount);
     }
+  }, []);
+
+  const updateTax = useCallback((value: number) => {
+    setTax(isNaN(value) || value < 0 ? 0 : value);
   }, []);
 
   const handleBoatSelection = (boatId: string) => {
@@ -361,7 +367,7 @@ export const useCreateEventViewModel = () => {
     return subtotal * (discount.value / 100);
   }, [subtotal, discount]);
 
-  const total = useMemo(() => Math.max(0, subtotal - totalDiscount), [subtotal, totalDiscount]);
+  const total = useMemo(() => Math.max(0, subtotal - totalDiscount + tax), [subtotal, totalDiscount, tax]);
 
   const createEvent = useCallback(async () => {
     if (!selectedDate || !selectedClient || !selectedBoat || !selectedBoardingLocation) {
@@ -384,6 +390,7 @@ export const useCreateEventViewModel = () => {
       passengerCount,
       subtotal,
       total,
+      tax,
       observations,
     };
 
@@ -587,6 +594,7 @@ export const useCreateEventViewModel = () => {
     subtotal,
     totalDiscount,
     total,
+    tax,
     observations,
     // Client state
     selectedClient,
@@ -619,6 +627,7 @@ export const useCreateEventViewModel = () => {
     updateDiscountType,
     updateDiscountValue,
     updatePassengerCount,
+    updateTax,
     handleClientSearch,
     selectClient,
     clearClientSelection,

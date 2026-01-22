@@ -342,6 +342,15 @@ export const CreateEventScreen: React.FC = () => {
                     </div>
                   </div>
                 </div>
+                <div className="mt-6">
+                  <h3 className="text-md font-semibold mb-2">Taxa</h3>
+                  <NumericInput
+                    value={vm.tax}
+                    onChange={vm.updateTax}
+                    min={0}
+                    step={10}
+                  />
+                </div>
               </section>
             )}
 
@@ -465,6 +474,12 @@ export const CreateEventScreen: React.FC = () => {
               <span>Desconto</span>
               <span className="font-medium">- R$ {vm.totalDiscount.toFixed(2)}</span>
             </div>
+            {vm.tax > 0 && (
+              <div className="flex justify-between items-center text-sm text-green-600">
+                <span>Taxa</span>
+                <span className="font-medium">+ R$ {vm.tax.toFixed(2)}</span>
+              </div>
+            )}
             <div className="border-t border-gray-200 my-2"></div>
             <div className="flex justify-between items-center text-xl font-bold">
               <span>Total</span>
