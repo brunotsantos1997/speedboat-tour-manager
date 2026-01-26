@@ -101,13 +101,16 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
                 Produtos
               </NavLink>
               <NavLink to="/boats" className={navLinkClass} onClick={onClose}>
-                Embarcações
+                Lanchas
               </NavLink>
               <NavLink to="/boarding-locations" className={navLinkClass} onClick={onClose}>
                 Locais de Embarque
               </NavLink>
               <NavLink to="/voucher-terms" className={navLinkClass} onClick={onClose}>
                 Termos do Voucher
+              </NavLink>
+              <NavLink to="/rental-prices" className={navLinkClass} onClick={onClose}>
+                Preços de Aluguel
               </NavLink>
             </div>
           </div>

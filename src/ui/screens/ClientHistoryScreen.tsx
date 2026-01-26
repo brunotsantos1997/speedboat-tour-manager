@@ -5,8 +5,6 @@ import { useClientHistoryViewModel } from '../../viewmodels/useClientHistoryView
 import { Search, X, Calendar, Edit, Ban, CheckCircle, Clock, Pencil, FileText, Share2, DollarSign, AlertTriangle } from 'lucide-react';
 import type { EventStatus, PaymentStatus, EventType, ClientProfile } from '../../core/domain/types';
 import { useNavigate } from 'react-router-dom';
-import { useToastContext } from '../contexts/ToastContext';
-import { ConfirmationModal } from '../components/ConfirmationModal';
 
 // This is the shared modal component. Let's define it here for simplicity,
 // but in a real app, it would be in its own file.
@@ -105,10 +103,10 @@ const EventCard: React.FC<{
   const shareVoucher = (eventId: string) => {
     const url = `${window.location.origin}/voucher/${eventId}`;
     navigator.clipboard.writeText(url).then(() => {
-      showToast('Link do voucher copiado para a área de transferência!');
+      alert('Link do voucher copiado para a área de transferência!');
     }, (err) => {
       console.error('Falha ao copiar o link: ', err);
-      showToast('Falha ao copiar o link.');
+      alert('Falha ao copiar o link.');
     });
   };
 
@@ -225,14 +223,6 @@ export const ClientHistoryScreen: React.FC = () => {
                 onSave={vm.handleSaveChanges}
                 onClose={vm.closeEditModal}
             />
-
-      <ConfirmationModal
-        isOpen={vm.isConfirmationModalOpen}
-        title={vm.confirmationMessage.title}
-        message={vm.confirmationMessage.message}
-        onConfirm={vm.confirmAction}
-        onCancel={vm.closeConfirmationModal}
-      />
         </div>
     );
 };

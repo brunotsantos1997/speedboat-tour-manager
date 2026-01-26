@@ -19,35 +19,6 @@ export const useClientHistoryViewModel = () => {
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
 
-  // Confirmation Modal State
-  const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
-  const [confirmationAction, setConfirmationAction] = useState<(() => void) | null>(null);
-  const [confirmationMessage, setConfirmationMessage] = useState({ title: '', message: '' });
-
-  const [searchParams] = useSearchParams();
-
-  const selectClient = useCallback(async (client: ClientProfile) => {
-    setIsLoading(true);
-    setSelectedClient(client);
-    setSearchTerm(client.name);
-    setSearchResults([]);
-    const events = await eventRepository.getEventsByClient(client.id);
-    events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    setClientEvents(events);
-    setIsLoading(false);
-  }, []);
-
-  useEffect(() => {
-    const clientId = searchParams.get('clientId');
-    if (clientId) {
-      clientRepository.getById(clientId).then((client: ClientProfile | null) => {
-        if (client) {
-          selectClient(client);
-        }
-      });
-    }
-  }, [searchParams, selectClient]);
-
   const handleSearch = useCallback(async (term: string) => {
     setSearchTerm(term);
     if (term.length > 2) {
@@ -60,29 +31,22 @@ export const useClientHistoryViewModel = () => {
     }
   }, []);
 
+  const selectClient = useCallback(async (client: ClientProfile) => {
+    setIsLoading(true);
+    setSelectedClient(client);
+    setSearchTerm(client.name);
+    setSearchResults([]);
+    const events = await eventRepository.getEventsByClient(client.id);
+    events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    setClientEvents(events);
+    setIsLoading(false);
+  }, []);
+
   const clearSelection = () => {
     setSelectedClient(null);
     setClientEvents([]);
     setSearchTerm('');
     setSearchResults([]);
-  };
-
-  const openConfirmationModal = (title: string, message: string, onConfirm: () => void) => {
-    setConfirmationMessage({ title, message });
-    setConfirmationAction(() => onConfirm);
-    setIsConfirmationModalOpen(true);
-  };
-
-  const closeConfirmationModal = () => {
-    setIsConfirmationModalOpen(false);
-    setConfirmationAction(null);
-  };
-
-  const confirmAction = () => {
-    if (confirmationAction) {
-      confirmationAction();
-    }
-    closeConfirmationModal();
   };
 
   const cancelEvent = useCallback(async (eventId: string) => {
@@ -176,9 +140,5 @@ export const useClientHistoryViewModel = () => {
     openEditModal,
     closeEditModal,
     handleSaveChanges,
-    isConfirmationModalOpen,
-    confirmationMessage,
-    confirmAction,
-    closeConfirmationModal,
   };
 };

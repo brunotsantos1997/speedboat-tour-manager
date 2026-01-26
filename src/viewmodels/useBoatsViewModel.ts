@@ -25,8 +25,6 @@ export const useBoatsViewModel = () => {
       name: '',
       capacity: 10,
       size: 30,
-      pricePerHour: 0,
-      pricePerHalfHour: 0,
     });
     setIsModalOpen(true);
   };

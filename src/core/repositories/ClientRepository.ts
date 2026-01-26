@@ -1,12 +1,10 @@
 // src/core/repositories/ClientRepository.ts
-import { v4 as uuidv4 } from 'uuid';
 import type { ClientProfile } from '../domain/types';
 import { MOCK_CLIENTS } from '../data/mocks';
 
 // The repository interface defines the contract for data operations.
 export interface IClientRepository {
   search(term: string): Promise<ClientProfile[]>;
-  getById(clientId: string): Promise<ClientProfile | null>;
   add(newClient: Omit<ClientProfile, 'id' | 'totalTrips'>): Promise<ClientProfile>;
   update(client: ClientProfile): Promise<ClientProfile>;
   delete(clientId: string): Promise<void>;
@@ -50,14 +48,8 @@ class MockClientRepository implements IClientRepository {
     return results;
   }
 
-  async getById(clientId: string): Promise<ClientProfile | null> {
-    const client = this.clients.find(c => c.id === clientId);
-    return client || null;
-  }
-
-  async add(newClientData: Omit<ClientProfile, 'id' | 'totalTrips'>): Promise<ClientProfile> {
+  async add(newClientData: Omit<ClientProfile, 'totalTrips'>): Promise<ClientProfile> {
     const newClient: ClientProfile = {
-      id: uuidv4(),
       ...newClientData,
       totalTrips: 0,
     };

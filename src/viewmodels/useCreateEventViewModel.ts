@@ -32,6 +32,9 @@ export const useCreateEventViewModel = () => {
   const [availableBoats, setAvailableBoats] = useState<Boat[]>([]);
   const [selectedBoat, setSelectedBoat] = useState<Boat | null>(null);
 
+  // Price State
+  const [rentalPrices, setRentalPrices] = useState<RentalPrices>({ hourlyRate: 0, halfHourRate: 0 });
+
   // Boarding Location State
   const [availableBoardingLocations, setAvailableBoardingLocations] = useState<BoardingLocation[]>([]);
   const [selectedBoardingLocation, setSelectedBoardingLocation] = useState<BoardingLocation | null>(null);
@@ -112,6 +115,7 @@ export const useCreateEventViewModel = () => {
       setCompanyData(companyDataResponse);
       setAvailableProducts(products);
       setAvailableBoats(boats);
+      setRentalPrices(prices);
       setAvailableBoardingLocations(boardingLocations);
 
       if (boats.length > 0) {
@@ -248,63 +252,40 @@ export const useCreateEventViewModel = () => {
   };
 
   const handleSaveClient = useCallback(async () => {
-    if (!newClientName || !newClientPhone) {
-      throw new Error('Nome e telefone do cliente são obrigatórios.');
+    if (!newClientName || !newClientPhone) return;
+
+    if (editingClient) {
+      // Update existing client
+      const updatedClient = { ...editingClient, name: newClientName, phone: newClientPhone };
+      const result = await clientRepository.update(updatedClient);
+      // If the edited client was selected, update the selection
+      if (selectedClient?.id === result.id) {
+        setSelectedClient(result);
+        setClientSearchTerm(result.name);
+      }
+    } else {
+      // Add new client
+      const newClient = await clientRepository.add({ id: '', name: newClientName, phone: newClientPhone });
+      selectClient(newClient);
     }
 
-    try {
-      if (editingClient) {
-        const updatedClient = { ...editingClient, name: newClientName, phone: newClientPhone };
-        const result = await clientRepository.update(updatedClient);
-        if (selectedClient?.id === result.id) {
-          setSelectedClient(result);
-          setClientSearchTerm(result.name);
-        }
-      } else {
-        const newClient = await clientRepository.add({ name: newClientName, phone: newClientPhone });
-        selectClient(newClient);
-      }
-
-      handleCloseModal();
-      if (clientSearchTerm.length > 2) {
-        handleClientSearch(clientSearchTerm);
-      }
-    } catch (error) {
-      console.error("Failed to save client:", error);
-      throw new Error('Falha ao salvar o cliente. Por favor, tente novamente.');
+    handleCloseModal();
+    // Refresh search results to show changes
+    if (clientSearchTerm.length > 2) {
+      handleClientSearch(clientSearchTerm);
     }
   }, [editingClient, newClientName, newClientPhone, selectedClient, clientSearchTerm, handleClientSearch, selectClient]);
 
-  const openConfirmationModal = (title: string, message: string, onConfirm: () => void) => {
-    setConfirmationMessage({ title, message });
-    setConfirmationAction(() => onConfirm); // Store the action
-    setIsConfirmationModalOpen(true);
-  };
-
-  const closeConfirmationModal = () => {
-    setIsConfirmationModalOpen(false);
-    setConfirmationAction(null);
-  };
-
-  const confirmAction = () => {
-    if (confirmationAction) {
-      confirmationAction();
-    }
-    closeConfirmationModal();
-  };
-
   const handleDeleteClient = useCallback(async (clientId: string) => {
-    openConfirmationModal(
-      'Confirmar Exclusão',
-      'Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita.',
-      async () => {
-        await clientRepository.delete(clientId);
-        if (selectedClient?.id === clientId) {
-          clearClientSelection();
-        }
-        handleClientSearch(clientSearchTerm);
+    if (window.confirm('Tem certeza que deseja excluir este cliente?')) {
+      await clientRepository.delete(clientId);
+      // If the deleted client was selected, clear the selection
+      if (selectedClient?.id === clientId) {
+        clearClientSelection();
       }
-    );
+      // Refresh search results
+       handleClientSearch(clientSearchTerm);
+    }
   }, [selectedClient, clientSearchTerm, handleClientSearch, clearClientSelection]);
 
 
@@ -315,8 +296,6 @@ export const useCreateEventViewModel = () => {
   }, [passengerCount, selectedBoat]);
 
   const boatRentalCost = useMemo(() => {
-    if (!selectedBoat) return 0;
-
     const [startHour, startMinute] = startTime.split(':').map(Number);
     const [endHour, endMinute] = endTime.split(':').map(Number);
     const durationInMinutes = (endHour - startHour) * 60 + (endMinute - startMinute);
@@ -326,13 +305,13 @@ export const useCreateEventViewModel = () => {
     const hours = Math.floor(durationInMinutes / 60);
     const remainingMinutes = durationInMinutes % 60;
 
-    let cost = hours * selectedBoat.pricePerHour;
+    let cost = hours * rentalPrices.hourlyRate;
     if (remainingMinutes >= 30) {
-      cost += selectedBoat.pricePerHalfHour;
+      cost += rentalPrices.halfHourRate;
     }
 
     return cost;
-  }, [startTime, endTime, selectedBoat]);
+  }, [startTime, endTime, rentalPrices]);
 
   const subtotal = useMemo(() => {
     return selectedProducts.reduce((acc, product) => {
@@ -371,7 +350,8 @@ export const useCreateEventViewModel = () => {
 
   const createEvent = useCallback(async () => {
     if (!selectedDate || !selectedClient || !selectedBoat || !selectedBoardingLocation) {
-      throw new Error('Por favor, preencha todos os campos obrigatórios: Data, Cliente, Lancha e Local de Embarque.');
+      alert('Por favor, preencha todos os campos obrigatórios: Data, Cliente, Lancha e Local de Embarque.');
+      return;
     }
 
     const eventStatus = isPreScheduled ? 'PRE_SCHEDULED' : 'SCHEDULED';
@@ -409,7 +389,6 @@ export const useCreateEventViewModel = () => {
       };
       await eventRepository.add(newEventData);
     }
-    navigate(`/clients?clientId=${selectedClient.id}`);
   }, [
     selectedDate,
     startTime,
@@ -609,12 +588,7 @@ export const useCreateEventViewModel = () => {
     editingClient,
     newClientName,
     newClientPhone,
-    isConfirmationModalOpen,
-    confirmationMessage,
     // Handlers
-    confirmAction,
-    closeConfirmationModal,
-    setObservations,
     setSelectedDate,
     setStartTime,
     setEndTime,

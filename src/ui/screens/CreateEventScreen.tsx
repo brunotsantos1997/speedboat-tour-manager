@@ -8,7 +8,6 @@ import type { Product, ClientProfile } from '../../core/domain/types';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import { ptBR } from 'date-fns/locale';
-import { ConfirmationModal } from '../components/ConfirmationModal';
 
 // --- Components ---
 
@@ -132,13 +131,20 @@ const NewClientModal: React.FC<{
             onChange={(e) => setName(e.target.value)}
             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           />
-          <input
-            type="tel"
-            placeholder="Telefone (WhatsApp)"
-            value={phone || ''}
+          <InputMask
+            mask="+55 (99) 99999-9999"
+            value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          />
+          >
+            {(inputProps: any) => (
+              <input
+                {...inputProps}
+                type="tel"
+                placeholder="Telefone (WhatsApp)"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            )}
+          </InputMask>
         </div>
         <div className="flex justify-end space-x-3 mt-6">
           <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">
@@ -159,15 +165,6 @@ export const CreateEventScreen: React.FC = () => {
   const vm = useCreateEventViewModel();
   const { showToast } = useToastContext();
   const isProductSelected = (product: Product) => vm.selectedProducts.some(p => p.id === product.id);
-
-  const handleSaveClientWithToast = async () => {
-    try {
-      await vm.handleSaveClient();
-      showToast(vm.editingClient ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!');
-    } catch (error: any) {
-      showToast(error.message || 'Ocorreu um erro ao salvar o cliente.');
-    }
-  };
 
   const bookedDays = vm.scheduledEvents.map(event => new Date(event.date));
 
@@ -353,18 +350,6 @@ export const CreateEventScreen: React.FC = () => {
                 </div>
               </section>
             )}
-
-            {/* Section: Observations */}
-            <section>
-              <h2 className="text-lg font-semibold mb-3">Observações</h2>
-              <textarea
-                value={vm.observations}
-                onChange={(e) => vm.setObservations(e.target.value)}
-                placeholder="Adicione observações que aparecerão no voucher do cliente..."
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                rows={4}
-              />
-            </section>
           </div>
 
           {/* Right Column: Scheduling */}
@@ -488,13 +473,12 @@ export const CreateEventScreen: React.FC = () => {
           </div>
           {/* Action Button */}
           <button
-            onClick={async () => {
-              try {
-                await vm.createEvent();
+            onClick={() => {
+              vm.createEvent().then(() => {
                 showToast(vm.editingEventId ? 'Passeio atualizado com sucesso!' : 'Passeio agendado com sucesso!');
-              } catch (error: any) {
-                showToast(error.message || 'Ocorreu um erro ao salvar o passeio.');
-              }
+              }).catch(() => {
+                showToast('Ocorreu um erro ao salvar o passeio.');
+              });
             }}
             className={`px-8 py-4 text-white rounded-lg text-lg font-bold shadow-lg transition-colors ${vm.isPreScheduled ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-600 hover:bg-green-700'}`}
           >
@@ -510,16 +494,8 @@ export const CreateEventScreen: React.FC = () => {
         phone={vm.newClientPhone}
         setName={vm.setNewClientName}
         setPhone={vm.setNewClientPhone}
-        onSave={handleSaveClientWithToast}
+        onSave={vm.handleSaveClient}
         onClose={vm.handleCloseModal}
-      />
-
-      <ConfirmationModal
-        isOpen={vm.isConfirmationModalOpen}
-        title={vm.confirmationMessage.title}
-        message={vm.confirmationMessage.message}
-        onConfirm={vm.confirmAction}
-        onCancel={vm.closeConfirmationModal}
       />
     </div>
   );
