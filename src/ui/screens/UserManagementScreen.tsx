@@ -16,7 +16,7 @@ export function UserManagementScreen() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [modalAction, setModalAction] = useState<'reset' | 'approve' | null>(null);
-  const [temporaryPassword, setTemporaryPassword] = useState<string>('');
+  const [temporaryPassword, setTemporaryPassword] = useState<string | undefined>('');
   const { getAllUsers, updateUserStatus, updateUserRole, updateUserCommission, currentUser, approvePasswordReset } = useAuth();
 
   const fetchUsers = useCallback(async () => {
@@ -78,7 +78,7 @@ export function UserManagementScreen() {
     try {
       await updateUserCommission(userId, commissionValue);
       setToastMessage('Commission updated successfully!');
-      fetchUsers(); // Refresh to confirm the change
+      fetchUsers();
     } catch (err) {
       setToastMessage(err instanceof Error ? err.message : 'Failed to update commission.');
     }
@@ -99,7 +99,7 @@ export function UserManagementScreen() {
         tempPassword = await approvePasswordReset(currentUser.id, selectedUser.id);
         setToastMessage('Redefinição de senha aprovada com sucesso!');
       }
-      setTemporaryPassword(tempPassword);
+      setTemporaryPassword(tempPassword || '');
       setIsInfoModalOpen(true);
       fetchUsers();
     } catch (err) {
@@ -124,7 +124,7 @@ export function UserManagementScreen() {
 
       <ConfirmationModal
         isOpen={isConfirmModalOpen}
-        onClose={() => setIsConfirmModalOpen(false)}
+        onCancel={() => setIsConfirmModalOpen(false)}
         onConfirm={confirmModalAction}
         title={modalAction === 'approve' ? 'Aprovar Redefinição de Senha' : 'Confirmar Ação'}
         message={`Tem certeza que deseja ${modalAction === 'approve' ? 'aprovar a redefinição de senha' : 'executar esta ação'} para o usuário ${selectedUser?.name}?`}

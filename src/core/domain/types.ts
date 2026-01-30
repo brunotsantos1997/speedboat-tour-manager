@@ -127,6 +127,8 @@ export interface CompanyData {
   reservationFeePercentage: number;
   businessHours: BusinessHours;
   eventIntervalMinutes: number;
+  rentalHourlyRate?: number;
+  rentalHalfHourRate?: number;
 }
 
 export interface VoucherTerms {

@@ -1,76 +1,96 @@
 // src/core/repositories/ProductRepository.ts
-import { v4 as uuidv4 } from 'uuid';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  doc,
+  onSnapshot,
+  query,
+  type Unsubscribe
+} from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 import type { Product } from '../domain/types';
-import { AVAILABLE_PRODUCTS } from '../data/mocks';
-import { eventRepository } from './EventRepository'; // Import event repository
 
-// Rename for semantic clarity
-let MOCK_PRODUCTS: Product[] = AVAILABLE_PRODUCTS;
-
-// The repository interface defines the contract for data operations.
 export interface IProductRepository {
   getAll(): Promise<Product[]>;
   add(productData: Omit<Product, 'id'>): Promise<Product>;
   update(updatedProduct: Product): Promise<Product>;
   remove(productId: string): Promise<void>;
+  dispose(): void;
+  initialize(): void;
 }
 
-/**
- * A mock implementation of the product repository that operates on an in-memory array.
- */
-class MockProductRepository implements IProductRepository {
-  private static instance: MockProductRepository;
+class ProductRepositoryImpl implements IProductRepository {
+  private static instance: ProductRepositoryImpl;
+  private products: Product[] = [];
+  private collectionName = 'products';
+  private unsubscribe: Unsubscribe | null = null;
+  private isInitialized = false;
 
   private constructor() {}
 
-  public static getInstance(): MockProductRepository {
-    if (!MockProductRepository.instance) {
-      MockProductRepository.instance = new MockProductRepository();
+  public static getInstance(): ProductRepositoryImpl {
+    if (!ProductRepositoryImpl.instance) {
+      ProductRepositoryImpl.instance = new ProductRepositoryImpl();
     }
-    return MockProductRepository.instance;
+    return ProductRepositoryImpl.instance;
+  }
+
+  initialize() {
+    if (this.unsubscribe) return;
+    this.initListener();
+  }
+
+  private initListener() {
+    const q = query(collection(db, this.collectionName));
+    this.unsubscribe = onSnapshot(q, (snapshot) => {
+      this.products = snapshot.docs.map(doc => ({
+        ...doc.data() as Product,
+        id: doc.id
+      }));
+      this.isInitialized = true;
+    });
+  }
+
+  dispose() {
+    if (this.unsubscribe) {
+      this.unsubscribe();
+      this.unsubscribe = null;
+    }
+    this.isInitialized = false;
+    this.products = [];
   }
 
   async getAll(): Promise<Product[]> {
-    await new Promise(resolve => setTimeout(resolve, 200)); // Simulate delay
-    // Return only non-archived products
-    return MOCK_PRODUCTS.filter(p => !p.isArchived);
+    if (!this.isInitialized) {
+      this.initialize();
+      const querySnapshot = await getDocs(collection(db, this.collectionName));
+      this.products = querySnapshot.docs.map(doc => ({
+        ...doc.data() as Product,
+        id: doc.id
+      }));
+      this.isInitialized = true;
+    }
+    return this.products.filter(p => !p.isArchived);
   }
 
   async add(productData: Omit<Product, 'id'>): Promise<Product> {
-    const newProduct: Product = { id: uuidv4(), ...productData };
-    MOCK_PRODUCTS.push(newProduct);
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return newProduct;
+    const docRef = await addDoc(collection(db, this.collectionName), productData);
+    return { id: docRef.id, ...productData };
   }
 
   async update(updatedProduct: Product): Promise<Product> {
-    const index = MOCK_PRODUCTS.findIndex(p => p.id === updatedProduct.id);
-    if (index === -1) {
-      throw new Error("Product not found");
-    }
-    MOCK_PRODUCTS[index] = updatedProduct;
-    await new Promise(resolve => setTimeout(resolve, 300));
+    const { id, ...data } = updatedProduct;
+    const docRef = doc(db, this.collectionName, id);
+    await updateDoc(docRef, data as any);
     return updatedProduct;
   }
 
   async remove(productId: string): Promise<void> {
-    // Check if the product is used in any event
-    const allEvents = await eventRepository.getAll(); // Assuming getAllEvents exists
-    const isProductInUse = allEvents.some(event => event.products.some(p => p.id === productId));
-
-    if (isProductInUse) {
-      // If in use, archive it (soft delete)
-      const productIndex = MOCK_PRODUCTS.findIndex(p => p.id === productId);
-      if (productIndex !== -1) {
-        MOCK_PRODUCTS[productIndex].isArchived = true;
-      }
-    } else {
-      // If not in use, delete it permanently (hard delete)
-      MOCK_PRODUCTS = MOCK_PRODUCTS.filter(p => p.id !== productId);
-    }
-    await new Promise(resolve => setTimeout(resolve, 300));
+    const docRef = doc(db, this.collectionName, productId);
+    await updateDoc(docRef, { isArchived: true });
   }
 }
 
-// Export a singleton instance of the mock repository.
-export const productRepository = MockProductRepository.getInstance();
+export const productRepository = ProductRepositoryImpl.getInstance();

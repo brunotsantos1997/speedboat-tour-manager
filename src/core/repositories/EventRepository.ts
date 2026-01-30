@@ -1,9 +1,17 @@
 // src/core/repositories/EventRepository.ts
-import { v4 as uuidv4 } from 'uuid';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  doc,
+  onSnapshot,
+  query,
+  getDoc,
+  type Unsubscribe
+} from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 import type { EventType } from '../domain/types';
-import { MOCK_CLIENTS, AVAILABLE_PRODUCTS } from '../data/mocks';
-import { boatRepository } from './BoatRepository';
-import { MockBoardingLocationRepository } from './MockBoardingLocationRepository';
 
 export interface IEventRepository {
   getById(eventId: string): Promise<EventType | undefined>;
@@ -11,97 +19,73 @@ export interface IEventRepository {
   getEventsByClient(clientId: string): Promise<EventType[]>;
   add(event: Omit<EventType, 'id'>): Promise<EventType>;
   updateEvent(event: EventType): Promise<EventType>;
+  getAll(): Promise<EventType[]>;
+  dispose(): void;
+  initialize(): void;
 }
 
-class MockEventRepository implements IEventRepository {
-  private static readonly STORAGE_KEY = 'events';
+class EventRepositoryImpl implements IEventRepository {
   private events: EventType[] = [];
-  private initializationPromise: Promise<void>;
+  private collectionName = 'events';
+  private unsubscribe: Unsubscribe | null = null;
+  private isInitialized = false;
 
-  constructor() {
-    this.initializationPromise = this.loadEvents();
+  constructor() {}
+
+  initialize() {
+    if (this.unsubscribe) return;
+    this.initListener();
   }
 
-  private async loadEvents(): Promise<void> {
-    const storedEvents = localStorage.getItem(MockEventRepository.STORAGE_KEY);
-    if (storedEvents) {
-      this.events = JSON.parse(storedEvents);
-    } else {
-      await this.initializeMocks();
-      this.saveEvents();
+  private initListener() {
+    const q = query(collection(db, this.collectionName));
+    this.unsubscribe = onSnapshot(q, (snapshot) => {
+      this.events = snapshot.docs.map(doc => ({
+        ...doc.data() as EventType,
+        id: doc.id
+      }));
+      this.isInitialized = true;
+    });
+  }
+
+  dispose() {
+    if (this.unsubscribe) {
+      this.unsubscribe();
+      this.unsubscribe = null;
     }
-  }
-
-  private saveEvents(): void {
-    localStorage.setItem(MockEventRepository.STORAGE_KEY, JSON.stringify(this.events));
-  }
-
-  private async initializeMocks(): Promise<void> {
-    const boats = await boatRepository.getAll();
-    const boardingLocations = await MockBoardingLocationRepository.getInstance().getAll();
-    if (boats.length === 0 || boardingLocations.length === 0) return;
-
-    const today = new Date();
-    const tomorrow = new Date();
-    tomorrow.setDate(today.getDate() + 1);
-    const formatDate = (date: Date) => date.toISOString().split('T')[0];
-
-    this.events = [
-      {
-        id: "event-1-id",
-        date: formatDate(today),
-        startTime: '10:00',
-        endTime: '14:00',
-        status: 'SCHEDULED',
-        paymentStatus: 'PENDING',
-        boat: boats[0],
-        boardingLocation: boardingLocations[0],
-        client: MOCK_CLIENTS[0],
-        passengerCount: 5,
-        products: [
-          { ...AVAILABLE_PRODUCTS[1], isCourtesy: false },
-          { ...AVAILABLE_PRODUCTS[2], isCourtesy: true },
-        ],
-        discount: { type: 'FIXED', value: 0 },
-        subtotal: 2500,
-        total: 2500,
-      },
-      {
-        id: "event-2-id",
-        date: formatDate(tomorrow),
-        startTime: '14:00',
-        endTime: '18:00',
-        status: 'SCHEDULED',
-        paymentStatus: 'PENDING',
-        boat: boats[0],
-        boardingLocation: boardingLocations[1],
-        client: MOCK_CLIENTS[1],
-        passengerCount: 8,
-        products: [],
-        discount: { type: 'FIXED', value: 0 },
-        subtotal: 3000,
-        total: 3000,
-      },
-    ];
+    this.isInitialized = false;
+    this.events = [];
   }
 
   async getById(eventId: string): Promise<EventType | undefined> {
-    await this.initializationPromise;
-    return this.events.find(e => e.id === eventId);
+    const docRef = doc(db, this.collectionName, eventId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return { ...docSnap.data() as EventType, id: docSnap.id };
+    }
+    return undefined;
   }
 
   async getEventsByDate(date: string): Promise<EventType[]> {
-    await this.initializationPromise;
-    return this.events.filter(e => e.date === date);
+    const all = await this.getAll();
+    return all.filter(e => e.date === date);
   }
 
   async getEventsByClient(clientId: string): Promise<EventType[]> {
-    await this.initializationPromise;
-    return this.events.filter(e => e.client.id === clientId);
+    const all = await this.getAll();
+    return all.filter((e: EventType) => e.client.id === clientId);
   }
 
   async getAll(): Promise<EventType[]> {
-    await this.initializationPromise;
+    if (!this.isInitialized) {
+      this.initialize();
+      const querySnapshot = await getDocs(collection(db, this.collectionName));
+      this.events = querySnapshot.docs.map(doc => ({
+        ...doc.data() as EventType,
+        id: doc.id
+      }));
+      this.isInitialized = true;
+    }
     return this.events;
   }
 
@@ -119,12 +103,11 @@ class MockEventRepository implements IEventRepository {
   }
 
   async add(eventData: Omit<EventType, 'id'>): Promise<EventType> {
-    await this.initializationPromise;
-
+    const allEvents = await this.getAll();
     const now = Date.now();
     const twentyFourHours = 24 * 60 * 60 * 1000;
 
-    const conflictingEvents = this.events.filter(existingEvent =>
+    const conflictingEvents = allEvents.filter(existingEvent =>
       this.isTimeConflict(eventData, existingEvent)
     );
 
@@ -137,26 +120,21 @@ class MockEventRepository implements IEventRepository {
       }
       if (conflict.status === 'PRE_SCHEDULED' && conflict.preScheduledAt && (now - conflict.preScheduledAt >= twentyFourHours)) {
         if (eventData.status === 'SCHEDULED') {
-          conflict.status = 'CANCELLED';
+          await this.updateEvent({ ...conflict, status: 'CANCELLED' });
         }
       }
     }
 
-    const newEvent: EventType = { ...eventData, id: uuidv4() };
-    this.events.push(newEvent);
-    this.saveEvents();
-    return newEvent;
+    const docRef = await addDoc(collection(db, this.collectionName), eventData);
+    return { ...eventData, id: docRef.id };
   }
 
   async updateEvent(updatedEvent: EventType): Promise<EventType> {
-    await this.initializationPromise;
-    const index = this.events.findIndex(e => e.id === updatedEvent.id);
-    if (index === -1) throw new Error('Event not found');
-
+    const allEvents = await this.getAll();
     const now = Date.now();
     const twentyFourHours = 24 * 60 * 60 * 1000;
 
-    const conflictingEvents = this.events.filter(existingEvent =>
+    const conflictingEvents = allEvents.filter(existingEvent =>
       existingEvent.id !== updatedEvent.id && this.isTimeConflict(updatedEvent, existingEvent)
     );
 
@@ -169,10 +147,11 @@ class MockEventRepository implements IEventRepository {
       }
     }
 
-    this.events[index] = updatedEvent;
-    this.saveEvents();
+    const { id, ...data } = updatedEvent;
+    const docRef = doc(db, this.collectionName, id);
+    await updateDoc(docRef, data as any);
     return updatedEvent;
   }
 }
 
-export const eventRepository = new MockEventRepository();
+export const eventRepository = new EventRepositoryImpl();

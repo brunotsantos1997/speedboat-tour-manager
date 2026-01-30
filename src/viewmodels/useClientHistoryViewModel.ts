@@ -1,6 +1,5 @@
 // src/viewmodels/useClientHistoryViewModel.ts
-import { useState, useCallback, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useCallback } from 'react';
 import type { ClientProfile, EventType } from '../core/domain/types';
 import { clientRepository } from '../core/repositories/ClientRepository';
 import { eventRepository } from '../core/repositories/EventRepository';
@@ -57,37 +56,29 @@ export const useClientHistoryViewModel = () => {
       ? 'Este evento já foi pago. Ao cancelar, o status será alterado para "Pendente de Reembolso". Deseja continuar?'
       : 'Tem certeza que deseja cancelar este evento?';
 
-    openConfirmationModal(
-      'Cancelar Evento',
-      message,
-      async () => {
-        const newStatus = eventToUpdate.paymentStatus === 'CONFIRMED' ? 'PENDING_REFUND' : 'CANCELLED';
-        const updatedEvent = { ...eventToUpdate, status: newStatus as EventType['status'] };
-        await eventRepository.updateEvent(updatedEvent);
-        if (selectedClient) {
-          selectClient(selectedClient);
-        }
+    if (window.confirm(message)) {
+      const newStatus = eventToUpdate.paymentStatus === 'CONFIRMED' ? 'PENDING_REFUND' : 'CANCELLED';
+      const updatedEvent = { ...eventToUpdate, status: newStatus as EventType['status'] };
+      await eventRepository.updateEvent(updatedEvent);
+      if (selectedClient) {
+        selectClient(selectedClient);
       }
-    );
+    }
   }, [clientEvents, selectedClient, selectClient]);
 
   const confirmPayment = useCallback(async (eventId: string) => {
-    openConfirmationModal(
-      'Confirmar Pagamento',
-      'Tem certeza que deseja confirmar o pagamento da reserva?',
-      async () => {
-        const eventToUpdate = clientEvents.find(e => e.id === eventId);
-        if (!eventToUpdate) return;
-        const updatedEvent = { ...eventToUpdate, paymentStatus: 'CONFIRMED' as const };
-        if (updatedEvent.status === 'PRE_SCHEDULED') {
-          updatedEvent.status = 'SCHEDULED';
-        }
-        await eventRepository.updateEvent(updatedEvent);
-        if(selectedClient) {
-          selectClient(selectedClient);
-        }
+    if (window.confirm('Tem certeza que deseja confirmar o pagamento da reserva?')) {
+      const eventToUpdate = clientEvents.find(e => e.id === eventId);
+      if (!eventToUpdate) return;
+      const updatedEvent = { ...eventToUpdate, paymentStatus: 'CONFIRMED' as const };
+      if (updatedEvent.status === 'PRE_SCHEDULED') {
+        updatedEvent.status = 'SCHEDULED';
       }
-    );
+      await eventRepository.updateEvent(updatedEvent);
+      if(selectedClient) {
+        selectClient(selectedClient);
+      }
+    }
   }, [clientEvents, selectedClient, selectClient]);
 
   // --- Client Edit Handlers ---
@@ -112,7 +103,6 @@ export const useClientHistoryViewModel = () => {
     const updatedClient = { ...editingClient, name: clientName, phone: clientPhone };
     await clientRepository.update(updatedClient);
 
-    // Refresh selected client data
     setSelectedClient(updatedClient);
     setSearchTerm(updatedClient.name);
 

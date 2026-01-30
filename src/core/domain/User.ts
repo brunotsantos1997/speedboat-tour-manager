@@ -5,7 +5,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  passwordHash: string;
+  passwordHash?: string;
   status: UserStatus;
   role: UserRole;
   commissionPercentage?: number;
