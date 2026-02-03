@@ -135,7 +135,7 @@ class ClientRepositoryImpl implements IClientRepository {
   }
 
   async delete(clientId: string): Promise<void> {
-    if (!this.currentUser || (this.currentUser.role !== 'OWNER' && this.currentUser.role !== 'SUPER_ADMIN')) {
+    if (!this.currentUser || (this.currentUser.role !== 'OWNER' && this.currentUser.role !== 'SUPER_ADMIN' && this.currentUser.role !== 'ADMIN')) {
       throw new Error('Você não tem permissão para excluir clientes.');
     }
     const docRef = doc(db, this.collectionName, clientId);

@@ -101,3 +101,5 @@ export class CompanyDataRepository {
     return updatedData;
   }
 }
+
+export const companyDataRepository = CompanyDataRepository.getInstance();

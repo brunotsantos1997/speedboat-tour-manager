@@ -73,7 +73,7 @@ export class BoardingLocationRepository {
   }
 
   private checkAdminPermission() {
-    if (!this.currentUser || (this.currentUser.role !== 'OWNER' && this.currentUser.role !== 'SUPER_ADMIN')) {
+    if (!this.currentUser || (this.currentUser.role !== 'OWNER' && this.currentUser.role !== 'SUPER_ADMIN' && this.currentUser.role !== 'ADMIN')) {
       throw new Error('Você não tem permissão para realizar esta ação.');
     }
   }
