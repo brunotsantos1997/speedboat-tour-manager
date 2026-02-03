@@ -41,7 +41,9 @@ class ProductRepositoryImpl implements IProductRepository {
   }
 
   initialize(user?: any) {
-    this.currentUser = user;
+    if (user) {
+      this.currentUser = user;
+    }
     if (this.unsubscribe) return;
     this.initListener();
   }
@@ -69,7 +71,6 @@ class ProductRepositoryImpl implements IProductRepository {
 
   async getAll(): Promise<Product[]> {
     if (!this.isInitialized) {
-      this.initialize();
       const querySnapshot = await getDocs(collection(db, this.collectionName));
       this.products = querySnapshot.docs.map(doc => ({
         ...doc.data() as Product,

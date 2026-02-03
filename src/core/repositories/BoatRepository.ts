@@ -41,7 +41,9 @@ class BoatRepositoryImpl implements IBoatRepository {
   }
 
   initialize(user?: any) {
-    this.currentUser = user;
+    if (user) {
+      this.currentUser = user;
+    }
     if (this.unsubscribe) return;
     this.initListener();
   }
@@ -69,7 +71,6 @@ class BoatRepositoryImpl implements IBoatRepository {
 
   async getAll(): Promise<Boat[]> {
     if (!this.isInitialized) {
-      this.initialize();
       const querySnapshot = await getDocs(collection(db, this.collectionName));
       this.boats = querySnapshot.docs.map(doc => ({
         ...doc.data() as Boat,

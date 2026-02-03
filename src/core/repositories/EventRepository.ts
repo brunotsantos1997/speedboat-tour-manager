@@ -35,7 +35,9 @@ class EventRepositoryImpl implements IEventRepository {
   constructor() {}
 
   initialize(user?: any) {
-    this.currentUser = user;
+    if (user) {
+      this.currentUser = user;
+    }
     if (this.unsubscribe) return;
     this.initListener();
   }
@@ -82,7 +84,6 @@ class EventRepositoryImpl implements IEventRepository {
 
   async getAll(): Promise<EventType[]> {
     if (!this.isInitialized) {
-      this.initialize();
       const querySnapshot = await getDocs(collection(db, this.collectionName));
       this.events = querySnapshot.docs.map(doc => ({
         ...doc.data() as EventType,

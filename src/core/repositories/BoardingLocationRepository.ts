@@ -32,7 +32,9 @@ export class BoardingLocationRepository {
   }
 
   initialize(user?: any) {
-    this.currentUser = user;
+    if (user) {
+      this.currentUser = user;
+    }
     if (this.unsubscribe) return;
     this.initListener();
   }
@@ -60,7 +62,6 @@ export class BoardingLocationRepository {
 
   async getAll(): Promise<BoardingLocation[]> {
     if (!this.isInitialized) {
-      this.initialize();
       // Initial fetch to ensure data is available immediately
       const querySnapshot = await getDocs(collection(db, this.collectionName));
       this.locations = querySnapshot.docs.map(doc => ({

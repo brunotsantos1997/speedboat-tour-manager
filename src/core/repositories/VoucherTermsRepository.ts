@@ -22,7 +22,9 @@ export class VoucherTermsRepository {
   }
 
   initialize(user?: any) {
-    this.currentUser = user;
+    if (user) {
+      this.currentUser = user;
+    }
     if (this.unsubscribe) return;
     this.initListener();
   }

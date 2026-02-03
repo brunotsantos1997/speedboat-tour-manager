@@ -64,7 +64,7 @@ export const ProductsScreen: React.FC = () => {
   const vm = useProductsViewModel();
   const { currentUser } = useAuth();
   const { showToast } = useToastContext();
-  const isAuthorized = currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN';
+  const isAuthorized = currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
 
   const handleSave = async () => {
     const result = await vm.handleSave();
