@@ -198,7 +198,8 @@ export function UserManagementScreen() {
                       max="100"
                       value={user.commissionInput}
                       onChange={(e) => handleCommissionInputChange(user.id, e.target.value)}
-                      className="w-20 border border-gray-300 rounded-md p-1"
+                      onFocus={(e) => e.target.select()}
+                      className="w-20 border border-gray-300 rounded-md p-1 outline-none focus:ring-2 focus:ring-blue-500"
                       disabled={user.role === 'OWNER'}
                     />
                     <button

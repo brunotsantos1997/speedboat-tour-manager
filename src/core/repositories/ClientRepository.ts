@@ -80,8 +80,8 @@ class ClientRepositoryImpl implements IClientRepository {
     if (!term) return [];
     const lowercasedTerm = term.toLowerCase();
     return all.filter(client =>
-      client.name.toLowerCase().includes(lowercasedTerm) ||
-      client.phone.includes(term)
+      (client.name || '').toLowerCase().includes(lowercasedTerm) ||
+      (client.phone || '').includes(term)
     );
   }
 
@@ -93,6 +93,9 @@ class ClientRepositoryImpl implements IClientRepository {
 
   async add(newClientData: Omit<ClientProfile, 'id' | 'totalTrips'>): Promise<ClientProfile> {
     this.checkPermission();
+    if (!newClientData.name || !newClientData.phone) {
+      throw new Error('Nome e telefone são obrigatórios.');
+    }
     const data = {
       ...newClientData,
       totalTrips: 0,
@@ -114,6 +117,9 @@ class ClientRepositoryImpl implements IClientRepository {
 
   async update(updatedClient: ClientProfile): Promise<ClientProfile> {
     this.checkPermission();
+    if (!updatedClient.id || !updatedClient.name || !updatedClient.phone) {
+      throw new Error('Dados do cliente inválidos para atualização.');
+    }
     const { id, ...data } = updatedClient;
     const docRef = doc(db, this.collectionName, id);
 

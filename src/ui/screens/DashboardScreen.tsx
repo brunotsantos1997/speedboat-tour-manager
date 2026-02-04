@@ -3,6 +3,7 @@ import React from 'react';
 import { useDashboardViewModel } from '../../viewmodels/useDashboardViewModel';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
+import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 import { DollarSign, Hash, PlusCircle, Search, Clock, AlertTriangle, Anchor, CheckCircle, Bell, Ban } from 'lucide-react';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
@@ -154,7 +155,7 @@ export const DashboardScreen: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Stat Cards */}
-        {!isSeller && <StatCard title="Faturamento do Mês" value={`R$ ${monthlyStats.totalRevenue.toFixed(2)}`} icon={<DollarSign />} />}
+        {!isSeller && <StatCard title="Faturamento do Mês" value={formatCurrencyBRL(monthlyStats.totalRevenue)} icon={<DollarSign />} />}
         <StatCard title="Passeios no Mês" value={monthlyStats.totalEvents.toString()} icon={<Hash />} />
 
         {/* Quick Access */}

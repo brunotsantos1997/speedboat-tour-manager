@@ -46,14 +46,14 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-white shadow-lg transform transition-transform z-40 ${
+        className={`fixed top-0 left-0 h-full w-64 bg-white shadow-lg transform transition-transform z-40 flex flex-col ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } md:translate-x-0 md:relative md:w-64 md:flex-shrink-0`}
       >
-        <div className="p-4 border-b">
-          <h2 className="text-2xl font-bold text-center">{appName}</h2>
+        <div className="p-4 border-b flex-shrink-0">
+          <h2 className="text-2xl font-bold text-center truncate">{appName}</h2>
         </div>
-        <nav className="p-4 space-y-2">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-2">
           <NavLink to="/" className={navLinkClass} onClick={onClose} end>
             <LayoutDashboard className="mr-3" />
             Dashboard
@@ -112,9 +112,6 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
                   <NavLink to="/voucher-terms" className={navLinkClass} onClick={onClose}>
                     Termos do Voucher
                   </NavLink>
-                  <NavLink to="/rental-prices" className={navLinkClass} onClick={onClose}>
-                    Preços de Aluguel
-                  </NavLink>
                 </>
               )}
             </div>
@@ -154,7 +151,7 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
             Meu Perfil
           </NavLink>
         </nav>
-        <div className="p-4 mt-auto border-t">
+        <div className="p-4 border-t flex-shrink-0">
             <button
                 onClick={handleLogout}
                 className="flex items-center w-full px-4 py-3 text-lg font-semibold text-left text-red-600 rounded-lg hover:bg-red-100"
@@ -180,7 +177,7 @@ export const Layout: React.FC<{ children?: React.ReactNode }> = ({ children }) =
   }, [companyData]);
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 overflow-hidden">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} appName={appName} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
