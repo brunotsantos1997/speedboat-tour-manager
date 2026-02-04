@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- FUNÇÕES AUXILIARES ---
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Busca os dados do perfil do usuário logado
+    function getUserData() {
+      return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data;
+    }
+
+    // Verifica se o usuário está aprovado
+    function isApproved() {
+      return isAuthenticated() && getUserData().status == 'APPROVED';
+    }
+
+    // Função central de permissões (Mais robusta)
+    // Permite OWNER, SUPER_ADMIN e, opcionalmente, ADMIN
+    function hasStaffPermission(allowAdmin) {
+      let role = getUserData().role;
+      return isApproved() && (
+        role == 'OWNER' ||
+        role == 'SUPER_ADMIN' ||
+        (allowAdmin && role == 'ADMIN')
+      );
+    }
+
+    // --- REGRAS DE COLEÇÕES ---
+
+    // Perfis de Usuário
+    match /profiles/{userId} {
+      allow read: if isApproved() && (
+        getUserData().role == 'OWNER' ||
+        getUserData().role == 'SUPER_ADMIN' ||
+        request.auth.uid == userId
+      );
+
+      allow create: if isAuthenticated() && request.auth.uid == userId
+                    && request.resource.data.status == 'PENDING'
+                    && request.resource.data.role == 'ADMIN';
+
+      allow update: if isApproved() && (
+        (request.auth.uid == userId &&
+         !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['role', 'status', 'commissionPercentage', 'email']))
+        ||
+        (getUserData().role == 'OWNER' || getUserData().role == 'SUPER_ADMIN')
+      );
+    }
+
+    // Eventos
+    match /events/{eventId} {
+      // PERMITIR LEITURA PÚBLICA PARA VOUCHERS (Apenas GET, não LIST)
+      allow get: if true;
+      allow list: if isApproved();
+
+      allow create: if hasStaffPermission(true) || getUserData().role == 'SELLER';
+      allow update: if isApproved() && (
+        hasStaffPermission(false) || resource.data.createdByUserId == request.auth.uid
+      );
+      allow delete: if hasStaffPermission(false);
+    }
+
+    // Cadastros (Produtos, Barcos, Locais)
+    // Usando hasStaffPermission(true) para permitir que ADMINs também editem
+    match /products/{id} {
+      allow read: if isApproved();
+      allow write: if hasStaffPermission(true);
+    }
+
+    match /boats/{id} {
+      allow read: if isApproved();
+      allow write: if hasStaffPermission(true);
+    }
+
+    match /boarding_locations/{id} {
+      allow read: if isApproved();
+      allow write: if hasStaffPermission(true);
+    }
+
+    // Configurações Sensíveis (Apenas OWNER e SUPER_ADMIN para escrita, PÚBLICO para leitura no Voucher)
+    match /company_data/{id} {
+      allow read: if true;
+      allow write: if hasStaffPermission(false);
+    }
+
+    match /voucher_appearance/{id} {
+      allow read: if true;
+      allow write: if hasStaffPermission(false);
+    }
+
+    match /voucher_terms/{id} {
+      allow read: if true;
+      allow write: if hasStaffPermission(false);
+    }
+
+    // Clientes
+    match /clients/{clientId} {
+      allow read, write: if isApproved();
+    }
+
+    // Logs de Auditoria
+    match /audit_logs/{logId} {
+      allow create: if isAuthenticated();
+      allow read: if hasStaffPermission(false);
+    }
+  }
+}

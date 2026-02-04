@@ -1,10 +1,13 @@
 // src/viewmodels/useClientHistoryViewModel.ts
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { ClientProfile, EventType } from '../core/domain/types';
 import { clientRepository } from '../core/repositories/ClientRepository';
 import { eventRepository } from '../core/repositories/EventRepository';
 
 export const useClientHistoryViewModel = () => {
+  const [searchParams] = useSearchParams();
+  const clientIdParam = searchParams.get('clientId');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<ClientProfile[]>([]);
   const [selectedClient, setSelectedClient] = useState<ClientProfile | null>(null);
@@ -108,6 +111,20 @@ export const useClientHistoryViewModel = () => {
 
     closeEditModal();
   }, [editingClient, clientName, clientPhone]);
+
+  useEffect(() => {
+    const loadClientFromParams = async () => {
+      if (clientIdParam && !selectedClient) {
+        setIsLoading(true);
+        const client = await clientRepository.getById(clientIdParam);
+        if (client) {
+          await selectClient(client);
+        }
+        setIsLoading(false);
+      }
+    };
+    loadClientFromParams();
+  }, [clientIdParam, selectedClient, selectClient]);
 
   return {
     searchTerm,

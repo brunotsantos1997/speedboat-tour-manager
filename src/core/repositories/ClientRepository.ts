@@ -20,6 +20,7 @@ export interface IClientRepository {
   add(newClient: Omit<ClientProfile, 'id' | 'totalTrips'>): Promise<ClientProfile>;
   update(client: ClientProfile): Promise<ClientProfile>;
   delete(clientId: string): Promise<void>;
+  getById(clientId: string): Promise<ClientProfile | null>;
   getAll(): Promise<ClientProfile[]>;
   dispose(): void;
   initialize(user?: any): void;
@@ -64,13 +65,21 @@ class ClientRepositoryImpl implements IClientRepository {
   }
 
   async getAll(): Promise<ClientProfile[]> {
-    if (!this.isInitialized) {
-      const querySnapshot = await getDocs(collection(db, this.collectionName));
-      this.clients = querySnapshot.docs.map(doc => ({
-        ...doc.data() as ClientProfile,
-        id: doc.id
-      }));
-      this.isInitialized = true;
+    if (!this.isInitialized || (this.isInitialized && this.clients.length === 0)) {
+      try {
+        const querySnapshot = await getDocs(collection(db, this.collectionName));
+        const fetchedClients = querySnapshot.docs.map(doc => ({
+          ...doc.data() as ClientProfile,
+          id: doc.id
+        }));
+        // Only update if we actually got results or if we are not initialized
+        if (fetchedClients.length > 0 || !this.isInitialized) {
+          this.clients = fetchedClients;
+          this.isInitialized = true;
+        }
+      } catch (error) {
+        console.error("Error fetching all clients:", error);
+      }
     }
     return this.clients;
   }
@@ -83,6 +92,23 @@ class ClientRepositoryImpl implements IClientRepository {
       (client.name || '').toLowerCase().includes(lowercasedTerm) ||
       (client.phone || '').includes(term)
     );
+  }
+
+  async getById(clientId: string): Promise<ClientProfile | null> {
+    const all = await this.getAll();
+    const found = all.find(c => c.id === clientId);
+    if (found) return found;
+
+    try {
+      const docRef = doc(db, this.collectionName, clientId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return { ...docSnap.data() as ClientProfile, id: docSnap.id };
+      }
+    } catch (error) {
+      console.error("Error fetching client by id:", error);
+    }
+    return null;
   }
 
   private checkPermission() {

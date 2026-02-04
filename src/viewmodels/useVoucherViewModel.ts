@@ -37,15 +37,44 @@ export const useVoucherViewModel = () => {
         const termsRepo = VoucherTermsRepository.getInstance();
         const appearanceRepo = VoucherAppearanceRepository.getInstance();
 
-        const [companyInfo, terms, appearance, eventData] = await Promise.all([
+        // Use Promise.allSettled to catch individual failures but try to proceed
+        const results = await Promise.allSettled([
           companyRepo.get(),
           termsRepo.get(),
           appearanceRepo.get(),
           eventRepository.getById(eventId),
         ]);
 
+        const companyInfo = results[0].status === 'fulfilled' ? results[0].value : {
+          id: 'default',
+          cnpj: '',
+          phone: '',
+          appName: 'Voucher Online',
+          reservationFeePercentage: 30,
+          businessHours: {} as any,
+          eventIntervalMinutes: 30,
+        } as CompanyData;
+
+        const terms = results[1].status === 'fulfilled' ? results[1].value : {
+          id: 'default',
+          terms: '<p>Termos e condições de uso do voucher.</p>'
+        } as VoucherTerms;
+
+        const appearance = results[2].status === 'fulfilled' ? results[2].value : undefined;
+        const eventData = results[3].status === 'fulfilled' ? results[3].value : undefined;
+
+        if (results[3].status === 'rejected') {
+          const error = results[3].reason;
+          if (error?.code === 'permission-denied') {
+            setError('Acesso negado ao voucher. Verifique se o link está correto ou se as permissões do banco de dados permitem acesso público.');
+          } else {
+            setError('Falha ao buscar os detalhes do evento.');
+          }
+          return;
+        }
+
         if (!eventData) {
-          setError('Evento não encontrado.');
+          setError('Evento não encontrado ou ID inválido.');
           return;
         }
 

@@ -4,6 +4,7 @@ import { Anchor, Utensils, Beer, User, Circle, HelpCircle, Users, Search, X, Pac
 import type { LucideProps } from 'lucide-react';
 import { useCreateEventViewModel } from '../../viewmodels/useCreateEventViewModel';
 import { useToastContext } from '../../ui/contexts/ToastContext';
+import { useNavigate } from 'react-router-dom';
 import type { Product, ClientProfile } from '../../core/domain/types';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 import { MoneyInput } from '../components/MoneyInput';
@@ -176,6 +177,7 @@ const NewClientModal: React.FC<{
 export const CreateEventScreen: React.FC = () => {
   const vm = useCreateEventViewModel();
   const { showToast } = useToastContext();
+  const navigate = useNavigate();
   const isProductSelected = (product: Product) => vm.selectedProducts.some(p => p.id === product.id);
 
   const bookedDays = vm.scheduledEvents.map(event => new Date(event.date));
@@ -489,13 +491,16 @@ export const CreateEventScreen: React.FC = () => {
           {/* Action Button */}
           <button
             onClick={() => {
-              vm.createEvent().then(() => {
+              vm.createEvent().then((client) => {
                 showToast(vm.editingEventId ? 'Passeio atualizado com sucesso!' : 'Passeio agendado com sucesso!');
+                if (client) {
+                  navigate(`/clients?clientId=${client.id}`);
+                }
               }).catch((err) => {
                 if (err.message === 'Campos obrigatórios ausentes.') {
                   showToast('Por favor, preencha todos os campos obrigatórios: Data, Cliente, Lancha e Local de Embarque.');
                 } else {
-                  showToast('Ocorreu um erro ao salvar o passeio.');
+                  showToast('Ocorreu um erro ao salvar o passeio: ' + (err.message || 'Erro desconhecido'));
                 }
               });
             }}

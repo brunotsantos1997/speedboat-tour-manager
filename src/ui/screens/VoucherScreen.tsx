@@ -20,6 +20,7 @@ import type { LucideProps } from 'lucide-react';
 
 import { useVoucherViewModel } from '../../viewmodels/useVoucherViewModel';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
+import DOMPurify from 'dompurify';
 
 const DynamicIcon = ({ name, ...props }: { name: string } & LucideProps) => {
   const iconMap: { [key: string]: React.FC<LucideProps> } = { Anchor, Utensils, Beer, User, Circle: HelpCircle, Package };
@@ -221,9 +222,17 @@ export const VoucherScreen: React.FC = () => {
             {/* Legal Clauses */}
             <section className="p-6 bg-gray-50 border border-gray-200 rounded-lg">
               <h3 className="font-bold text-lg mb-4 text-gray-700">Termos e Condições</h3>
-              <div className="text-sm text-gray-600 whitespace-pre-line">
-                {voucherTerms.terms}
-              </div>
+              <style>{`
+                .voucher-terms h2 { font-size: 1.25rem; font-weight: bold; margin-top: 1rem; margin-bottom: 0.5rem; }
+                .voucher-terms p { margin-bottom: 0.5rem; }
+                .voucher-terms ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
+                .voucher-terms li { margin-bottom: 0.25rem; }
+                .voucher-terms hr { margin: 1rem 0; border: 0; border-top: 1px solid #e5e7eb; }
+              `}</style>
+              <div
+                className="text-sm text-gray-600 voucher-terms"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(voucherTerms.terms) }}
+              />
             </section>
           </main>
 
