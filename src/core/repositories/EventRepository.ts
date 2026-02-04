@@ -79,7 +79,7 @@ class EventRepositoryImpl implements IEventRepository {
 
   async getEventsByClient(clientId: string): Promise<EventType[]> {
     const all = await this.getAll();
-    return all.filter((e: EventType) => e.client.id === clientId);
+    return all.filter((e: EventType) => e.client?.id === clientId);
   }
 
   async getAll(): Promise<EventType[]> {
@@ -95,7 +95,7 @@ class EventRepositoryImpl implements IEventRepository {
   }
 
   private isTimeConflict(eventA: Omit<EventType, 'id'>, eventB: EventType): boolean {
-    if (eventA.date !== eventB.date || eventA.boat.id !== eventB.boat.id) {
+    if (eventA.date !== eventB.date || eventA.boat?.id !== eventB.boat?.id) {
       return false;
     }
 
@@ -110,6 +110,9 @@ class EventRepositoryImpl implements IEventRepository {
   async add(eventData: Omit<EventType, 'id'>): Promise<EventType> {
     if (!this.currentUser) {
       throw new Error('Você deve estar logado para agendar eventos.');
+    }
+    if (!eventData.boat?.id || !eventData.client?.id || !eventData.boardingLocation?.id) {
+      throw new Error('Dados incompletos para criação do passeio.');
     }
     const allEvents = await this.getAll();
     const now = Date.now();
@@ -151,6 +154,9 @@ class EventRepositoryImpl implements IEventRepository {
   async updateEvent(updatedEvent: EventType): Promise<EventType> {
     if (!this.currentUser) {
       throw new Error('Você deve estar logado para atualizar eventos.');
+    }
+    if (!updatedEvent.id || !updatedEvent.boat?.id || !updatedEvent.client?.id) {
+      throw new Error('Dados incompletos para atualização do passeio.');
     }
     if (this.currentUser.role !== 'OWNER' && this.currentUser.role !== 'SUPER_ADMIN' && updatedEvent.createdByUserId !== this.currentUser.id) {
       throw new Error('Você não tem permissão para alterar este evento.');

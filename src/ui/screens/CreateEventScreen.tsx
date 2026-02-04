@@ -1,7 +1,5 @@
 // src/ui/screens/CreateEventScreen.tsx
 import React from 'react';
-// @ts-ignore
-import InputMask from 'react-input-mask';
 import { Anchor, Utensils, Beer, User, Circle, HelpCircle, Users, Search, X, Package, Pencil, Trash2, AlertTriangle, Minus, Plus } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import { useCreateEventViewModel } from '../../viewmodels/useCreateEventViewModel';
@@ -114,10 +112,40 @@ const NewClientModal: React.FC<{
   phone: string;
   setName: (name: string) => void;
   setPhone: (phone: string) => void;
-  onSave: () => void;
+  onSave: () => Promise<void> | void;
   onClose: () => void;
-}> = ({ isOpen, editingClient, name, phone, setName, setPhone, onSave, onClose }) => {
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+}> = ({ isOpen, editingClient, name, phone, setName, setPhone, onSave, onClose, showToast }) => {
   if (!isOpen) return null;
+
+  const formatPhone = (value: string) => {
+    // Remove all non-digits
+    const digits = value.replace(/\D/g, '');
+
+    // Limit to 13 digits (55 + 2 for DDD + 9 for number)
+    const limited = digits.slice(0, 13);
+
+    // +55 (99) 99999-9999
+    let formatted = '';
+    if (limited.length > 0) {
+      formatted = '+' + limited.slice(0, 2);
+    }
+    if (limited.length > 2) {
+      formatted += ' (' + limited.slice(2, 4);
+    }
+    if (limited.length > 4) {
+      formatted += ') ' + limited.slice(4, 9);
+    }
+    if (limited.length > 9) {
+      formatted += '-' + limited.slice(9, 13);
+    }
+    return formatted;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhone(e.target.value);
+    setPhone(formatted);
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -133,26 +161,29 @@ const NewClientModal: React.FC<{
             onChange={(e) => setName(e.target.value)}
             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           />
-          <InputMask
-            mask="+55 (99) 99999-9999"
+          <input
+            type="tel"
+            placeholder="Telefone (WhatsApp)"
             value={phone}
-            onChange={(e: any) => setPhone(e.target.value)}
-          >
-            {(inputProps: any) => (
-              <input
-                {...inputProps}
-                type="tel"
-                placeholder="Telefone (WhatsApp)"
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            )}
-          </InputMask>
+            onChange={handlePhoneChange}
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          />
         </div>
         <div className="flex justify-end space-x-3 mt-6">
           <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">
             Cancelar
           </button>
-          <button onClick={onSave} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <button
+            onClick={async () => {
+              try {
+                await onSave();
+              } catch (error) {
+                console.error(error);
+                showToast('Erro ao salvar cliente. Verifique os dados e tente novamente.', 'error');
+              }
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
             {editingClient ? 'Atualizar' : 'Salvar Cliente'}
           </button>
         </div>
@@ -478,8 +509,12 @@ export const CreateEventScreen: React.FC = () => {
             onClick={() => {
               vm.createEvent().then(() => {
                 showToast(vm.editingEventId ? 'Passeio atualizado com sucesso!' : 'Passeio agendado com sucesso!');
-              }).catch(() => {
-                showToast('Ocorreu um erro ao salvar o passeio.');
+              }).catch((err) => {
+                if (err.message === 'Campos obrigatórios ausentes.') {
+                  showToast('Por favor, preencha todos os campos obrigatórios: Data, Cliente, Lancha e Local de Embarque.');
+                } else {
+                  showToast('Ocorreu um erro ao salvar o passeio.');
+                }
               });
             }}
             className={`px-8 py-4 text-white rounded-lg text-lg font-bold shadow-lg transition-colors ${vm.isPreScheduled ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-600 hover:bg-green-700'}`}
@@ -498,6 +533,7 @@ export const CreateEventScreen: React.FC = () => {
         setPhone={vm.setNewClientPhone}
         onSave={vm.handleSaveClient}
         onClose={vm.handleCloseModal}
+        showToast={showToast}
       />
     </div>
   );

@@ -196,9 +196,14 @@ export const useCreateEventViewModel = () => {
     setClientSearchTerm(term);
     if (term.length > 2) {
       setIsSearching(true);
-      const results = await clientRepository.search(term);
-      setClientSearchResults(results);
-      setIsSearching(false);
+      try {
+        const results = await clientRepository.search(term);
+        setClientSearchResults(results);
+      } catch (error) {
+        console.error('Erro na busca de clientes:', error);
+      } finally {
+        setIsSearching(false);
+      }
     } else {
       setClientSearchResults([]);
     }
@@ -239,23 +244,25 @@ export const useCreateEventViewModel = () => {
   const handleSaveClient = useCallback(async () => {
     if (!newClientName || !newClientPhone) return;
 
-    if (editingClient) {
-      const updatedClient = { ...editingClient, name: newClientName, phone: newClientPhone };
-      const result = await clientRepository.update(updatedClient);
-      if (selectedClient?.id === result.id) {
-        setSelectedClient(result);
-        setClientSearchTerm(result.name);
+    try {
+      if (editingClient) {
+        const updatedClient = { ...editingClient, name: newClientName, phone: newClientPhone };
+        const result = await clientRepository.update(updatedClient);
+        if (selectedClient?.id === result.id) {
+          setSelectedClient(result);
+          setClientSearchTerm(result.name);
+        }
+      } else {
+        const newClient = await clientRepository.add({ name: newClientName, phone: newClientPhone });
+        selectClient(newClient);
       }
-    } else {
-      const newClient = await clientRepository.add({ name: newClientName, phone: newClientPhone });
-      selectClient(newClient);
-    }
 
-    handleCloseModal();
-    if (clientSearchTerm.length > 2) {
-      handleClientSearch(clientSearchTerm);
+      handleCloseModal();
+    } catch (error) {
+      console.error('Erro ao salvar cliente:', error);
+      throw error; // Re-throw to be handled by the UI (toast)
     }
-  }, [editingClient, newClientName, newClientPhone, selectedClient, clientSearchTerm, handleClientSearch, selectClient]);
+  }, [editingClient, newClientName, newClientPhone, selectedClient, clientSearchTerm, handleCloseModal, selectClient]);
 
   const handleDeleteClient = useCallback(async (clientId: string) => {
     if (window.confirm('Tem certeza que deseja excluir este cliente?')) {
@@ -331,8 +338,7 @@ export const useCreateEventViewModel = () => {
 
   const createEvent = useCallback(async () => {
     if (!selectedDate || !selectedClient || !selectedBoat || !selectedBoardingLocation) {
-      alert('Por favor, preencha todos os campos obrigatórios: Data, Cliente, Lancha e Local de Embarque.');
-      return;
+      throw new Error('Campos obrigatórios ausentes.');
     }
 
     const eventStatus = isPreScheduled ? 'PRE_SCHEDULED' : 'SCHEDULED';
@@ -431,7 +437,7 @@ export const useCreateEventViewModel = () => {
     if (!selectedBoat) {
       return businessHourSlots;
     }
-    const otherBoatEvents = scheduledEvents.filter(event => event.boat.id === selectedBoat.id && event.id !== editingEventId);
+    const otherBoatEvents = scheduledEvents.filter(event => event.boat?.id === selectedBoat.id && event.id !== editingEventId);
     if (otherBoatEvents.length === 0) {
       return businessHourSlots;
     }
@@ -443,6 +449,7 @@ export const useCreateEventViewModel = () => {
       const slotTime = slotHour * 60 + slotMinute;
 
       return otherBoatEvents.some(event => {
+        if (!event.startTime || !event.endTime) return false;
         const [eventStartHour, eventStartMinute] = event.startTime.split(':').map(Number);
         const eventStartTime = eventStartHour * 60 + eventStartMinute;
 
@@ -474,8 +481,8 @@ export const useCreateEventViewModel = () => {
     let possibleEndTimes = allDaySlots.filter(slot => slot > startTime && slot <= businessEndTime);
 
     const nextEvent = scheduledEvents
-      .filter(event => event.boat.id === selectedBoat?.id && event.id !== editingEventId && event.startTime > startTime)
-      .sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
+      .filter(event => event.boat?.id === selectedBoat?.id && event.id !== editingEventId && event.startTime > startTime)
+      .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''))[0];
 
     if (nextEvent) {
       const [nextStartHour, nextStartMinute] = nextEvent.startTime.split(':').map(Number);
