@@ -5,14 +5,12 @@ import {
   addDoc,
   updateDoc,
   doc,
-  getDoc,
   onSnapshot,
   query,
   type Unsubscribe
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type { BoardingLocation } from '../domain/types';
-import { auditLogRepository } from './AuditLogRepository';
 
 export class BoardingLocationRepository {
   private static instance: BoardingLocationRepository;
@@ -84,15 +82,6 @@ export class BoardingLocationRepository {
     const docRef = await addDoc(collection(db, this.collectionName), location);
     const newLocation = { id: docRef.id, ...location };
 
-    await auditLogRepository.log({
-      userId: this.currentUser?.id || 'unknown',
-      userName: this.currentUser?.name || 'Sistema',
-      action: 'CREATE',
-      collection: this.collectionName,
-      docId: docRef.id,
-      newData: newLocation,
-    });
-
     return newLocation;
   }
 
@@ -101,20 +90,7 @@ export class BoardingLocationRepository {
     const { id, ...data } = location;
     const docRef = doc(db, this.collectionName, id);
 
-    const oldDoc = await getDoc(docRef);
-    const oldData = oldDoc.exists() ? { ...oldDoc.data(), id: oldDoc.id } : null;
-
     await updateDoc(docRef, data as any);
-
-    await auditLogRepository.log({
-      userId: this.currentUser?.id || 'unknown',
-      userName: this.currentUser?.name || 'Sistema',
-      action: 'UPDATE',
-      collection: this.collectionName,
-      docId: id,
-      oldData,
-      newData: location,
-    });
 
     return location;
   }
@@ -123,20 +99,7 @@ export class BoardingLocationRepository {
     this.checkAdminPermission();
     const docRef = doc(db, this.collectionName, id);
 
-    const oldDoc = await getDoc(docRef);
-    const oldData = oldDoc.exists() ? { ...oldDoc.data(), id: oldDoc.id } : null;
-
     await updateDoc(docRef, { isArchived: true });
-
-    await auditLogRepository.log({
-      userId: this.currentUser?.id || 'unknown',
-      userName: this.currentUser?.name || 'Sistema',
-      action: 'DELETE',
-      collection: this.collectionName,
-      docId: id,
-      oldData,
-      newData: { ...oldData, isArchived: true },
-    });
   }
 }
 

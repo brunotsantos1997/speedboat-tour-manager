@@ -5,14 +5,12 @@ import {
   addDoc,
   updateDoc,
   doc,
-  getDoc,
   onSnapshot,
   query,
   type Unsubscribe
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type { Boat } from '../domain/types';
-import { auditLogRepository } from './AuditLogRepository';
 
 export interface IBoatRepository {
   getAll(): Promise<Boat[]>;
@@ -92,15 +90,6 @@ class BoatRepositoryImpl implements IBoatRepository {
     const docRef = await addDoc(collection(db, this.collectionName), boatData);
     const newBoat = { id: docRef.id, ...boatData };
 
-    await auditLogRepository.log({
-      userId: this.currentUser?.id || 'unknown',
-      userName: this.currentUser?.name || 'Sistema',
-      action: 'CREATE',
-      collection: this.collectionName,
-      docId: docRef.id,
-      newData: newBoat,
-    });
-
     return newBoat;
   }
 
@@ -109,20 +98,7 @@ class BoatRepositoryImpl implements IBoatRepository {
     const { id, ...data } = updatedBoat;
     const docRef = doc(db, this.collectionName, id);
 
-    const oldDoc = await getDoc(docRef);
-    const oldData = oldDoc.exists() ? { ...oldDoc.data(), id: oldDoc.id } : null;
-
     await updateDoc(docRef, data as any);
-
-    await auditLogRepository.log({
-      userId: this.currentUser?.id || 'unknown',
-      userName: this.currentUser?.name || 'Sistema',
-      action: 'UPDATE',
-      collection: this.collectionName,
-      docId: id,
-      oldData,
-      newData: updatedBoat,
-    });
 
     return updatedBoat;
   }
@@ -131,20 +107,7 @@ class BoatRepositoryImpl implements IBoatRepository {
     this.checkAdminPermission();
     const docRef = doc(db, this.collectionName, boatId);
 
-    const oldDoc = await getDoc(docRef);
-    const oldData = oldDoc.exists() ? { ...oldDoc.data(), id: oldDoc.id } : null;
-
     await updateDoc(docRef, { isArchived: true });
-
-    await auditLogRepository.log({
-      userId: this.currentUser?.id || 'unknown',
-      userName: this.currentUser?.name || 'Sistema',
-      action: 'DELETE',
-      collection: this.collectionName,
-      docId: boatId,
-      oldData,
-      newData: { ...oldData, isArchived: true },
-    });
   }
 }
 

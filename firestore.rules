@@ -103,10 +103,5 @@ service cloud.firestore {
       allow read, write: if isApproved();
     }
 
-    // Logs de Auditoria
-    match /audit_logs/{logId} {
-      allow create: if isAuthenticated();
-      allow read: if hasStaffPermission(false);
-    }
   }
 }
