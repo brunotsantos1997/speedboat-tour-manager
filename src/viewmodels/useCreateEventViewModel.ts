@@ -375,6 +375,7 @@ export const useCreateEventViewModel = () => {
       };
       await eventRepository.add(newEventData);
     }
+    return selectedClient;
   }, [
     selectedDate,
     startTime,

@@ -114,15 +114,17 @@ export const useClientHistoryViewModel = () => {
 
   useEffect(() => {
     const loadClientFromParams = async () => {
-      if (clientIdParam) {
+      if (clientIdParam && !selectedClient) {
+        setIsLoading(true);
         const client = await clientRepository.getById(clientIdParam);
         if (client) {
-          selectClient(client);
+          await selectClient(client);
         }
+        setIsLoading(false);
       }
     };
     loadClientFromParams();
-  }, [clientIdParam, selectClient]);
+  }, [clientIdParam, selectedClient, selectClient]);
 
   return {
     searchTerm,

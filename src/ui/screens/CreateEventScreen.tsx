@@ -516,10 +516,10 @@ export const CreateEventScreen: React.FC = () => {
           {/* Action Button */}
           <button
             onClick={() => {
-              vm.createEvent().then(() => {
+              vm.createEvent().then((client) => {
                 showToast(vm.editingEventId ? 'Passeio atualizado com sucesso!' : 'Passeio agendado com sucesso!');
-                if (vm.selectedClient) {
-                  navigate(`/clients?clientId=${vm.selectedClient.id}`);
+                if (client) {
+                  navigate(`/clients?clientId=${client.id}`);
                 }
               }).catch((err) => {
                 if (err.message === 'Campos obrigatórios ausentes.') {
