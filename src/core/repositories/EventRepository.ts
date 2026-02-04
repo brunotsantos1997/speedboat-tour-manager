@@ -119,6 +119,9 @@ class EventRepositoryImpl implements IEventRepository {
     const twentyFourHours = 24 * 60 * 60 * 1000;
 
     const conflictingEvents = allEvents.filter(existingEvent =>
+      existingEvent.status !== 'CANCELLED' &&
+      existingEvent.status !== 'ARCHIVED_CANCELLED' &&
+      existingEvent.status !== 'REFUNDED' &&
       this.isTimeConflict(eventData, existingEvent)
     );
 
@@ -129,11 +132,7 @@ class EventRepositoryImpl implements IEventRepository {
       if (conflict.status === 'PRE_SCHEDULED' && conflict.preScheduledAt && (now - conflict.preScheduledAt < twentyFourHours)) {
         throw new Error('Este horário está pré-reservado. A vaga será liberada se o pagamento não for confirmado em 24h.');
       }
-      if (conflict.status === 'PRE_SCHEDULED' && conflict.preScheduledAt && (now - conflict.preScheduledAt >= twentyFourHours)) {
-        if (eventData.status === 'SCHEDULED') {
-          await this.updateEvent({ ...conflict, status: 'CANCELLED' });
-        }
-      }
+      // Expired pre-reservations are ignored for conflict purposes
     }
 
     const docRef = await addDoc(collection(db, this.collectionName), eventData);
@@ -166,7 +165,11 @@ class EventRepositoryImpl implements IEventRepository {
     const twentyFourHours = 24 * 60 * 60 * 1000;
 
     const conflictingEvents = allEvents.filter(existingEvent =>
-      existingEvent.id !== updatedEvent.id && this.isTimeConflict(updatedEvent, existingEvent)
+      existingEvent.id !== updatedEvent.id &&
+      existingEvent.status !== 'CANCELLED' &&
+      existingEvent.status !== 'ARCHIVED_CANCELLED' &&
+      existingEvent.status !== 'REFUNDED' &&
+      this.isTimeConflict(updatedEvent, existingEvent)
     );
 
     for (const conflict of conflictingEvents) {

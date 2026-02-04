@@ -525,7 +525,7 @@ export const CreateEventScreen: React.FC = () => {
                 if (err.message === 'Campos obrigatórios ausentes.') {
                   showToast('Por favor, preencha todos os campos obrigatórios: Data, Cliente, Lancha e Local de Embarque.');
                 } else {
-                  showToast('Ocorreu um erro ao salvar o passeio.');
+                  showToast('Ocorreu um erro ao salvar o passeio: ' + (err.message || 'Erro desconhecido'));
                 }
               });
             }}

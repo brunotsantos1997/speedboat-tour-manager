@@ -342,13 +342,12 @@ export const useCreateEventViewModel = () => {
     }
 
     const eventStatus = isPreScheduled ? 'PRE_SCHEDULED' : 'SCHEDULED';
-    const eventData = {
+    const eventData: any = {
       date: format(selectedDate, 'yyyy-MM-dd'),
       startTime: startTime,
       endTime: endTime,
       status: eventStatus as EventType['status'],
       paymentStatus: (editingEventId && originalPaymentStatus === 'CONFIRMED' ? 'CONFIRMED' : 'PENDING') as PaymentStatus,
-      preScheduledAt: isPreScheduled ? Date.now() : undefined,
       boat: selectedBoat,
       boardingLocation: selectedBoardingLocation,
       products: selectedProducts,
@@ -357,9 +356,13 @@ export const useCreateEventViewModel = () => {
       passengerCount,
       subtotal,
       total,
-      tax,
+      tax: tax || 0,
       observations,
     };
+
+    if (isPreScheduled) {
+      eventData.preScheduledAt = Date.now();
+    }
 
     if (editingEventId) {
       const updatedEvent = {
