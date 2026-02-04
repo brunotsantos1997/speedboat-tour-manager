@@ -8,6 +8,8 @@ import type { Product } from '../../core/domain/types';
 import IconPicker from '../components/IconPicker';
 import type { IconKey } from '../components/IconPicker';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { MoneyInput } from '../components/MoneyInput';
+import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 
 // --- Components ---
 
@@ -27,14 +29,14 @@ const ProductModal: React.FC<{
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
         <h2 className="text-xl font-bold mb-6">{isNew ? 'Adicionar Novo Produto' : 'Editar Produto'}</h2>
         <div className="space-y-4">
-          <input type="text" placeholder="Nome do Produto" value={product.name} onChange={(e) => onUpdate('name', e.target.value)} className="w-full p-3 border rounded-lg" />
+          <input type="text" placeholder="Nome do Produto" value={product.name} onChange={(e) => onUpdate('name', e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
           <div className="grid grid-cols-2 gap-4">
             {product.pricingType === 'HOURLY' ? (
-              <input type="number" placeholder="Preço por Hora" value={product.hourlyPrice} onChange={(e) => onUpdate('hourlyPrice', parseFloat(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
+              <MoneyInput value={product.hourlyPrice || 0} onChange={(val) => onUpdate('hourlyPrice', val)} placeholder="Preço por Hora" />
             ) : (
-              <input type="number" placeholder={product.pricingType === 'PER_PERSON' ? 'Preço por Pessoa' : 'Preço Fixo'} value={product.price} onChange={(e) => onUpdate('price', parseFloat(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
+              <MoneyInput value={product.price || 0} onChange={(val) => onUpdate('price', val)} placeholder={product.pricingType === 'PER_PERSON' ? 'Preço por Pessoa' : 'Preço Fixo'} />
             )}
-            <select value={product.pricingType} onChange={(e) => onUpdate('pricingType', e.target.value)} className="w-full p-3 border rounded-lg bg-white">
+            <select value={product.pricingType} onChange={(e) => onUpdate('pricingType', e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none">
               <option value="FIXED">Preço Fixo</option>
               <option value="PER_PERSON">Por Pessoa</option>
               <option value="HOURLY">Por Hora</option>
@@ -109,8 +111,8 @@ export const ProductsScreen: React.FC = () => {
                     <p className="font-bold text-lg">{product.name}</p>
                     <p className="text-sm text-gray-600">
                       {product.pricingType === 'HOURLY'
-                        ? `R$ ${product.hourlyPrice?.toFixed(2) || '0.00'} / hora`
-                        : `R$ ${product.price?.toFixed(2) || '0.00'}`
+                        ? `${formatCurrencyBRL(product.hourlyPrice || 0)} / hora`
+                        : `${formatCurrencyBRL(product.price || 0)}`
                       }
                       {product.pricingType === 'PER_PERSON' && ' / pessoa'}
                     </p>

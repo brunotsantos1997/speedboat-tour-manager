@@ -6,6 +6,8 @@ import { useToastContext } from '../contexts/ToastContext';
 import { Plus, Edit, Trash2, Anchor, Users, Ruler } from 'lucide-react';
 import type { Boat } from '../../core/domain/types';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { MoneyInput } from '../components/MoneyInput';
+import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 
 // --- Components ---
 
@@ -32,22 +34,16 @@ const BoatModal: React.FC<{
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Capacidade (pessoas)</label>
-              <input type="number" placeholder="Capacidade" value={boat.capacity} onChange={(e) => onUpdate('capacity', parseInt(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
+              <input type="number" placeholder="Capacidade" value={boat.capacity} onChange={(e) => onUpdate('capacity', parseInt(e.target.value) || 0)} onFocus={(e) => e.target.select()} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tamanho (pés)</label>
-              <input type="number" placeholder="Tamanho" value={boat.size} onChange={(e) => onUpdate('size', parseInt(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
+              <input type="number" placeholder="Tamanho" value={boat.size} onChange={(e) => onUpdate('size', parseInt(e.target.value) || 0)} onFocus={(e) => e.target.select()} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4 border-t pt-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Preço por Hora (R$)</label>
-              <input type="number" placeholder="Ex: 2500" value={boat.pricePerHour} onChange={(e) => onUpdate('pricePerHour', parseFloat(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Preço por Meia Hora (R$)</label>
-              <input type="number" placeholder="Ex: 1300" value={boat.pricePerHalfHour} onChange={(e) => onUpdate('pricePerHalfHour', parseFloat(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
-            </div>
+            <MoneyInput label="Preço por Hora" value={boat.pricePerHour || 0} onChange={(val) => onUpdate('pricePerHour', val)} />
+            <MoneyInput label="Preço por Meia Hora" value={boat.pricePerHalfHour || 0} onChange={(val) => onUpdate('pricePerHalfHour', val)} />
           </div>
         </div>
         <div className="flex justify-end space-x-3 mt-8">
@@ -113,6 +109,9 @@ export const BoatsScreen: React.FC = () => {
                       <span>{boat.capacity} passageiros</span>
                       <Ruler size={16} className="mx-2" />
                       <span>{boat.size} pés</span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {formatCurrencyBRL(boat.pricePerHour || 0)}/h • {formatCurrencyBRL(boat.pricePerHalfHour || 0)}/30min
                     </div>
                   </div>
                 </div>

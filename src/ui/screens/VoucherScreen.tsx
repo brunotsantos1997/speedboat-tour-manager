@@ -19,6 +19,7 @@ import {
 import type { LucideProps } from 'lucide-react';
 
 import { useVoucherViewModel } from '../../viewmodels/useVoucherViewModel';
+import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 
 const DynamicIcon = ({ name, ...props }: { name: string } & LucideProps) => {
   const iconMap: { [key: string]: React.FC<LucideProps> } = { Anchor, Utensils, Beer, User, Circle: HelpCircle, Package };
@@ -183,12 +184,12 @@ export const VoucherScreen: React.FC = () => {
                     <div className="text-right">
                       <p className={`font-semibold ${item.isCourtesy ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                         {item.pricingType === 'PER_PERSON' && !item.isCourtesy
-                          ? `R$ ${((item.price || 0) * passengerCount).toFixed(2)}`
-                          : `R$ ${(item.price || 0).toFixed(2)}`}
+                          ? formatCurrencyBRL((item.price || 0) * passengerCount)
+                          : formatCurrencyBRL(item.price || 0)}
                       </p>
                       {item.pricingType === 'PER_PERSON' && (
                         <p className="text-xs text-gray-500">
-                          {item.isCourtesy ? "" : `(${passengerCount}x R$ ${(item.price || 0).toFixed(2)})`}
+                          {item.isCourtesy ? "" : `(${passengerCount}x ${formatCurrencyBRL(item.price || 0)})`}
                         </p>
                       )}
                     </div>
@@ -201,17 +202,17 @@ export const VoucherScreen: React.FC = () => {
             <section className="flex justify-end mb-8">
               <div className="w-full max-w-sm">
                   <div className="space-y-2 text-gray-700">
-                      <div className="flex justify-between"><span>Subtotal</span> <span className="font-medium">R$ {subtotal.toFixed(2)}</span></div>
-                      <div className="flex justify-between text-red-600"><span>Desconto</span> <span className="font-medium">- R$ {(voucher.discount.type === 'FIXED' ? voucher.discount.value : subtotal * (voucher.discount.value / 100)).toFixed(2)}</span></div>
-                      {(voucher.tax ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Taxa</span> <span className="font-medium">+ R$ {(voucher.tax ?? 0).toFixed(2)}</span></div>}
-                      <div className="flex justify-between font-bold text-lg border-t border-gray-200 pt-2 mt-2"><span>Total</span> <span>R$ {total.toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span>Subtotal</span> <span className="font-medium">{formatCurrencyBRL(subtotal)}</span></div>
+                      <div className="flex justify-between text-red-600"><span>Desconto</span> <span className="font-medium">- {formatCurrencyBRL(voucher.discount.type === 'FIXED' ? voucher.discount.value : subtotal * (voucher.discount.value / 100))}</span></div>
+                      {(voucher.tax ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Taxa</span> <span className="font-medium">+ {formatCurrencyBRL(voucher.tax ?? 0)}</span></div>}
+                      <div className="flex justify-between font-bold text-lg border-t border-gray-200 pt-2 mt-2"><span>Total</span> <span>{formatCurrencyBRL(total)}</span></div>
                       <div className="flex justify-between font-bold text-lg text-blue-600 bg-blue-50 p-3 rounded-lg">
                           <span>Sinal (Reserva 30%)</span>
-                          <span>R$ {reservationFee.toFixed(2)}</span>
+                          <span>{formatCurrencyBRL(reservationFee)}</span>
                       </div>
                        <div className="flex justify-between text-gray-600 pt-2 mt-2">
                           <span>Saldo a pagar no dia</span>
-                          <span className="font-bold">R$ {remainingBalance.toFixed(2)}</span>
+                          <span className="font-bold">{formatCurrencyBRL(remainingBalance)}</span>
                       </div>
                   </div>
               </div>

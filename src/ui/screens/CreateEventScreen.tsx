@@ -5,6 +5,8 @@ import type { LucideProps } from 'lucide-react';
 import { useCreateEventViewModel } from '../../viewmodels/useCreateEventViewModel';
 import { useToastContext } from '../../ui/contexts/ToastContext';
 import type { Product, ClientProfile } from '../../core/domain/types';
+import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
+import { MoneyInput } from '../components/MoneyInput';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import { ptBR } from 'date-fns/locale';
@@ -84,6 +86,7 @@ const NumericInput: React.FC<{
         type="number"
         value={value}
         onChange={handleChange}
+        onFocus={(e) => e.target.select()}
         min={min}
         max={max}
         step={step}
@@ -294,8 +297,8 @@ export const CreateEventScreen: React.FC = () => {
                       <p className="font-semibold">{product.name}</p>
                       <p className="text-sm text-gray-500">
                         {product.pricingType === 'HOURLY'
-                          ? `R$ ${product.hourlyPrice?.toFixed(2)} / hora`
-                          : `R$ ${(product.price || 0).toFixed(2)}`}
+                          ? `${formatCurrencyBRL(product.hourlyPrice || 0)} / hora`
+                          : `${formatCurrencyBRL(product.price || 0)}`}
                         {product.pricingType === 'PER_PERSON' && ' / pessoa'}
                       </p>
                     </div>
@@ -319,8 +322,8 @@ export const CreateEventScreen: React.FC = () => {
                             <p className="font-semibold">{product.name}</p>
                             <p className={`text-sm ${product.isCourtesy ? 'line-through text-gray-400' : 'text-gray-600'}`}>
                               {product.pricingType === 'HOURLY'
-                                ? `R$ ${product.hourlyPrice?.toFixed(2)} / hora`
-                                : `R$ ${(product.price || 0).toFixed(2)}`}
+                                ? `${formatCurrencyBRL(product.hourlyPrice || 0)} / hora`
+                                : `${formatCurrencyBRL(product.price || 0)}`}
                               {product.pricingType === 'PER_PERSON' && ` x ${vm.passengerCount} passageiros`}
                             </p>
                           </div>
@@ -363,22 +366,26 @@ export const CreateEventScreen: React.FC = () => {
                       <button onClick={() => vm.updateDiscountType('PERCENTAGE')} className={`w-full px-4 py-2 text-sm rounded-r-md ${vm.discount.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>%</button>
                     </div>
                     <div className="col-span-2">
-                      <NumericInput
-                        value={vm.discount.value}
-                        onChange={vm.updateDiscountValue}
-                        min={0}
-                        step={vm.discount.type === 'PERCENTAGE' ? 1 : 10}
-                      />
+                      {vm.discount.type === 'PERCENTAGE' ? (
+                        <NumericInput
+                          value={vm.discount.value}
+                          onChange={vm.updateDiscountValue}
+                          min={0}
+                        />
+                      ) : (
+                        <MoneyInput
+                          value={vm.discount.value}
+                          onChange={vm.updateDiscountValue}
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
                 <div className="mt-6">
                   <h3 className="text-md font-semibold mb-2">Taxa</h3>
-                  <NumericInput
+                  <MoneyInput
                     value={vm.tax}
                     onChange={vm.updateTax}
-                    min={0}
-                    step={10}
                   />
                 </div>
               </section>
@@ -482,26 +489,26 @@ export const CreateEventScreen: React.FC = () => {
           <div className="flex-grow pr-4">
             <div className="flex justify-between items-center text-sm">
               <span className="text-gray-600">Custo do Aluguel da Lancha</span>
-              <span className="font-medium">R$ {vm.boatRentalCost.toFixed(2)}</span>
+              <span className="font-medium">{formatCurrencyBRL(vm.boatRentalCost)}</span>
             </div>
             <div className="flex justify-between items-center text-sm mb-1">
               <span className="text-gray-600">Subtotal (Produtos)</span>
-              <span className="font-medium">R$ {(vm.subtotal - vm.boatRentalCost).toFixed(2)}</span>
+              <span className="font-medium">{formatCurrencyBRL(vm.subtotal - vm.boatRentalCost)}</span>
             </div>
             <div className="flex justify-between items-center text-sm mb-2 text-red-600">
               <span>Desconto</span>
-              <span className="font-medium">- R$ {vm.totalDiscount.toFixed(2)}</span>
+              <span className="font-medium">- {formatCurrencyBRL(vm.totalDiscount)}</span>
             </div>
             {vm.tax > 0 && (
               <div className="flex justify-between items-center text-sm text-green-600">
                 <span>Taxa</span>
-                <span className="font-medium">+ R$ {vm.tax.toFixed(2)}</span>
+                <span className="font-medium">+ {formatCurrencyBRL(vm.tax)}</span>
               </div>
             )}
             <div className="border-t border-gray-200 my-2"></div>
             <div className="flex justify-between items-center text-xl font-bold">
               <span>Total</span>
-              <span>R$ {vm.total.toFixed(2)}</span>
+              <span>{formatCurrencyBRL(vm.total)}</span>
             </div>
           </div>
           {/* Action Button */}
