@@ -1,9 +1,13 @@
 // src/ui/screens/BoatsScreen.tsx
 import React from 'react';
 import { useBoatsViewModel } from '../../viewmodels/useBoatsViewModel';
+import { useAuth } from '../../contexts/AuthContext';
+import { useToastContext } from '../contexts/ToastContext';
 import { Plus, Edit, Trash2, Anchor, Users, Ruler } from 'lucide-react';
 import type { Boat } from '../../core/domain/types';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { MoneyInput } from '../components/MoneyInput';
+import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 
 // --- Components ---
 
@@ -23,10 +27,23 @@ const BoatModal: React.FC<{
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
         <h2 className="text-xl font-bold mb-6">{isNew ? 'Adicionar Nova Lancha' : 'Editar Lancha'}</h2>
         <div className="space-y-4">
-          <input type="text" placeholder="Nome da Lancha (ex: Focker 300)" value={boat.name} onChange={(e) => onUpdate('name', e.target.value)} className="w-full p-3 border rounded-lg" />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nome da Lancha</label>
+            <input type="text" placeholder="Ex: Focker 300" value={boat.name} onChange={(e) => onUpdate('name', e.target.value)} className="w-full p-3 border rounded-lg" />
+          </div>
           <div className="grid grid-cols-2 gap-4">
-            <input type="number" placeholder="Capacidade" value={boat.capacity} onChange={(e) => onUpdate('capacity', parseInt(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
-            <input type="number" placeholder="Tamanho (pés)" value={boat.size} onChange={(e) => onUpdate('size', parseInt(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Capacidade (pessoas)</label>
+              <input type="number" placeholder="Capacidade" value={boat.capacity} onChange={(e) => onUpdate('capacity', parseInt(e.target.value) || 0)} onFocus={(e) => e.target.select()} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tamanho (pés)</label>
+              <input type="number" placeholder="Tamanho" value={boat.size} onChange={(e) => onUpdate('size', parseInt(e.target.value) || 0)} onFocus={(e) => e.target.select()} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4 border-t pt-4">
+            <MoneyInput label="Preço por Hora" value={boat.pricePerHour || 0} onChange={(val) => onUpdate('pricePerHour', val)} />
+            <MoneyInput label="Preço por Meia Hora" value={boat.pricePerHalfHour || 0} onChange={(val) => onUpdate('pricePerHalfHour', val)} />
           </div>
         </div>
         <div className="flex justify-end space-x-3 mt-8">
@@ -42,15 +59,38 @@ const BoatModal: React.FC<{
 
 export const BoatsScreen: React.FC = () => {
   const vm = useBoatsViewModel();
+  const { currentUser } = useAuth();
+  const { showToast } = useToastContext();
+  const isAuthorized = currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
+
+  const handleSave = async () => {
+    const result = await vm.handleSave();
+    if (result && !result.success) {
+      showToast(result.error || 'Erro ao salvar lancha.');
+    } else {
+      showToast('Lancha salva com sucesso!');
+    }
+  };
+
+  const confirmDelete = async () => {
+    const result = await vm.confirmDelete();
+    if (result && !result.success) {
+      showToast(result.error || 'Erro ao excluir lancha.');
+    } else {
+      showToast('Lancha excluída com sucesso!');
+    }
+  };
 
   return (
     <div className="p-4 md:p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Configurar Lanchas</h1>
-        <button onClick={vm.openNewBoatModal} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow">
-          <Plus size={20} className="mr-2" />
-          Adicionar Lancha
-        </button>
+        {isAuthorized && (
+          <button onClick={vm.openNewBoatModal} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow">
+            <Plus size={20} className="mr-2" />
+            Adicionar Lancha
+          </button>
+        )}
       </div>
 
       {vm.isLoading ? (
@@ -70,16 +110,21 @@ export const BoatsScreen: React.FC = () => {
                       <Ruler size={16} className="mx-2" />
                       <span>{boat.size} pés</span>
                     </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {formatCurrencyBRL(boat.pricePerHour || 0)}/h • {formatCurrencyBRL(boat.pricePerHalfHour || 0)}/30min
+                    </div>
                   </div>
                 </div>
-                <div className="flex space-x-2 self-end md:self-auto">
-                  <button onClick={() => vm.openEditBoatModal(boat)} className="p-2 text-gray-600 hover:text-blue-600">
-                    <Edit size={20} />
-                  </button>
-                  <button onClick={() => vm.handleDelete(boat.id)} className="p-2 text-gray-600 hover:text-red-600">
-                    <Trash2 size={20} />
-                  </button>
-                </div>
+                {isAuthorized && (
+                  <div className="flex space-x-2 self-end md:self-auto">
+                    <button onClick={() => vm.openEditBoatModal(boat)} className="p-2 text-gray-600 hover:text-blue-600">
+                      <Edit size={20} />
+                    </button>
+                    <button onClick={() => vm.handleDelete(boat.id)} className="p-2 text-gray-600 hover:text-red-600">
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -89,7 +134,7 @@ export const BoatsScreen: React.FC = () => {
       <BoatModal
         isOpen={vm.isModalOpen}
         boat={vm.editingBoat}
-        onSave={vm.handleSave}
+        onSave={handleSave}
         onClose={vm.closeModal}
         onUpdate={vm.updateEditingBoat}
       />
@@ -97,7 +142,7 @@ export const BoatsScreen: React.FC = () => {
         isOpen={vm.isConfirmModalOpen}
         title="Confirmar Exclusão"
         message="Tem certeza de que deseja excluir esta embarcação? Esta ação não pode ser desfeita."
-        onConfirm={vm.confirmDelete}
+        onConfirm={confirmDelete}
         onCancel={vm.closeConfirmDeleteModal}
       />
     </div>

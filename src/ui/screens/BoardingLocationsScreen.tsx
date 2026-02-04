@@ -1,11 +1,16 @@
 // src/ui/screens/BoardingLocationsScreen.tsx
 import React, { useState } from 'react';
 import { useBoardingLocationsViewModel } from '../../viewmodels/useBoardingLocationsViewModel';
+import { useAuth } from '../../contexts/AuthContext';
+import { useToastContext } from '../contexts/ToastContext';
 import type { BoardingLocation } from '../../core/domain/types';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 
 export const BoardingLocationsScreen: React.FC = () => {
   const { locations, isLoading, addLocation, updateLocation, deleteLocation, isConfirmModalOpen, confirmDelete, closeConfirmDeleteModal } = useBoardingLocationsViewModel();
+  const { currentUser } = useAuth();
+  const { showToast } = useToastContext();
+  const isAuthorized = currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<Partial<BoardingLocation> | null>(null);
 
@@ -19,13 +24,29 @@ export const BoardingLocationsScreen: React.FC = () => {
     setCurrentLocation(null);
   };
 
-  const handleSave = (locationData: Omit<BoardingLocation, 'id'>) => {
+  const handleSave = async (locationData: Omit<BoardingLocation, 'id'>) => {
+    let result;
     if (currentLocation && 'id' in currentLocation) {
-      updateLocation({ ...locationData, id: currentLocation.id as string });
+      result = await updateLocation({ ...locationData, id: currentLocation.id as string });
     } else {
-      addLocation(locationData);
+      result = await addLocation(locationData);
     }
-    closeModal();
+
+    if (result && !result.success) {
+      showToast(result.error || 'Erro ao salvar local.');
+    } else {
+      showToast('Local salvo com sucesso!');
+      closeModal();
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    const result = await confirmDelete();
+    if (result && !result.success) {
+      showToast(result.error || 'Erro ao excluir local.');
+    } else {
+      showToast('Local excluído com sucesso!');
+    }
   };
 
   if (isLoading) {
@@ -36,9 +57,11 @@ export const BoardingLocationsScreen: React.FC = () => {
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Locais de Embarque</h1>
-        <button onClick={() => openModal()} className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition">
-          Adicionar Local
-        </button>
+        {isAuthorized && (
+          <button onClick={() => openModal()} className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition">
+            Adicionar Local
+          </button>
+        )}
       </div>
 
       <div className="bg-white shadow rounded-lg overflow-x-auto">
@@ -59,10 +82,12 @@ export const BoardingLocationsScreen: React.FC = () => {
                     Ver no mapa
                   </a>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button onClick={() => openModal(location)} className="text-indigo-600 hover:text-indigo-900 mr-4">Editar</button>
-                  <button onClick={() => deleteLocation(location.id)} className="text-red-600 hover:text-red-900">Excluir</button>
-                </td>
+                {isAuthorized && (
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button onClick={() => openModal(location)} className="text-indigo-600 hover:text-indigo-900 mr-4">Editar</button>
+                    <button onClick={() => deleteLocation(location.id)} className="text-red-600 hover:text-red-900">Excluir</button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -80,7 +105,7 @@ export const BoardingLocationsScreen: React.FC = () => {
         isOpen={isConfirmModalOpen}
         title="Confirmar Exclusão"
         message="Tem certeza de que deseja excluir este local de embarque? Esta ação não pode ser desfeita."
-        onConfirm={confirmDelete}
+        onConfirm={handleConfirmDelete}
         onCancel={closeConfirmDeleteModal}
       />
     </div>

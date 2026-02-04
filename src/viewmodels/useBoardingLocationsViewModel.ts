@@ -1,7 +1,7 @@
 // src/viewmodels/useBoardingLocationsViewModel.ts
 import { useState, useEffect } from 'react';
 import type { BoardingLocation } from '../core/domain/types';
-import { boardingLocationRepository } from '../core/repositories/MockBoardingLocationRepository';
+import { boardingLocationRepository } from '../core/repositories/BoardingLocationRepository';
 
 export const useBoardingLocationsViewModel = () => {
   const [locations, setLocations] = useState<BoardingLocation[]>([]);
@@ -16,15 +16,25 @@ export const useBoardingLocationsViewModel = () => {
   }, [repository]);
 
   const addLocation = async (location: Omit<BoardingLocation, 'id'>) => {
-    const newLocation = await repository.add(location);
-    setLocations([...locations, newLocation]);
+    try {
+      const newLocation = await repository.add(location);
+      setLocations([...locations, newLocation]);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Erro ao adicionar local.' };
+    }
   };
 
   const updateLocation = async (location: BoardingLocation) => {
-    const updatedLocation = await repository.update(location);
-    setLocations(
-      locations.map((l) => (l.id === updatedLocation.id ? updatedLocation : l))
-    );
+    try {
+      const updatedLocation = await repository.update(location);
+      setLocations(
+        locations.map((l) => (l.id === updatedLocation.id ? updatedLocation : l))
+      );
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Erro ao atualizar local.' };
+    }
   };
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -42,10 +52,16 @@ export const useBoardingLocationsViewModel = () => {
 
   const confirmDelete = async () => {
     if (locationToDeleteId) {
-      await repository.delete(locationToDeleteId);
-      setLocations(locations.filter((l) => l.id !== locationToDeleteId));
-      closeConfirmDeleteModal();
+      try {
+        await repository.delete(locationToDeleteId);
+        setLocations(locations.filter((l) => l.id !== locationToDeleteId));
+        closeConfirmDeleteModal();
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Erro ao excluir local.' };
+      }
     }
+    return { success: false, error: 'ID do local não encontrado.' };
   };
 
   const deleteLocation = async (id: string) => {

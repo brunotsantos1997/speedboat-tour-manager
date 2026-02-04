@@ -5,7 +5,6 @@ import { DashboardScreen } from './ui/screens/DashboardScreen';
 import { CreateEventScreen } from './ui/screens/CreateEventScreen';
 import { ProductsScreen } from './ui/screens/ProductsScreen';
 import { BoatsScreen } from './ui/screens/BoatsScreen';
-import { RentalPricesScreen } from './ui/screens/RentalPricesScreen';
 import { ClientHistoryScreen } from './ui/screens/ClientHistoryScreen';
 import { VoucherScreen } from './ui/screens/VoucherScreen';
 import { BoardingLocationsScreen } from './ui/screens/BoardingLocationsScreen';
@@ -22,10 +21,6 @@ import { ForgotPasswordScreen } from './ui/screens/ForgotPasswordScreen';
 import { ResetPasswordSecretScreen } from './ui/screens/ResetPasswordSecretScreen';
 import { SetNewPasswordScreen } from './ui/screens/SetNewPasswordScreen';
 import { ProtectedRoute } from './ui/components/ProtectedRoute';
-import { initializeMockRepositories } from './core/repositories';
-
-// Initialize mock data on app startup to prevent race conditions in development
-initializeMockRepositories();
 
 function App() {
   return (
@@ -43,22 +38,28 @@ function App() {
         <Route path="/voucher/:eventId" element={<PublicLayout><VoucherScreen /></PublicLayout>} />
 
         {/* Protected Admin Routes with the main Layout */}
-        <Route path="/" element={<ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'OWNER']} />}>
+        <Route path="/" element={<ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'OWNER', 'SELLER']} />}>
           <Route element={<Layout />}>
             <Route index element={<DashboardScreen />} />
             <Route path="create-event" element={<CreateEventScreen />} />
             <Route path="products" element={<ProductsScreen />} />
             <Route path="boats" element={<BoatsScreen />} />
             <Route path="boarding-locations" element={<BoardingLocationsScreen />} />
-            <Route path="voucher-terms" element={<VoucherTermsScreen />} />
             <Route path="clients" element={<ClientHistoryScreen />} />
-            <Route path="company-data" element={<CompanyDataScreen />} />
-            <Route path="voucher-appearance" element={<VoucherAppearanceScreen />} />
             <Route path="profile" element={<ProfileScreen />} />
 
-            {/* Routes for SUPER_ADMIN and OWNER only */}
-            <Route path="admin/users" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'OWNER']}><UserManagementScreen /></ProtectedRoute>} />
-            <Route path="commission-report" element={<ProtectedRoute allowedRoles={['ADMIN', 'OWNER']}><CommissionReportScreen /></ProtectedRoute>} />
+            {/* Routes for SUPER_ADMIN and OWNER only (Sensitive Settings) */}
+            <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'OWNER']} />}>
+              <Route path="voucher-terms" element={<VoucherTermsScreen />} />
+              <Route path="company-data" element={<CompanyDataScreen />} />
+              <Route path="voucher-appearance" element={<VoucherAppearanceScreen />} />
+              <Route path="commission-report" element={<CommissionReportScreen />} />
+            </Route>
+
+            {/* Routes for ADMIN, SUPER_ADMIN and OWNER (User management) */}
+            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'OWNER']} />}>
+              <Route path="admin/users" element={<UserManagementScreen />} />
+            </Route>
           </Route>
         </Route>
 

@@ -1,7 +1,7 @@
 // src/core/repositories/VoucherAppearanceRepository.ts
-import { v4 as uuidv4 } from 'uuid';
-
-const STORAGE_KEY = 'voucherAppearance';
+import { doc, getDoc, setDoc, onSnapshot, type Unsubscribe } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import { auditLogRepository } from './AuditLogRepository';
 
 export interface VoucherAppearanceData {
   id: string;
@@ -10,20 +10,13 @@ export interface VoucherAppearanceData {
 
 export class VoucherAppearanceRepository {
   private static instance: VoucherAppearanceRepository;
-  private data: VoucherAppearanceData;
+  private docId = 'default';
+  private collectionName = 'voucher_appearance';
+  private data: VoucherAppearanceData | null = null;
+  private unsubscribe: Unsubscribe | null = null;
+  private currentUser: any = null;
 
-  private constructor() {
-    const storedData = localStorage.getItem(STORAGE_KEY);
-    if (storedData) {
-      this.data = JSON.parse(storedData);
-    } else {
-      this.data = {
-        id: uuidv4(),
-        watermarkImage: null,
-      };
-      this.saveToLocalStorage();
-    }
-  }
+  private constructor() {}
 
   public static getInstance(): VoucherAppearanceRepository {
     if (!VoucherAppearanceRepository.instance) {
@@ -32,17 +25,67 @@ export class VoucherAppearanceRepository {
     return VoucherAppearanceRepository.instance;
   }
 
-  private saveToLocalStorage(): void {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+  initialize(user?: any) {
+    if (user) {
+      this.currentUser = user;
+    }
+    if (this.unsubscribe) return;
+    this.initListener();
+  }
+
+  private initListener() {
+    const docRef = doc(db, this.collectionName, this.docId);
+    this.unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        this.data = { ...docSnap.data() as VoucherAppearanceData, id: docSnap.id };
+      }
+    });
+  }
+
+  dispose() {
+    if (this.unsubscribe) {
+      this.unsubscribe();
+      this.unsubscribe = null;
+    }
+    this.data = null;
+    this.currentUser = null;
   }
 
   async get(): Promise<VoucherAppearanceData> {
-    return Promise.resolve(this.data);
+    if (this.data) return this.data;
+
+    const docRef = doc(db, this.collectionName, this.docId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      this.data = { ...docSnap.data() as VoucherAppearanceData, id: docSnap.id };
+      return this.data;
+    }
+    return { id: this.docId, watermarkImage: null };
   }
 
-  async update(updatedData: Partial<VoucherAppearanceData>): Promise<VoucherAppearanceData> {
-    this.data = { ...this.data, ...updatedData };
-    this.saveToLocalStorage();
-    return Promise.resolve(this.data);
+  async update(updatedData: VoucherAppearanceData): Promise<VoucherAppearanceData> {
+    if (!this.currentUser || (this.currentUser.role !== 'OWNER' && this.currentUser.role !== 'SUPER_ADMIN')) {
+      throw new Error('Você não tem permissão para alterar a aparência do voucher.');
+    }
+    const { id, ...data } = updatedData;
+    const docRef = doc(db, this.collectionName, this.docId);
+
+    const oldSnap = await getDoc(docRef);
+    const oldData = oldSnap.exists() ? { ...oldSnap.data(), id: oldSnap.id } : null;
+
+    await setDoc(docRef, data, { merge: true });
+
+    await auditLogRepository.log({
+      userId: this.currentUser.id,
+      userName: this.currentUser.name,
+      action: 'UPDATE',
+      collection: this.collectionName,
+      docId: this.docId,
+      oldData,
+      newData: updatedData,
+    });
+
+    this.data = updatedData;
+    return updatedData;
   }
 }

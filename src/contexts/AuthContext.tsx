@@ -1,12 +1,40 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { User, UserRole, UserStatus } from '../core/domain/User';
-import type { IUserRepository } from '../core/domain/repositories/IUserRepository';
-import { MockUserRepository } from '../core/infra/repositories/MockUserRepository';
-import type { ILoginAttemptRepository } from '../core/domain/repositories/ILoginAttemptRepository';
-import { MockLoginAttemptRepository } from '../core/infra/repositories/MockLoginAttemptRepository';
+import { auth, db } from '../lib/firebase';
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  updateProfile as firebaseUpdateProfile,
+  updatePassword as firebaseUpdatePassword,
+  updateEmail as firebaseUpdateEmail,
+  sendPasswordResetEmail,
+  type User as FirebaseUser
+} from 'firebase/auth';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+  clearIndexedDbPersistence,
+  terminate
+} from 'firebase/firestore';
 import bcrypt from 'bcryptjs';
-import { v4 as uuidv4 } from 'uuid';
 import DOMPurify from 'dompurify';
+import { auditLogRepository } from '../core/repositories/AuditLogRepository';
+import { productRepository } from '../core/repositories/ProductRepository';
+import { boatRepository } from '../core/repositories/BoatRepository';
+import { boardingLocationRepository } from '../core/repositories/BoardingLocationRepository';
+import { clientRepository } from '../core/repositories/ClientRepository';
+import { eventRepository } from '../core/repositories/EventRepository';
+import { VoucherAppearanceRepository } from '../core/repositories/VoucherAppearanceRepository';
+import { VoucherTermsRepository } from '../core/repositories/VoucherTermsRepository';
+import { CompanyDataRepository } from '../core/repositories/CompanyDataRepository';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -28,12 +56,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const userRepository: IUserRepository = MockUserRepository.getInstance();
-const loginAttemptRepository: ILoginAttemptRepository = MockLoginAttemptRepository.getInstance();
-const SESSION_KEY = 'auth_user_id';
-const MAX_LOGIN_ATTEMPTS = 5;
-const LOCK_TIME = 15 * 60 * 1000; // 15 minutes
-
 const validatePassword = (password: string) => {
   const minLength = 8;
   const hasUpperCase = /[A-Z]/.test(password);
@@ -42,19 +64,19 @@ const validatePassword = (password: string) => {
   const hasSpecialChars = /[!@#$%^&*(),.?":{}|<>]/.test(password);
 
   if (password.length < minLength) {
-    throw new Error('Password must be at least 8 characters long.');
+    throw new Error('A senha deve ter pelo menos 8 caracteres.');
   }
   if (!hasUpperCase) {
-    throw new Error('Password must contain at least one uppercase letter.');
+    throw new Error('A senha deve conter pelo menos uma letra maiúscula.');
   }
   if (!hasLowerCase) {
-    throw new Error('Password must contain at least one lowercase letter.');
+    throw new Error('A senha deve conter pelo menos uma letra minúscula.');
   }
   if (!hasNumbers) {
-    throw new Error('Password must contain at least one number.');
+    throw new Error('A senha deve conter pelo menos um número.');
   }
   if (!hasSpecialChars) {
-    throw new Error('Password must contain at least one special character.');
+    throw new Error('A senha deve conter pelo menos um caractere especial.');
   }
 };
 
@@ -62,60 +84,85 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const disposeRepositories = () => {
+    productRepository.dispose();
+    boatRepository.dispose();
+    boardingLocationRepository.dispose();
+    clientRepository.dispose();
+    eventRepository.dispose();
+    VoucherAppearanceRepository.getInstance().dispose();
+    VoucherTermsRepository.getInstance().dispose();
+    CompanyDataRepository.getInstance().dispose();
+  };
+
+  const initializeRepositories = (user: User) => {
+    productRepository.initialize(user);
+    boatRepository.initialize(user);
+    boardingLocationRepository.initialize(user);
+    clientRepository.initialize(user);
+    eventRepository.initialize(user);
+    VoucherAppearanceRepository.getInstance().initialize(user);
+    VoucherTermsRepository.getInstance().initialize(user);
+    CompanyDataRepository.getInstance().initialize(user);
+  };
+
   useEffect(() => {
-    const checkUserSession = async () => {
-      try {
-        const userId = localStorage.getItem(SESSION_KEY);
-        if (userId) {
-          const user = await userRepository.findById(userId);
-          if (user && user.status === 'APPROVED') {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        const profileRef = doc(db, 'profiles', firebaseUser.uid);
+        const profileSnap = await getDoc(profileRef);
+
+        if (profileSnap.exists()) {
+          const profileData = profileSnap.data() as User;
+          if (profileData.status === 'APPROVED') {
+            const user = { ...profileData, id: firebaseUser.uid };
             setCurrentUser(user);
+            initializeRepositories(user);
           } else {
-            // User might be pending or rejected, clear session
-            localStorage.removeItem(SESSION_KEY);
+            setCurrentUser(null);
+            await logout();
           }
+        } else {
+          setCurrentUser(null);
         }
-      } catch (error) {
-        console.error("Failed to check user session:", error);
-      } finally {
-        setLoading(false);
+      } else {
+        setCurrentUser(null);
+        disposeRepositories();
       }
-    };
-    checkUserSession();
+      setLoading(false);
+    });
+
+    return unsubscribe;
   }, []);
 
   const login = async (email: string, password: string): Promise<User | null> => {
-    const now = Date.now();
-    const attempt = await loginAttemptRepository.findByEmail(email);
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const firebaseUser = userCredential.user;
 
-    if (attempt && now - attempt.timestamp < LOCK_TIME && attempt.count >= MAX_LOGIN_ATTEMPTS) {
-      const timeLeft = Math.ceil((LOCK_TIME - (now - attempt.timestamp)) / 1000 / 60);
-      throw new Error(`Too many failed login attempts. Please try again in ${timeLeft} minutes.`);
+    const profileRef = doc(db, 'profiles', firebaseUser.uid);
+    const profileSnap = await getDoc(profileRef);
+
+    if (!profileSnap.exists()) {
+      await logout();
+      throw new Error("Perfil não encontrado.");
     }
 
-    const user = await userRepository.findByEmail(email);
-    if (!user) {
-      throw new Error("Invalid credentials.");
+    const profileData = profileSnap.data() as User;
+    if (profileData.status !== 'APPROVED') {
+      await logout();
+      throw new Error("Sua conta ainda não foi aprovada.");
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isPasswordValid) {
-      const newAttempt = {
-        email,
-        count: (attempt?.count || 0) + 1,
-        timestamp: now,
-      };
-      await loginAttemptRepository.save(newAttempt);
-      throw new Error("Invalid credentials.");
-    }
-
-    if (user.status !== 'APPROVED') {
-        throw new Error("User is not approved.");
-    }
-
-    await loginAttemptRepository.delete(email);
+    const user = { ...profileData, id: firebaseUser.uid };
     setCurrentUser(user);
-    localStorage.setItem(SESSION_KEY, user.id);
+    initializeRepositories(user);
+
+    await auditLogRepository.log({
+      userId: user.id,
+      userName: user.name,
+      action: 'LOGIN',
+    });
+
     return user;
   };
 
@@ -123,186 +170,248 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     validatePassword(password);
     const sanitizedName = DOMPurify.sanitize(name);
     const sanitizedEmail = DOMPurify.sanitize(email);
-    const existingUser = await userRepository.findByEmail(sanitizedEmail);
-    if (existingUser) {
-      throw new Error('An account with this email already exists.');
-    }
 
-    const allUsers = await userRepository.findAll();
-    const isFirstUser = allUsers.length === 1; // The first user signs up when only the OWNER exists
+    const userCredential = await createUserWithEmailAndPassword(auth, sanitizedEmail, password);
+    const firebaseUser = userCredential.user;
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    await firebaseUpdateProfile(firebaseUser, { displayName: sanitizedName });
 
     const newUser: User = {
-      id: uuidv4(),
+      id: firebaseUser.uid,
       name: sanitizedName,
       email: sanitizedEmail,
-      passwordHash,
-      status: isFirstUser ? 'APPROVED' : 'PENDING',
-      role: isFirstUser ? 'SUPER_ADMIN' : 'ADMIN',
+      status: 'PENDING',
+      role: 'ADMIN',
+      commissionPercentage: 0,
     };
 
-    await userRepository.save(newUser);
-    if (isFirstUser) {
-        setCurrentUser(newUser);
-        localStorage.setItem(SESSION_KEY, newUser.id);
-    }
+    await setDoc(doc(db, 'profiles', firebaseUser.uid), newUser);
 
     return newUser;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (currentUser) {
+      await auditLogRepository.log({
+        userId: currentUser.id,
+        userName: currentUser.name,
+        action: 'LOGOUT',
+      });
+    }
     setCurrentUser(null);
-    localStorage.removeItem(SESSION_KEY);
+    disposeRepositories();
+    await signOut(auth);
+    try {
+      await terminate(db);
+      await clearIndexedDbPersistence(db);
+    } catch (e) {
+      console.warn("Firestore termination/persistence clear failed:", e);
+    }
   };
 
   const getAllUsers = async (): Promise<User[]> => {
-    return await userRepository.findAll();
+    if (!currentUser || (currentUser.role === 'SELLER')) {
+      throw new Error('Você não tem permissão para listar usuários.');
+    }
+    const querySnapshot = await getDocs(collection(db, 'profiles'));
+    let users = querySnapshot.docs.map(doc => ({ ...doc.data() as User, id: doc.id }));
+
+    // hierarchy restrictions
+    if (currentUser.role === 'SUPER_ADMIN') {
+      users = users.filter(u => u.role !== 'OWNER');
+    } else if (currentUser.role === 'ADMIN') {
+      users = users.filter(u => u.role !== 'OWNER' && u.role !== 'SUPER_ADMIN');
+    }
+
+    return users;
   };
 
   const updateUserStatus = async (userId: string, status: UserStatus): Promise<void> => {
-    const user = await userRepository.findById(userId);
-    if (!user) {
-      throw new Error('User not found.');
+    if (!currentUser || (currentUser.role === 'SELLER')) {
+      throw new Error('Você não tem permissão para alterar o status de usuários.');
     }
-    user.status = status;
-    await userRepository.update(user);
-    // Optional: update current user if their own status changes
+
+    const profileRef = doc(db, 'profiles', userId);
+    const targetSnap = await getDoc(profileRef);
+    const targetData = targetSnap.data() as User;
+
+    if (targetData?.role === 'OWNER' && currentUser.role !== 'OWNER') {
+      throw new Error('Você não tem permissão para alterar o status do proprietário.');
+    }
+    if (targetData?.role === 'SUPER_ADMIN' && currentUser.role === 'ADMIN') {
+      throw new Error('Você não tem permissão para alterar o status de um Super Administrador.');
+    }
+
+    await updateDoc(profileRef, { status });
+
+    await auditLogRepository.log({
+      userId: currentUser.id,
+      userName: currentUser.name,
+      action: 'UPDATE',
+      collection: 'profiles',
+      docId: userId,
+      oldData: { ...targetData, id: userId },
+      newData: { ...targetData, id: userId, status },
+    });
+
     if (currentUser?.id === userId) {
-      setCurrentUser(user);
+      setCurrentUser(prev => prev ? { ...prev, status } : null);
     }
   };
 
   const updateUserRole = async (userId: string, role: UserRole): Promise<void> => {
-    if (!currentUser || (currentUser.role !== 'SUPER_ADMIN' && currentUser.role !== 'OWNER')) {
-      throw new Error('You do not have permission to change user roles.');
+    if (!currentUser || (currentUser.role === 'SELLER')) {
+      throw new Error('Você não tem permissão para alterar cargos.');
     }
-    const user = await userRepository.findById(userId);
-    if (!user) {
-      throw new Error('User not found.');
+
+    const profileRef = doc(db, 'profiles', userId);
+    const targetSnap = await getDoc(profileRef);
+    const targetData = targetSnap.data() as User;
+
+    if (targetData?.role === 'OWNER' && currentUser.role !== 'OWNER') {
+      throw new Error('Você não tem permissão para alterar o cargo do proprietário.');
     }
-    user.role = role;
-    await userRepository.update(user);
+    if (targetData?.role === 'SUPER_ADMIN' && currentUser.role === 'ADMIN') {
+      throw new Error('Você não tem permissão para alterar o cargo de um Super Administrador.');
+    }
+
+    await updateDoc(profileRef, { role });
+
+    await auditLogRepository.log({
+      userId: currentUser.id,
+      userName: currentUser.name,
+      action: 'UPDATE',
+      collection: 'profiles',
+      docId: userId,
+      oldData: { ...targetData, id: userId },
+      newData: { ...targetData, id: userId, role },
+    });
   };
 
   const updateUserCommission = async (userId: string, commission: number): Promise<void> => {
+    if (!currentUser || (currentUser.role === 'SELLER')) {
+      throw new Error('Você não tem permissão para alterar comissões.');
+    }
     if (commission < 0 || commission > 100) {
-      throw new Error('Commission percentage must be between 0 and 100.');
+      throw new Error('A porcentagem de comissão deve estar entre 0 e 100.');
     }
-    const user = await userRepository.findById(userId);
-    if (!user) {
-      throw new Error('User not found.');
-    }
-    user.commissionPercentage = commission;
-    await userRepository.update(user);
+    const profileRef = doc(db, 'profiles', userId);
+    const targetSnap = await getDoc(profileRef);
+    const targetData = targetSnap.data() as User;
+
+    await updateDoc(profileRef, { commissionPercentage: commission });
+
+    await auditLogRepository.log({
+      userId: currentUser.id,
+      userName: currentUser.name,
+      action: 'UPDATE',
+      collection: 'profiles',
+      docId: userId,
+      oldData: { ...targetData, id: userId },
+      newData: { ...targetData, id: userId, commissionPercentage: commission },
+    });
   };
 
   const requestPasswordReset = async (email: string): Promise<User | null> => {
-    const user = await userRepository.findByEmail(email);
-    if (!user) {
-      throw new Error('User not found.');
-    }
-    if (user.role !== 'OWNER') {
-      user.status = 'PASSWORD_RESET_REQUESTED';
-      await userRepository.update(user);
-    }
+    await sendPasswordResetEmail(auth, email);
 
-    return user;
+    const q = query(collection(db, 'profiles'), where('email', '==', email));
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+      const userDoc = querySnapshot.docs[0];
+      const userData = { ...userDoc.data() as User, id: userDoc.id };
+      if (userData.role !== 'OWNER') {
+        await updateDoc(doc(db, 'profiles', userDoc.id), { status: 'PASSWORD_RESET_REQUESTED' });
+      }
+      return userData;
+    }
+    return null;
   };
 
-  const approvePasswordReset = async (approverId: string, targetUserId: string): Promise<string> => {
-    const approver = await userRepository.findById(approverId);
-    const targetUser = await userRepository.findById(targetUserId);
-
-    if (!approver || !targetUser) {
-      throw new Error('User not found.');
-    }
-
-    const rolesHierarchy: { [key in UserRole]: number } = {
-      'ADMIN': 1,
-      'SUPER_ADMIN': 2,
-      'OWNER': 3,
-    };
-
-    if (rolesHierarchy[approver.role] < rolesHierarchy[targetUser.role]) {
-      throw new Error('You do not have permission to approve this request.');
-    }
-
-    const temporaryPassword = uuidv4().substring(0, 8);
-    targetUser.passwordHash = await bcrypt.hash(temporaryPassword, 10);
-    targetUser.mustChangePassword = true;
-    targetUser.status = 'APPROVED';
-    await userRepository.update(targetUser);
-    return temporaryPassword;
+  const approvePasswordReset = async (_approverId: string, _targetUserId: string): Promise<string> => {
+    return "O Firebase gerencia o reset via e-mail enviado ao usuário.";
   };
 
   const setSecretQuestion = async (userId: string, question: string, answer: string): Promise<void> => {
-    const user = await userRepository.findById(userId);
-    if (!user || user.role !== 'OWNER') {
-      throw new Error('Unauthorized or user not found.');
+    if (!currentUser || currentUser.id !== userId) {
+      throw new Error('Você só pode configurar a pergunta secreta para sua própria conta.');
     }
-
-    user.secretQuestion = question;
-    user.secretAnswerHash = await bcrypt.hash(answer, 10);
-    await userRepository.update(user);
+    const profileRef = doc(db, 'profiles', userId);
+    const secretAnswerHash = await bcrypt.hash(answer, 10);
+    await updateDoc(profileRef, {
+      secretQuestion: question,
+      secretAnswerHash
+    });
   };
 
   const verifySecretAnswer = async (email: string, answer: string): Promise<User | null> => {
-    const user = await userRepository.findByEmail(email);
-    if (!user || user.role !== 'OWNER' || !user.secretAnswerHash) {
-      throw new Error('Invalid user or no secret question set.');
-    }
+    const q = query(collection(db, 'profiles'), where('email', '==', email));
+    const querySnapshot = await getDocs(q);
 
-    const isAnswerValid = await bcrypt.compare(answer, user.secretAnswerHash);
-    if (!isAnswerValid) {
-      throw new Error('Incorrect answer.');
+    if (querySnapshot.empty) throw new Error("Usuário não encontrado.");
+
+    const userDoc = querySnapshot.docs[0];
+    const userData = userDoc.data() as User;
+
+    if (!userData.secretAnswerHash) throw new Error("Pergunta secreta não configurada.");
+
+    const isMatch = await bcrypt.compare(answer, userData.secretAnswerHash);
+    if (!isMatch) {
+      throw new Error('Resposta incorreta.');
     }
-    return user;
+    return { ...userData, id: userDoc.id };
   };
 
-  const resetPasswordAfterVerification = async (userId: string, newPassword: string): Promise<void> => {
-    const user = await userRepository.findById(userId);
-    if (!user) {
-      throw new Error('User not found.');
+  const resetPasswordAfterVerification = async (_userId: string, newPassword: string): Promise<void> => {
+    if (auth.currentUser) {
+      await firebaseUpdatePassword(auth.currentUser, newPassword);
+    } else {
+      throw new Error("Usuário não autenticado no Firebase para troca direta.");
     }
-    user.passwordHash = await bcrypt.hash(newPassword, 10);
-    user.mustChangePassword = false;
-    await userRepository.update(user);
   };
 
   const updateProfile = async (userId: string, data: { name?: string; email?: string; newPassword?: string, oldPassword?: string }): Promise<void> => {
-    const user = await userRepository.findById(userId);
-    if (!user) {
-      throw new Error('User not found.');
+    if (!currentUser || (currentUser.id !== userId && currentUser.role !== 'OWNER' && currentUser.role !== 'SUPER_ADMIN')) {
+      throw new Error('Você não tem permissão para atualizar este perfil.');
     }
+
+    const profileRef = doc(db, 'profiles', userId);
+    const updates: any = {};
 
     if (data.name) {
-      user.name = DOMPurify.sanitize(data.name);
-    }
-    if (data.email) {
-      const sanitizedEmail = DOMPurify.sanitize(data.email);
-      const existingUser = await userRepository.findByEmail(sanitizedEmail);
-      if (existingUser && existingUser.id !== userId) {
-        throw new Error('Email already in use.');
-      }
-      user.email = sanitizedEmail;
-    }
-    if (data.newPassword) {
-      validatePassword(data.newPassword);
-      if (!data.oldPassword) {
-        throw new Error('Old password is required to set a new password.');
-      }
-      const isPasswordValid = await bcrypt.compare(data.oldPassword, user.passwordHash);
-      if (!isPasswordValid) {
-        throw new Error('Invalid old password.');
-      }
-      user.passwordHash = await bcrypt.hash(data.newPassword, 10);
-      user.mustChangePassword = false;
+      updates.name = DOMPurify.sanitize(data.name);
+      if (auth.currentUser) await firebaseUpdateProfile(auth.currentUser, { displayName: updates.name });
     }
 
-    await userRepository.update(user);
+    if (data.email) {
+      const sanitizedEmail = DOMPurify.sanitize(data.email);
+      if (auth.currentUser) await firebaseUpdateEmail(auth.currentUser, sanitizedEmail);
+      updates.email = sanitizedEmail;
+    }
+
+    if (data.newPassword) {
+      validatePassword(data.newPassword);
+      if (auth.currentUser) await firebaseUpdatePassword(auth.currentUser, data.newPassword);
+    }
+
+    const oldSnap = await getDoc(profileRef);
+    const oldData = oldSnap.data();
+
+    await updateDoc(profileRef, updates);
+
+    await auditLogRepository.log({
+      userId: currentUser.id,
+      userName: currentUser.name,
+      action: 'UPDATE',
+      collection: 'profiles',
+      docId: userId,
+      oldData: { ...oldData, id: userId },
+      newData: { ...oldData, ...updates, id: userId },
+    });
+
     if (currentUser?.id === userId) {
-      setCurrentUser(user);
+      setCurrentUser(prev => prev ? { ...prev, ...updates } : null);
     }
   }
 
@@ -334,7 +443,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuth deve ser usado dentro de um AuthProvider');
   }
   return context;
 };

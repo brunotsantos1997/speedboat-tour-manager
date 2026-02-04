@@ -44,16 +44,21 @@ export const useProductsViewModel = () => {
   const handleSave = async () => {
     if (!editingProduct) return;
 
-    if (editingProduct.id) {
-      // Update existing product
-      await productRepository.update(editingProduct as Product);
-    } else {
-      // Add new product
-      await productRepository.add(editingProduct as Omit<Product, 'id'>);
-    }
+    try {
+      if (editingProduct.id) {
+        // Update existing product
+        await productRepository.update(editingProduct as Product);
+      } else {
+        // Add new product
+        await productRepository.add(editingProduct as Omit<Product, 'id'>);
+      }
 
-    closeModal();
-    await fetchProducts(); // Refresh the list
+      closeModal();
+      await fetchProducts(); // Refresh the list
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Erro ao salvar produto.' };
+    }
   };
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -71,10 +76,16 @@ export const useProductsViewModel = () => {
 
   const confirmDelete = async () => {
     if (productToDeleteId) {
-      await productRepository.remove(productToDeleteId);
-      await fetchProducts();
-      closeConfirmDeleteModal();
+      try {
+        await productRepository.remove(productToDeleteId);
+        await fetchProducts();
+        closeConfirmDeleteModal();
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Erro ao excluir produto.' };
+      }
     }
+    return { success: false, error: 'ID do produto não encontrado.' };
   };
 
   const handleDelete = (productId: string) => {

@@ -16,16 +16,13 @@ export function UserManagementScreen() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [modalAction, setModalAction] = useState<'reset' | 'approve' | null>(null);
-  const [temporaryPassword, setTemporaryPassword] = useState<string>('');
+  const [temporaryPassword, setTemporaryPassword] = useState<string | undefined>('');
   const { getAllUsers, updateUserStatus, updateUserRole, updateUserCommission, currentUser, approvePasswordReset } = useAuth();
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
       let allUsers = await getAllUsers();
-      if (currentUser?.role === 'SUPER_ADMIN') {
-        allUsers = allUsers.filter(user => user.role !== 'OWNER');
-      }
       const editableUsers = allUsers
         .filter(user => user.id !== currentUser?.id)
         .map(user => ({ ...user, commissionInput: (user.commissionPercentage ?? 0).toString() }));
@@ -42,20 +39,32 @@ export function UserManagementScreen() {
   }, [fetchUsers]);
 
   const handleStatusChange = async (userId: string, status: UserStatus) => {
+    const user = users.find(u => u.id === userId);
+    if (user?.role === 'OWNER' && currentUser?.role !== 'OWNER') {
+        setToastMessage('Você não tem permissão para alterar o status do proprietário.');
+        return;
+    }
     try {
       await updateUserStatus(userId, status);
+      setToastMessage('Status do usuário atualizado!');
       fetchUsers();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred.');
+      setToastMessage(err instanceof Error ? err.message : 'Erro ao atualizar status.');
     }
   };
 
   const handleRoleChange = async (userId: string, role: UserRole) => {
+    const user = users.find(u => u.id === userId);
+    if (user?.role === 'OWNER' && currentUser?.role !== 'OWNER') {
+        setToastMessage('Você não tem permissão para alterar o cargo do proprietário.');
+        return;
+    }
     try {
       await updateUserRole(userId, role);
+      setToastMessage('Cargo do usuário atualizado!');
       fetchUsers();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred.');
+      setToastMessage(err instanceof Error ? err.message : 'Erro ao atualizar cargo.');
     }
   };
 
@@ -78,7 +87,7 @@ export function UserManagementScreen() {
     try {
       await updateUserCommission(userId, commissionValue);
       setToastMessage('Commission updated successfully!');
-      fetchUsers(); // Refresh to confirm the change
+      fetchUsers();
     } catch (err) {
       setToastMessage(err instanceof Error ? err.message : 'Failed to update commission.');
     }
@@ -99,7 +108,7 @@ export function UserManagementScreen() {
         tempPassword = await approvePasswordReset(currentUser.id, selectedUser.id);
         setToastMessage('Redefinição de senha aprovada com sucesso!');
       }
-      setTemporaryPassword(tempPassword);
+      setTemporaryPassword(tempPassword || '');
       setIsInfoModalOpen(true);
       fetchUsers();
     } catch (err) {
@@ -124,7 +133,7 @@ export function UserManagementScreen() {
 
       <ConfirmationModal
         isOpen={isConfirmModalOpen}
-        onClose={() => setIsConfirmModalOpen(false)}
+        onCancel={() => setIsConfirmModalOpen(false)}
         onConfirm={confirmModalAction}
         title={modalAction === 'approve' ? 'Aprovar Redefinição de Senha' : 'Confirmar Ação'}
         message={`Tem certeza que deseja ${modalAction === 'approve' ? 'aprovar a redefinição de senha' : 'executar esta ação'} para o usuário ${selectedUser?.name}?`}
@@ -170,10 +179,15 @@ export function UserManagementScreen() {
                     value={user.role}
                     onChange={(e) => handleRoleChange(user.id, e.target.value as UserRole)}
                     className="border border-gray-300 rounded-md p-1"
-                    disabled={ (currentUser?.role === 'SUPER_ADMIN' && user.role === 'SUPER_ADMIN') || user.role === 'OWNER' }
+                    disabled={
+                        (currentUser?.role === 'SUPER_ADMIN' && user.role === 'SUPER_ADMIN') ||
+                        (currentUser?.role === 'ADMIN' && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')) ||
+                        user.role === 'OWNER'
+                    }
                   >
+                    <option value="SELLER">SELLER</option>
                     <option value="ADMIN">ADMIN</option>
-                    {currentUser?.role === 'OWNER' && <option value="SUPER_ADMIN">SUPER_ADMIN</option>}
+                    {(currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN') && <option value="SUPER_ADMIN">SUPER_ADMIN</option>}
                   </select>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -184,7 +198,8 @@ export function UserManagementScreen() {
                       max="100"
                       value={user.commissionInput}
                       onChange={(e) => handleCommissionInputChange(user.id, e.target.value)}
-                      className="w-20 border border-gray-300 rounded-md p-1"
+                      onFocus={(e) => e.target.select()}
+                      className="w-20 border border-gray-300 rounded-md p-1 outline-none focus:ring-2 focus:ring-blue-500"
                       disabled={user.role === 'OWNER'}
                     />
                     <button

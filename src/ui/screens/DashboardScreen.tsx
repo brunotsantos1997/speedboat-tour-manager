@@ -1,7 +1,9 @@
 // src/ui/screens/DashboardScreen.tsx
 import React from 'react';
 import { useDashboardViewModel } from '../../viewmodels/useDashboardViewModel';
+import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
+import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 import { DollarSign, Hash, PlusCircle, Search, Clock, AlertTriangle, Anchor, CheckCircle, Bell, Ban } from 'lucide-react';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
@@ -28,7 +30,7 @@ const QuickAccessButton: React.FC<{ to: string; title: string; icon: React.React
   </Link>
 );
 
-const EventListItem: React.FC<{ event: EventType; onConfirmPayment: (id: string) => void; }> = ({ event, onConfirmPayment }) => {
+const EventListItem: React.FC<{ event: EventType; onConfirmPayment: (id: string) => void; isSeller?: boolean; }> = ({ event, onConfirmPayment, isSeller }) => {
   // Parse date string as local to avoid timezone issues.
   const eventDate = new Date(`${event.date}T00:00`);
 
@@ -54,7 +56,7 @@ const EventListItem: React.FC<{ event: EventType; onConfirmPayment: (id: string)
         </div>
       </div>
       <div className="flex items-center">
-        {event.paymentStatus === 'PENDING' && (
+        {event.paymentStatus === 'PENDING' && !isSeller && (
           <button
             onClick={() => onConfirmPayment(event.id)}
             className="bg-green-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-600 transition-colors flex items-center"
@@ -70,6 +72,8 @@ const EventListItem: React.FC<{ event: EventType; onConfirmPayment: (id: string)
 
 
 export const DashboardScreen: React.FC = () => {
+  const { currentUser } = useAuth();
+  const isSeller = currentUser?.role === 'SELLER';
   const {
     isLoading,
     error,
@@ -151,12 +155,12 @@ export const DashboardScreen: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Stat Cards */}
-        <StatCard title="Faturamento do Mês" value={`R$ ${monthlyStats.totalRevenue.toFixed(2)}`} icon={<DollarSign />} />
+        {!isSeller && <StatCard title="Faturamento do Mês" value={formatCurrencyBRL(monthlyStats.totalRevenue)} icon={<DollarSign />} />}
         <StatCard title="Passeios no Mês" value={monthlyStats.totalEvents.toString()} icon={<Hash />} />
 
         {/* Quick Access */}
         <QuickAccessButton to="/create-event" title="Criar Passeio" icon={<PlusCircle size={32}/>} />
-        <QuickAccessButton to="/clients" title="Buscar Cliente" icon={<Search size={32}/>} />
+        {!isSeller && <QuickAccessButton to="/clients" title="Buscar Cliente" icon={<Search size={32}/>} />}
       </div>
 
       {/* Main Content Grid */}
@@ -185,7 +189,7 @@ export const DashboardScreen: React.FC = () => {
             <h2 className="text-xl font-semibold mb-3 flex items-center"><AlertTriangle className="mr-2 text-yellow-500"/> Pagamentos Pendentes</h2>
             <div className="space-y-3 max-h-60 overflow-y-auto">
               {pendingPayments.length > 0
-                ? pendingPayments.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={confirmPayment} />)
+                ? pendingPayments.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={confirmPayment} isSeller={isSeller} />)
                 : <p className="text-gray-500">Nenhum pagamento pendente.</p>
               }
             </div>
@@ -196,7 +200,7 @@ export const DashboardScreen: React.FC = () => {
             <h2 className="text-xl font-semibold mb-3 flex items-center"><Clock className="mr-2 text-purple-500"/> Passeios da Semana</h2>
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {eventsThisWeek.length > 0
-                ? eventsThisWeek.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={confirmPayment} />)
+                ? eventsThisWeek.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={confirmPayment} isSeller={isSeller} />)
                 : <p className="text-gray-500">Nenhum passeio agendado para esta semana.</p>
               }
             </div>
@@ -209,7 +213,7 @@ export const DashboardScreen: React.FC = () => {
             </h2>
             <div className="space-y-3">
               {eventsForSelectedDate.length > 0
-                ? eventsForSelectedDate.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={confirmPayment} />)
+                ? eventsForSelectedDate.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={confirmPayment} isSeller={isSeller} />)
                 : <p className="text-gray-500">Nenhum passeio agendado para a data selecionada.</p>
               }
             </div>

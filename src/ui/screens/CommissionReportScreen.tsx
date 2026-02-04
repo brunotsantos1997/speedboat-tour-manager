@@ -2,6 +2,7 @@
 import React from 'react';
 import { useCommissionReportViewModel } from '../../viewmodels/useCommissionReportViewModel';
 import { DayPicker } from 'react-day-picker';
+import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 import 'react-day-picker/dist/style.css';
 
 export const CommissionReportScreen: React.FC = () => {
@@ -27,7 +28,7 @@ export const CommissionReportScreen: React.FC = () => {
     return <p style={{ color: 'red' }}>Erro: {error}</p>;
   }
 
-  if (!currentUser || (currentUser.role !== 'OWNER' && currentUser.role !== 'ADMIN')) {
+  if (!currentUser || (currentUser.role !== 'OWNER' && currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPER_ADMIN')) {
     return (
       <div className="text-center p-8">
         <h1 className="text-2xl font-bold text-red-600">Acesso Negado</h1>
@@ -98,9 +99,9 @@ export const CommissionReportScreen: React.FC = () => {
                     <td className="p-3">{entry.userName}</td>
                     <td className="p-3">{entry.clientName}</td>
                     <td className="p-3">{new Date(entry.eventDate + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
-                    <td className="p-3">{entry.eventTotalPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                    <td className="p-3">{formatCurrencyBRL(entry.eventTotalPrice)}</td>
                     <td className="p-3">{entry.commissionPercentage}%</td>
-                    <td className="p-3">{entry.commissionValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                    <td className="p-3">{formatCurrencyBRL(entry.commissionValue)}</td>
                   </tr>
                 ))
               ) : (
@@ -113,7 +114,7 @@ export const CommissionReportScreen: React.FC = () => {
               <tr>
                 <td colSpan={5} className="p-3 text-right">Total:</td>
                 <td className="p-3">
-                  {reportData.reduce((acc, entry) => acc + entry.commissionValue, 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  {formatCurrencyBRL(reportData.reduce((acc, entry) => acc + entry.commissionValue, 0))}
                 </td>
               </tr>
             </tfoot>

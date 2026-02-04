@@ -1,5 +1,6 @@
 // src/ui/components/CustomTimePicker.tsx
 import React, { useState } from 'react';
+import { Clock } from 'lucide-react';
 import { TimePickerModal } from './TimePickerModal';
 
 interface CustomTimePickerProps {
@@ -22,9 +23,10 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({ value, onCha
         type="button"
         onClick={() => setIsModalOpen(true)}
         disabled={disabled}
-        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-200 text-center"
+        className="flex items-center justify-between w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed transition-all text-gray-700"
       >
-        {value}
+        <span className="font-medium">{value}</span>
+        <Clock size={18} className="text-gray-400" />
       </button>
       <TimePickerModal
         isOpen={isModalOpen}

@@ -25,6 +25,8 @@ export const useBoatsViewModel = () => {
       name: '',
       capacity: 10,
       size: 30,
+      pricePerHour: 0,
+      pricePerHalfHour: 0,
     });
     setIsModalOpen(true);
   };
@@ -42,14 +44,19 @@ export const useBoatsViewModel = () => {
   const handleSave = async () => {
     if (!editingBoat) return;
 
-    if (editingBoat.id) {
-      await boatRepository.update(editingBoat as Boat);
-    } else {
-      await boatRepository.add(editingBoat as Omit<Boat, 'id'>);
-    }
+    try {
+      if (editingBoat.id) {
+        await boatRepository.update(editingBoat as Boat);
+      } else {
+        await boatRepository.add(editingBoat as Omit<Boat, 'id'>);
+      }
 
-    closeModal();
-    await fetchBoats();
+      closeModal();
+      await fetchBoats();
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Erro ao salvar lancha.' };
+    }
   };
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -67,10 +74,16 @@ export const useBoatsViewModel = () => {
 
   const confirmDelete = async () => {
     if (boatToDeleteId) {
-      await boatRepository.remove(boatToDeleteId);
-      await fetchBoats();
-      closeConfirmDeleteModal();
+      try {
+        await boatRepository.remove(boatToDeleteId);
+        await fetchBoats();
+        closeConfirmDeleteModal();
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Erro ao excluir lancha.' };
+      }
     }
+    return { success: false, error: 'ID da lancha não encontrado.' };
   };
 
   const handleDelete = async (boatId: string) => {

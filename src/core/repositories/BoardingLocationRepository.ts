@@ -1,4 +1,4 @@
-// src/core/repositories/ProductRepository.ts
+// src/core/repositories/BoardingLocationRepository.ts
 import {
   collection,
   getDocs,
@@ -11,33 +11,24 @@ import {
   type Unsubscribe
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import type { Product } from '../domain/types';
+import type { BoardingLocation } from '../domain/types';
 import { auditLogRepository } from './AuditLogRepository';
 
-export interface IProductRepository {
-  getAll(): Promise<Product[]>;
-  add(productData: Omit<Product, 'id'>): Promise<Product>;
-  update(updatedProduct: Product): Promise<Product>;
-  remove(productId: string): Promise<void>;
-  dispose(): void;
-  initialize(user?: any): void;
-}
-
-class ProductRepositoryImpl implements IProductRepository {
-  private static instance: ProductRepositoryImpl;
-  private products: Product[] = [];
-  private collectionName = 'products';
+export class BoardingLocationRepository {
+  private static instance: BoardingLocationRepository;
+  private locations: BoardingLocation[] = [];
+  private collectionName = 'boarding_locations';
   private unsubscribe: Unsubscribe | null = null;
   private isInitialized = false;
   private currentUser: any = null;
 
   private constructor() {}
 
-  public static getInstance(): ProductRepositoryImpl {
-    if (!ProductRepositoryImpl.instance) {
-      ProductRepositoryImpl.instance = new ProductRepositoryImpl();
+  public static getInstance(): BoardingLocationRepository {
+    if (!BoardingLocationRepository.instance) {
+      BoardingLocationRepository.instance = new BoardingLocationRepository();
     }
-    return ProductRepositoryImpl.instance;
+    return BoardingLocationRepository.instance;
   }
 
   initialize(user?: any) {
@@ -51,8 +42,8 @@ class ProductRepositoryImpl implements IProductRepository {
   private initListener() {
     const q = query(collection(db, this.collectionName));
     this.unsubscribe = onSnapshot(q, (snapshot) => {
-      this.products = snapshot.docs.map(doc => ({
-        ...doc.data() as Product,
+      this.locations = snapshot.docs.map(doc => ({
+        ...doc.data() as BoardingLocation,
         id: doc.id
       }));
       this.isInitialized = true;
@@ -65,20 +56,21 @@ class ProductRepositoryImpl implements IProductRepository {
       this.unsubscribe = null;
     }
     this.isInitialized = false;
-    this.products = [];
+    this.locations = [];
     this.currentUser = null;
   }
 
-  async getAll(): Promise<Product[]> {
+  async getAll(): Promise<BoardingLocation[]> {
     if (!this.isInitialized) {
+      // Initial fetch to ensure data is available immediately
       const querySnapshot = await getDocs(collection(db, this.collectionName));
-      this.products = querySnapshot.docs.map(doc => ({
-        ...doc.data() as Product,
+      this.locations = querySnapshot.docs.map(doc => ({
+        ...doc.data() as BoardingLocation,
         id: doc.id
       }));
       this.isInitialized = true;
     }
-    return this.products.filter(p => !p.isArchived);
+    return this.locations.filter(l => !l.isArchived);
   }
 
   private checkAdminPermission() {
@@ -87,10 +79,10 @@ class ProductRepositoryImpl implements IProductRepository {
     }
   }
 
-  async add(productData: Omit<Product, 'id'>): Promise<Product> {
+  async add(location: Omit<BoardingLocation, 'id'>): Promise<BoardingLocation> {
     this.checkAdminPermission();
-    const docRef = await addDoc(collection(db, this.collectionName), productData);
-    const newProduct = { id: docRef.id, ...productData };
+    const docRef = await addDoc(collection(db, this.collectionName), location);
+    const newLocation = { id: docRef.id, ...location };
 
     await auditLogRepository.log({
       userId: this.currentUser?.id || 'unknown',
@@ -98,15 +90,15 @@ class ProductRepositoryImpl implements IProductRepository {
       action: 'CREATE',
       collection: this.collectionName,
       docId: docRef.id,
-      newData: newProduct,
+      newData: newLocation,
     });
 
-    return newProduct;
+    return newLocation;
   }
 
-  async update(updatedProduct: Product): Promise<Product> {
+  async update(location: BoardingLocation): Promise<BoardingLocation> {
     this.checkAdminPermission();
-    const { id, ...data } = updatedProduct;
+    const { id, ...data } = location;
     const docRef = doc(db, this.collectionName, id);
 
     const oldDoc = await getDoc(docRef);
@@ -121,15 +113,15 @@ class ProductRepositoryImpl implements IProductRepository {
       collection: this.collectionName,
       docId: id,
       oldData,
-      newData: updatedProduct,
+      newData: location,
     });
 
-    return updatedProduct;
+    return location;
   }
 
-  async remove(productId: string): Promise<void> {
+  async delete(id: string): Promise<void> {
     this.checkAdminPermission();
-    const docRef = doc(db, this.collectionName, productId);
+    const docRef = doc(db, this.collectionName, id);
 
     const oldDoc = await getDoc(docRef);
     const oldData = oldDoc.exists() ? { ...oldDoc.data(), id: oldDoc.id } : null;
@@ -141,11 +133,11 @@ class ProductRepositoryImpl implements IProductRepository {
       userName: this.currentUser?.name || 'Sistema',
       action: 'DELETE',
       collection: this.collectionName,
-      docId: productId,
+      docId: id,
       oldData,
       newData: { ...oldData, isArchived: true },
     });
   }
 }
 
-export const productRepository = ProductRepositoryImpl.getInstance();
+export const boardingLocationRepository = BoardingLocationRepository.getInstance();

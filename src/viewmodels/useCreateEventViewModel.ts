@@ -1,9 +1,8 @@
 // src/viewmodels/useCreateEventViewModel.ts
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import type { DayOfWeek, Product, Discount, SelectedProduct, ClientProfile, Boat, EventType, PaymentStatus, CompanyData } from '../core/domain/types';
-import { LOYALTY_RULES } from '../core/data/mocks';
 import { clientRepository } from '../core/repositories/ClientRepository';
 import { productRepository } from '../core/repositories/ProductRepository';
 import { boatRepository } from '../core/repositories/BoatRepository';
@@ -11,11 +10,10 @@ import { eventRepository } from '../core/repositories/EventRepository';
 import { CompanyDataRepository } from '../core/repositories/CompanyDataRepository';
 import { format } from 'date-fns';
 import type { BoardingLocation } from '../core/domain/types';
-import { boardingLocationRepository } from '../core/repositories/MockBoardingLocationRepository';
+import { boardingLocationRepository } from '../core/repositories/BoardingLocationRepository';
 
 export const useCreateEventViewModel = () => {
   const { currentUser } = useAuth();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [editingEventId, setEditingEventId] = useState<string | null>(searchParams.get('eventId'));
   const [originalEvent, setOriginalEvent] = useState<EventType | null>(null);
@@ -31,9 +29,6 @@ export const useCreateEventViewModel = () => {
   // Boat State
   const [availableBoats, setAvailableBoats] = useState<Boat[]>([]);
   const [selectedBoat, setSelectedBoat] = useState<Boat | null>(null);
-
-  // Price State
-  const [rentalPrices, setRentalPrices] = useState<RentalPrices>({ hourlyRate: 0, halfHourRate: 0 });
 
   // Boarding Location State
   const [availableBoardingLocations, setAvailableBoardingLocations] = useState<BoardingLocation[]>([]);
@@ -60,11 +55,6 @@ export const useCreateEventViewModel = () => {
   const [newClientName, setNewClientName] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
 
-  // Confirmation Modal State
-  const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
-  const [confirmationAction, setConfirmationAction] = useState<(() => void) | null>(null);
-  const [confirmationMessage, setConfirmationMessage] = useState({ title: '', message: '' });
-
   // Company Data
   const [companyData, setCompanyData] = useState<CompanyData | null>(null);
 
@@ -75,7 +65,6 @@ export const useCreateEventViewModel = () => {
         const event = await eventRepository.getById(editingEventId);
         if (event) {
           setOriginalEvent(event);
-          // Be careful with date parsing, ensure correct timezone handling
           const eventDate = new Date(event.date);
           const userTimezoneOffset = eventDate.getTimezoneOffset() * 60000;
 
@@ -93,8 +82,7 @@ export const useCreateEventViewModel = () => {
           setOriginalPaymentStatus(event.paymentStatus);
           setTax(event.tax || 0);
         } else {
-          console.error("Event to edit not found!");
-          setEditingEventId(null); // Clear ID if not found
+          setEditingEventId(null);
         }
       } else {
         setOriginalEvent(null);
@@ -112,10 +100,12 @@ export const useCreateEventViewModel = () => {
       const boardingLocations = await boardingLocationRepository.getAll();
       const companyDataResponse = await CompanyDataRepository.getInstance().get();
 
-      setCompanyData(companyDataResponse);
+      if (companyDataResponse) {
+        setCompanyData(companyDataResponse);
+      }
+
       setAvailableProducts(products);
       setAvailableBoats(boats);
-      setRentalPrices(prices);
       setAvailableBoardingLocations(boardingLocations);
 
       if (boats.length > 0) {
@@ -126,7 +116,6 @@ export const useCreateEventViewModel = () => {
         setSelectedBoardingLocation(boardingLocations[0]);
       }
 
-      // Set default courtesies
       const defaultCourtesies = products
         .filter(p => p.isDefaultCourtesy)
         .map(p => ({ ...p, isCourtesy: true }));
@@ -144,7 +133,7 @@ export const useCreateEventViewModel = () => {
     }
   }, [selectedDate]);
 
-  // Handlers for Products, Discount, Passengers
+  // Handlers
   const toggleProduct = useCallback((product: Product) => {
     setSelectedProducts(prev =>
       prev.some(p => p.id === product.id)
@@ -203,14 +192,18 @@ export const useCreateEventViewModel = () => {
     );
   };
 
-  // Client Management Handlers
   const handleClientSearch = useCallback(async (term: string) => {
     setClientSearchTerm(term);
     if (term.length > 2) {
       setIsSearching(true);
-      const results = await clientRepository.search(term);
-      setClientSearchResults(results);
-      setIsSearching(false);
+      try {
+        const results = await clientRepository.search(term);
+        setClientSearchResults(results);
+      } catch (error) {
+        console.error('Erro na busca de clientes:', error);
+      } finally {
+        setIsSearching(false);
+      }
     } else {
       setClientSearchResults([]);
     }
@@ -227,15 +220,12 @@ export const useCreateEventViewModel = () => {
     setClientSearchTerm('');
   }, []);
 
-  // --- Client CRUD Handlers ---
-
   const handleOpenModal = (client: ClientProfile | null = null) => {
     if (client) {
       setEditingClient(client);
       setNewClientName(client.name);
       setNewClientPhone(client.phone);
     } else {
-      // Pre-fill from search term if creating a new client
       setEditingClient(null);
       const isPhone = /^\d+$/.test(clientSearchTerm);
       setNewClientName(isPhone ? '' : clientSearchTerm);
@@ -254,48 +244,46 @@ export const useCreateEventViewModel = () => {
   const handleSaveClient = useCallback(async () => {
     if (!newClientName || !newClientPhone) return;
 
-    if (editingClient) {
-      // Update existing client
-      const updatedClient = { ...editingClient, name: newClientName, phone: newClientPhone };
-      const result = await clientRepository.update(updatedClient);
-      // If the edited client was selected, update the selection
-      if (selectedClient?.id === result.id) {
-        setSelectedClient(result);
-        setClientSearchTerm(result.name);
+    try {
+      if (editingClient) {
+        const updatedClient = { ...editingClient, name: newClientName, phone: newClientPhone };
+        const result = await clientRepository.update(updatedClient);
+        if (selectedClient?.id === result.id) {
+          setSelectedClient(result);
+          setClientSearchTerm(result.name);
+        }
+      } else {
+        const newClient = await clientRepository.add({ name: newClientName, phone: newClientPhone });
+        selectClient(newClient);
       }
-    } else {
-      // Add new client
-      const newClient = await clientRepository.add({ id: '', name: newClientName, phone: newClientPhone });
-      selectClient(newClient);
-    }
 
-    handleCloseModal();
-    // Refresh search results to show changes
-    if (clientSearchTerm.length > 2) {
-      handleClientSearch(clientSearchTerm);
+      handleCloseModal();
+    } catch (error) {
+      console.error('Erro ao salvar cliente:', error);
+      throw error; // Re-throw to be handled by the UI (toast)
     }
-  }, [editingClient, newClientName, newClientPhone, selectedClient, clientSearchTerm, handleClientSearch, selectClient]);
+  }, [editingClient, newClientName, newClientPhone, selectedClient, clientSearchTerm, handleCloseModal, selectClient]);
 
   const handleDeleteClient = useCallback(async (clientId: string) => {
     if (window.confirm('Tem certeza que deseja excluir este cliente?')) {
       await clientRepository.delete(clientId);
-      // If the deleted client was selected, clear the selection
       if (selectedClient?.id === clientId) {
         clearClientSelection();
       }
-      // Refresh search results
        handleClientSearch(clientSearchTerm);
     }
   }, [selectedClient, clientSearchTerm, handleClientSearch, clearClientSelection]);
 
 
-  // Derived State: Calculations & Validations
+  // Calculations
   const isCapacityExceeded = useMemo(() => {
     if (!selectedBoat) return false;
     return passengerCount > selectedBoat.capacity;
   }, [passengerCount, selectedBoat]);
 
   const boatRentalCost = useMemo(() => {
+    if (!selectedBoat) return 0;
+
     const [startHour, startMinute] = startTime.split(':').map(Number);
     const [endHour, endMinute] = endTime.split(':').map(Number);
     const durationInMinutes = (endHour - startHour) * 60 + (endMinute - startMinute);
@@ -305,13 +293,13 @@ export const useCreateEventViewModel = () => {
     const hours = Math.floor(durationInMinutes / 60);
     const remainingMinutes = durationInMinutes % 60;
 
-    let cost = hours * rentalPrices.hourlyRate;
+    let cost = hours * (selectedBoat.pricePerHour || 0);
     if (remainingMinutes >= 30) {
-      cost += rentalPrices.halfHourRate;
+      cost += (selectedBoat.pricePerHalfHour || 0);
     }
 
     return cost;
-  }, [startTime, endTime, rentalPrices]);
+  }, [startTime, endTime, selectedBoat]);
 
   const subtotal = useMemo(() => {
     return selectedProducts.reduce((acc, product) => {
@@ -350,8 +338,7 @@ export const useCreateEventViewModel = () => {
 
   const createEvent = useCallback(async () => {
     if (!selectedDate || !selectedClient || !selectedBoat || !selectedBoardingLocation) {
-      alert('Por favor, preencha todos os campos obrigatórios: Data, Cliente, Lancha e Local de Embarque.');
-      return;
+      throw new Error('Campos obrigatórios ausentes.');
     }
 
     const eventStatus = isPreScheduled ? 'PRE_SCHEDULED' : 'SCHEDULED';
@@ -378,7 +365,6 @@ export const useCreateEventViewModel = () => {
       const updatedEvent = {
         ...eventData,
         id: editingEventId,
-        // Preserve the original creator, do not assign a new one
         createdByUserId: originalEvent?.createdByUserId,
       };
       await eventRepository.updateEvent(updatedEvent as EventType);
@@ -400,7 +386,6 @@ export const useCreateEventViewModel = () => {
     passengerCount,
     subtotal,
     total,
-    navigate,
     editingEventId,
     selectedBoardingLocation,
     observations,
@@ -408,25 +393,15 @@ export const useCreateEventViewModel = () => {
     currentUser,
     originalEvent,
     originalPaymentStatus,
+    tax
   ]);
 
-  // Side Effects: Loyalty Checks (same as before)
   useEffect(() => {
     if (!selectedClient) {
       setLoyaltySuggestion(null);
       return;
     }
-    let suggestion: string | null = null;
-    const recurrenceRule = LOYALTY_RULES.find(r => r.type === 'RECURRENCE');
-    if (recurrenceRule && recurrenceRule.threshold && (selectedClient.totalTrips + 1) % recurrenceRule.threshold === 0) {
-      suggestion = recurrenceRule.message;
-    }
-    const today = new Date().toISOString().split('T')[0];
-    const specialDateRule = LOYALTY_RULES.find(r => r.type === 'SPECIAL_DATE' && r.date === today);
-    if (specialDateRule) {
-      suggestion = suggestion ? `${suggestion} ${specialDateRule.message}` : specialDateRule.message;
-    }
-    setLoyaltySuggestion(suggestion);
+    setLoyaltySuggestion(null);
   }, [selectedClient]);
 
   const dayOfWeek = useMemo(() => {
@@ -441,14 +416,12 @@ export const useCreateEventViewModel = () => {
   }, [companyData, dayOfWeek]);
 
   const availableTimeSlots = useMemo(() => {
-    // 1. Generate all possible 30-minute slots
     const allDaySlots = Array.from({ length: 48 }, (_, i) => {
       const hours = Math.floor(i / 2).toString().padStart(2, '0');
       const minutes = (i % 2 === 0 ? '00' : '30');
       return `${hours}:${minutes}`;
     });
 
-    // 2. Filter by business hours
     if (!companyData || isBusinessClosed || !dayOfWeek) {
       return [];
     }
@@ -456,16 +429,15 @@ export const useCreateEventViewModel = () => {
     const [endHour, endMinute] = endTime.split(':').map(Number);
     const closingDate = new Date();
     closingDate.setHours(endHour, endMinute, 0, 0);
-    closingDate.setMinutes(closingDate.getMinutes() - 30); // Last event must start 30 mins before closing
+    closingDate.setMinutes(closingDate.getMinutes() - 30);
     const finalEndTime = `${closingDate.getHours().toString().padStart(2, '0')}:${closingDate.getMinutes().toString().padStart(2, '0')}`;
 
     const businessHourSlots = allDaySlots.filter(slot => slot >= startTime && slot <= finalEndTime);
 
-    // 3. Filter by existing events for the selected boat, including interval
     if (!selectedBoat) {
       return businessHourSlots;
     }
-    const otherBoatEvents = scheduledEvents.filter(event => event.boat.id === selectedBoat.id && event.id !== editingEventId);
+    const otherBoatEvents = scheduledEvents.filter(event => event.boat?.id === selectedBoat.id && event.id !== editingEventId);
     if (otherBoatEvents.length === 0) {
       return businessHourSlots;
     }
@@ -477,19 +449,16 @@ export const useCreateEventViewModel = () => {
       const slotTime = slotHour * 60 + slotMinute;
 
       return otherBoatEvents.some(event => {
+        if (!event.startTime || !event.endTime) return false;
         const [eventStartHour, eventStartMinute] = event.startTime.split(':').map(Number);
         const eventStartTime = eventStartHour * 60 + eventStartMinute;
 
         const [eventEndHour, eventEndMinute] = event.endTime.split(':').map(Number);
         const eventEndTime = eventEndHour * 60 + eventEndMinute;
 
-        // Create a "blocked" window around the event
         const blockedWindowStart = eventStartTime - eventIntervalMinutes;
         const blockedWindowEnd = eventEndTime + eventIntervalMinutes;
 
-        // A new event cannot start if its start time falls within the blocked window
-        // Note: The check is `< blockedWindowEnd` because if an event ends at 14:00 and interval is 30,
-        // the next can start at 14:30. The blocked window is up to, but not including, 14:30.
         return slotTime >= blockedWindowStart && slotTime < blockedWindowEnd;
       });
     };
@@ -502,23 +471,19 @@ export const useCreateEventViewModel = () => {
       return [];
     }
 
-    // 1. Generate all possible 30-minute slots for the entire day
     const allDaySlots = Array.from({ length: 48 }, (_, i) => {
       const hours = Math.floor(i / 2).toString().padStart(2, '0');
       const minutes = (i % 2 === 0 ? '00' : '30');
       return `${hours}:${minutes}`;
     });
 
-    // 2. Filter for slots strictly after the selected start time and up to business closing time
     const { endTime: businessEndTime } = companyData.businessHours[dayOfWeek];
     let possibleEndTimes = allDaySlots.filter(slot => slot > startTime && slot <= businessEndTime);
 
-    // 3. Find the next scheduled event for the selected boat
     const nextEvent = scheduledEvents
-      .filter(event => event.boat.id === selectedBoat?.id && event.id !== editingEventId && event.startTime > startTime)
-      .sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
+      .filter(event => event.boat?.id === selectedBoat?.id && event.id !== editingEventId && event.startTime > startTime)
+      .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''))[0];
 
-    // 4. If there's a next event, limit the end time to before the interval
     if (nextEvent) {
       const [nextStartHour, nextStartMinute] = nextEvent.startTime.split(':').map(Number);
       const nextStartTimeInMinutes = nextStartHour * 60 + nextStartMinute;
@@ -536,12 +501,10 @@ export const useCreateEventViewModel = () => {
   }, [startTime, scheduledEvents, selectedBoat, editingEventId, companyData, dayOfWeek, isBusinessClosed]);
 
 
-  // Effect to reset time if it becomes invalid
   useEffect(() => {
     if (!availableTimeSlots.includes(startTime)) {
       setStartTime(availableTimeSlots[0] || '');
     }
-    // Ensure endTime is always after startTime and is valid
     if (!availableEndTimeSlots.includes(endTime) || endTime <= startTime) {
       setEndTime(availableEndTimeSlots[0] || '');
     }
@@ -549,22 +512,18 @@ export const useCreateEventViewModel = () => {
 
 
   return {
-    // Event State
     editingEventId,
     selectedDate,
     startTime,
     endTime,
     scheduledEvents,
     isPreScheduled,
-    // Boat State
     availableBoats,
     selectedBoat,
     isCapacityExceeded,
     isBusinessClosed,
-    // Boarding Location State
     availableBoardingLocations,
     selectedBoardingLocation,
-    // State & Derived State
     availableProducts,
     selectedProducts,
     discount,
@@ -575,7 +534,6 @@ export const useCreateEventViewModel = () => {
     total,
     tax,
     observations,
-    // Client state
     selectedClient,
     clientSearchTerm,
     clientSearchResults,
@@ -583,12 +541,10 @@ export const useCreateEventViewModel = () => {
     loyaltySuggestion,
     availableTimeSlots,
     availableEndTimeSlots,
-    // Modal state
     isModalOpen,
     editingClient,
     newClientName,
     newClientPhone,
-    // Handlers
     setSelectedDate,
     setStartTime,
     setEndTime,

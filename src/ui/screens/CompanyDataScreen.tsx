@@ -119,7 +119,8 @@ export const CompanyDataScreen: React.FC = () => {
                 name="reservationFeePercentage"
                 value={formData.reservationFeePercentage}
                 onChange={handleChange}
-                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                onFocus={(e) => e.target.select()}
+                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
             </div>
             <div>
@@ -135,7 +136,8 @@ export const CompanyDataScreen: React.FC = () => {
                 name="eventIntervalMinutes"
                 value={formData.eventIntervalMinutes}
                 onChange={handleChange}
-                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                onFocus={(e) => e.target.select()}
+                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
             </div>
           </div>

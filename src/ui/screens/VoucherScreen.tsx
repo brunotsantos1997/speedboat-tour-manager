@@ -13,10 +13,13 @@ import {
   Download,
   HelpCircle,
   Package,
+  MapPin,
+  ExternalLink,
 } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 
 import { useVoucherViewModel } from '../../viewmodels/useVoucherViewModel';
+import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 
 const DynamicIcon = ({ name, ...props }: { name: string } & LucideProps) => {
   const iconMap: { [key: string]: React.FC<LucideProps> } = { Anchor, Utensils, Beer, User, Circle: HelpCircle, Package };
@@ -24,7 +27,7 @@ const DynamicIcon = ({ name, ...props }: { name: string } & LucideProps) => {
   return <IconComponent {...props} />;
 };
 
-const InfoItem: React.FC<{ icon: React.ElementType; label: string; value: string }> = ({
+const InfoItem: React.FC<{ icon: React.ElementType; label: string; value: React.ReactNode }> = ({
   icon: Icon,
   label,
   value,
@@ -33,7 +36,7 @@ const InfoItem: React.FC<{ icon: React.ElementType; label: string; value: string
     <Icon className="w-5 h-5 text-gray-500 mr-3 mt-1 flex-shrink-0" />
     <div>
       <p className="text-sm text-gray-500">{label}</p>
-      <p className="font-semibold text-gray-800">{value}</p>
+      <div className="font-semibold text-gray-800">{value}</div>
     </div>
   </div>
 );
@@ -135,6 +138,25 @@ export const VoucherScreen: React.FC = () => {
                       <InfoItem icon={Clock} label="Horário" value={`${startTime} - ${endTime}`} />
                       <InfoItem icon={Users} label="Nº de Passageiros" value={`${passengerCount} pessoas`} />
                       <InfoItem icon={Anchor} label="Lancha" value={`${boat.name} (Cap: ${boat.capacity})`} />
+                      <InfoItem
+                        icon={MapPin}
+                        label="Local de Embarque"
+                        value={
+                          voucher.boardingLocation.mapLink ? (
+                            <a
+                              href={voucher.boardingLocation.mapLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline flex items-center"
+                            >
+                              {voucher.boardingLocation.name}
+                              <ExternalLink className="w-3 h-3 ml-1" />
+                            </a>
+                          ) : (
+                            voucher.boardingLocation.name
+                          )
+                        }
+                      />
                   </div>
               </div>
             </section>
@@ -162,12 +184,12 @@ export const VoucherScreen: React.FC = () => {
                     <div className="text-right">
                       <p className={`font-semibold ${item.isCourtesy ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                         {item.pricingType === 'PER_PERSON' && !item.isCourtesy
-                          ? `R$ ${((item.price || 0) * passengerCount).toFixed(2)}`
-                          : `R$ ${(item.price || 0).toFixed(2)}`}
+                          ? formatCurrencyBRL((item.price || 0) * passengerCount)
+                          : formatCurrencyBRL(item.price || 0)}
                       </p>
                       {item.pricingType === 'PER_PERSON' && (
                         <p className="text-xs text-gray-500">
-                          {item.isCourtesy ? "" : `(${passengerCount}x R$ ${(item.price || 0).toFixed(2)})`}
+                          {item.isCourtesy ? "" : `(${passengerCount}x ${formatCurrencyBRL(item.price || 0)})`}
                         </p>
                       )}
                     </div>
@@ -180,17 +202,17 @@ export const VoucherScreen: React.FC = () => {
             <section className="flex justify-end mb-8">
               <div className="w-full max-w-sm">
                   <div className="space-y-2 text-gray-700">
-                      <div className="flex justify-between"><span>Subtotal</span> <span className="font-medium">R$ {subtotal.toFixed(2)}</span></div>
-                      <div className="flex justify-between text-red-600"><span>Desconto</span> <span className="font-medium">- R$ {(voucher.discount.type === 'FIXED' ? voucher.discount.value : subtotal * (voucher.discount.value / 100)).toFixed(2)}</span></div>
-                      {voucher.tax > 0 && <div className="flex justify-between text-green-600"><span>Taxa</span> <span className="font-medium">+ R$ {voucher.tax.toFixed(2)}</span></div>}
-                      <div className="flex justify-between font-bold text-lg border-t border-gray-200 pt-2 mt-2"><span>Total</span> <span>R$ {total.toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span>Subtotal</span> <span className="font-medium">{formatCurrencyBRL(subtotal)}</span></div>
+                      <div className="flex justify-between text-red-600"><span>Desconto</span> <span className="font-medium">- {formatCurrencyBRL(voucher.discount.type === 'FIXED' ? voucher.discount.value : subtotal * (voucher.discount.value / 100))}</span></div>
+                      {(voucher.tax ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Taxa</span> <span className="font-medium">+ {formatCurrencyBRL(voucher.tax ?? 0)}</span></div>}
+                      <div className="flex justify-between font-bold text-lg border-t border-gray-200 pt-2 mt-2"><span>Total</span> <span>{formatCurrencyBRL(total)}</span></div>
                       <div className="flex justify-between font-bold text-lg text-blue-600 bg-blue-50 p-3 rounded-lg">
                           <span>Sinal (Reserva 30%)</span>
-                          <span>R$ {reservationFee.toFixed(2)}</span>
+                          <span>{formatCurrencyBRL(reservationFee)}</span>
                       </div>
                        <div className="flex justify-between text-gray-600 pt-2 mt-2">
                           <span>Saldo a pagar no dia</span>
-                          <span className="font-bold">R$ {remainingBalance.toFixed(2)}</span>
+                          <span className="font-bold">{formatCurrencyBRL(remainingBalance)}</span>
                       </div>
                   </div>
               </div>

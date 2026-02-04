@@ -1,0 +1,111 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Funções auxiliares
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data;
+    }
+
+    function hasRole(roles) {
+      return isAuthenticated() && getUserData().role in roles;
+    }
+
+    function isOwner() {
+      return hasRole(['OWNER', 'SUPER_ADMIN']);
+    }
+
+    function isApproved() {
+      return isAuthenticated() && getUserData().status == 'APPROVED';
+    }
+
+    function isSeller() {
+      return hasRole(['SELLER']);
+    }
+
+    // Regras para a coleção de perfis
+    match /profiles/{userId} {
+      // Qualquer usuário logado e aprovado pode ler perfis (necessário para listagens e relatórios)
+      // Super Admin não pode ler o perfil do Owner
+      allow read: if isApproved() && (
+        resource.data.role != 'OWNER' || isOwner() || request.auth.uid == userId
+      );
+
+      // Criar perfil: Apenas se o UID bater com o usuário autenticado (autocadastro)
+      // E forçando status PENDING e role ADMIN por padrão
+      allow create: if request.auth != null && request.auth.uid == userId
+                    && request.resource.data.status == 'PENDING'
+                    && request.resource.data.role == 'ADMIN';
+
+      // Atualizar perfil
+      allow update: if isApproved() && (
+        // O próprio usuário pode atualizar apenas alguns campos
+        (request.auth.uid == userId &&
+         !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['role', 'status', 'commissionPercentage', 'email']))
+        ||
+        // Administradores podem atualizar quase tudo, mas Super Admin não mexe no Owner
+        (isOwner() && userId != request.auth.uid && (resource.data.role != 'OWNER' || getUserData().role == 'OWNER'))
+      );
+    }
+
+    // Regras para Eventos
+    match /events/{eventId} {
+      allow read: if isApproved();
+      allow create: if isApproved() && (isOwner() || isSeller() || hasRole(['ADMIN']));
+      allow update: if isApproved() && (
+        isOwner() || resource.data.createdByUserId == request.auth.uid
+      );
+      allow delete: if isOwner();
+    }
+
+    // Regras para Cadastros (Produtos, Barcos, Locais)
+    match /products/{id} {
+      allow read: if isApproved();
+      allow write: if isOwner() || hasRole(['ADMIN']);
+    }
+
+    match /boats/{id} {
+      allow read: if isApproved();
+      allow write: if isOwner() || hasRole(['ADMIN']);
+    }
+
+    match /boarding_locations/{id} {
+      allow read: if isApproved();
+      allow write: if isOwner() || hasRole(['ADMIN']);
+    }
+
+    // Regras para Configurações da Empresa e Vouchers
+    match /company_data/{id} {
+      allow read: if isApproved();
+      allow write: if isOwner();
+    }
+
+    match /voucher_appearance/{id} {
+      allow read: if isApproved();
+      allow write: if isOwner();
+    }
+
+    match /voucher_terms/{id} {
+      allow read: if isApproved();
+      allow write: if isOwner();
+    }
+
+    // Regras para Clientes
+    match /clients/{clientId} {
+      allow read, write: if isApproved();
+    }
+
+    // Regras para Logs de Auditoria
+    match /audit_logs/{logId} {
+      // Apenas criação é permitida pelo frontend
+      allow create: if isAuthenticated();
+      // Leitura permitida apenas para Owner e Super Admin
+      allow read: if isOwner();
+    }
+  }
+}

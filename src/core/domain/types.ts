@@ -127,6 +127,8 @@ export interface CompanyData {
   reservationFeePercentage: number;
   businessHours: BusinessHours;
   eventIntervalMinutes: number;
+  rentalHourlyRate?: number;
+  rentalHalfHourRate?: number;
 }
 
 export interface VoucherTerms {
@@ -143,4 +145,16 @@ export interface CommissionReportEntry {
   commissionPercentage: number;
   commissionValue: number;
   clientName: string;
+}
+
+export interface AuditLog {
+  id: string;
+  userId: string;
+  userName: string;
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT';
+  collection?: string;
+  docId?: string;
+  oldData?: any;
+  newData?: any;
+  timestamp: number;
 }
