@@ -25,10 +25,29 @@ const BoatModal: React.FC<{
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
         <h2 className="text-xl font-bold mb-6">{isNew ? 'Adicionar Nova Lancha' : 'Editar Lancha'}</h2>
         <div className="space-y-4">
-          <input type="text" placeholder="Nome da Lancha (ex: Focker 300)" value={boat.name} onChange={(e) => onUpdate('name', e.target.value)} className="w-full p-3 border rounded-lg" />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nome da Lancha</label>
+            <input type="text" placeholder="Ex: Focker 300" value={boat.name} onChange={(e) => onUpdate('name', e.target.value)} className="w-full p-3 border rounded-lg" />
+          </div>
           <div className="grid grid-cols-2 gap-4">
-            <input type="number" placeholder="Capacidade" value={boat.capacity} onChange={(e) => onUpdate('capacity', parseInt(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
-            <input type="number" placeholder="Tamanho (pés)" value={boat.size} onChange={(e) => onUpdate('size', parseInt(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Capacidade (pessoas)</label>
+              <input type="number" placeholder="Capacidade" value={boat.capacity} onChange={(e) => onUpdate('capacity', parseInt(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tamanho (pés)</label>
+              <input type="number" placeholder="Tamanho" value={boat.size} onChange={(e) => onUpdate('size', parseInt(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4 border-t pt-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Preço por Hora (R$)</label>
+              <input type="number" placeholder="Ex: 2500" value={boat.pricePerHour} onChange={(e) => onUpdate('pricePerHour', parseFloat(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Preço por Meia Hora (R$)</label>
+              <input type="number" placeholder="Ex: 1300" value={boat.pricePerHalfHour} onChange={(e) => onUpdate('pricePerHalfHour', parseFloat(e.target.value) || 0)} className="w-full p-3 border rounded-lg" />
+            </div>
           </div>
         </div>
         <div className="flex justify-end space-x-3 mt-8">

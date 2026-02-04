@@ -8,7 +8,6 @@ import { productRepository } from '../core/repositories/ProductRepository';
 import { boatRepository } from '../core/repositories/BoatRepository';
 import { eventRepository } from '../core/repositories/EventRepository';
 import { CompanyDataRepository } from '../core/repositories/CompanyDataRepository';
-import type { RentalPrices } from '../core/repositories/PriceRepository';
 import { format } from 'date-fns';
 import type { BoardingLocation } from '../core/domain/types';
 import { boardingLocationRepository } from '../core/repositories/BoardingLocationRepository';
@@ -30,9 +29,6 @@ export const useCreateEventViewModel = () => {
   // Boat State
   const [availableBoats, setAvailableBoats] = useState<Boat[]>([]);
   const [selectedBoat, setSelectedBoat] = useState<Boat | null>(null);
-
-  // Price State
-  const [rentalPrices, setRentalPrices] = useState<RentalPrices>({ hourlyRate: 0, halfHourRate: 0 });
 
   // Boarding Location State
   const [availableBoardingLocations, setAvailableBoardingLocations] = useState<BoardingLocation[]>([]);
@@ -106,10 +102,6 @@ export const useCreateEventViewModel = () => {
 
       if (companyDataResponse) {
         setCompanyData(companyDataResponse);
-        setRentalPrices({
-          hourlyRate: companyDataResponse.rentalHourlyRate ?? 0,
-          halfHourRate: companyDataResponse.rentalHalfHourRate ?? 0,
-        });
       }
 
       setAvailableProducts(products);
@@ -283,6 +275,8 @@ export const useCreateEventViewModel = () => {
   }, [passengerCount, selectedBoat]);
 
   const boatRentalCost = useMemo(() => {
+    if (!selectedBoat) return 0;
+
     const [startHour, startMinute] = startTime.split(':').map(Number);
     const [endHour, endMinute] = endTime.split(':').map(Number);
     const durationInMinutes = (endHour - startHour) * 60 + (endMinute - startMinute);
@@ -292,13 +286,13 @@ export const useCreateEventViewModel = () => {
     const hours = Math.floor(durationInMinutes / 60);
     const remainingMinutes = durationInMinutes % 60;
 
-    let cost = hours * rentalPrices.hourlyRate;
+    let cost = hours * (selectedBoat.pricePerHour || 0);
     if (remainingMinutes >= 30) {
-      cost += rentalPrices.halfHourRate;
+      cost += (selectedBoat.pricePerHalfHour || 0);
     }
 
     return cost;
-  }, [startTime, endTime, rentalPrices]);
+  }, [startTime, endTime, selectedBoat]);
 
   const subtotal = useMemo(() => {
     return selectedProducts.reduce((acc, product) => {

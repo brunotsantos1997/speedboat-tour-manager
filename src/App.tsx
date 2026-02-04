@@ -17,7 +17,6 @@ import { PendingApprovalScreen } from './ui/screens/PendingApprovalScreen';
 import { UserManagementScreen } from './ui/screens/UserManagementScreen';
 import { CommissionReportScreen } from './ui/screens/CommissionReportScreen';
 import { ProfileScreen } from './ui/screens/ProfileScreen';
-import { RentalPricesScreen } from './ui/screens/RentalPricesScreen';
 import { ForgotPasswordScreen } from './ui/screens/ForgotPasswordScreen';
 import { ResetPasswordSecretScreen } from './ui/screens/ResetPasswordSecretScreen';
 import { SetNewPasswordScreen } from './ui/screens/SetNewPasswordScreen';
@@ -54,7 +53,6 @@ function App() {
               <Route path="voucher-terms" element={<VoucherTermsScreen />} />
               <Route path="company-data" element={<CompanyDataScreen />} />
               <Route path="voucher-appearance" element={<VoucherAppearanceScreen />} />
-              <Route path="rental-prices" element={<RentalPricesScreen />} />
               <Route path="commission-report" element={<CommissionReportScreen />} />
             </Route>
 
