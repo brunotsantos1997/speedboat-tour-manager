@@ -5,14 +5,12 @@ import {
   addDoc,
   updateDoc,
   doc,
-  getDoc,
   onSnapshot,
   query,
   type Unsubscribe
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type { Product } from '../domain/types';
-import { auditLogRepository } from './AuditLogRepository';
 
 export interface IProductRepository {
   getAll(): Promise<Product[]>;
@@ -92,15 +90,6 @@ class ProductRepositoryImpl implements IProductRepository {
     const docRef = await addDoc(collection(db, this.collectionName), productData);
     const newProduct = { id: docRef.id, ...productData };
 
-    await auditLogRepository.log({
-      userId: this.currentUser?.id || 'unknown',
-      userName: this.currentUser?.name || 'Sistema',
-      action: 'CREATE',
-      collection: this.collectionName,
-      docId: docRef.id,
-      newData: newProduct,
-    });
-
     return newProduct;
   }
 
@@ -109,20 +98,7 @@ class ProductRepositoryImpl implements IProductRepository {
     const { id, ...data } = updatedProduct;
     const docRef = doc(db, this.collectionName, id);
 
-    const oldDoc = await getDoc(docRef);
-    const oldData = oldDoc.exists() ? { ...oldDoc.data(), id: oldDoc.id } : null;
-
     await updateDoc(docRef, data as any);
-
-    await auditLogRepository.log({
-      userId: this.currentUser?.id || 'unknown',
-      userName: this.currentUser?.name || 'Sistema',
-      action: 'UPDATE',
-      collection: this.collectionName,
-      docId: id,
-      oldData,
-      newData: updatedProduct,
-    });
 
     return updatedProduct;
   }
@@ -131,20 +107,7 @@ class ProductRepositoryImpl implements IProductRepository {
     this.checkAdminPermission();
     const docRef = doc(db, this.collectionName, productId);
 
-    const oldDoc = await getDoc(docRef);
-    const oldData = oldDoc.exists() ? { ...oldDoc.data(), id: oldDoc.id } : null;
-
     await updateDoc(docRef, { isArchived: true });
-
-    await auditLogRepository.log({
-      userId: this.currentUser?.id || 'unknown',
-      userName: this.currentUser?.name || 'Sistema',
-      action: 'DELETE',
-      collection: this.collectionName,
-      docId: productId,
-      oldData,
-      newData: { ...oldData, isArchived: true },
-    });
   }
 }
 

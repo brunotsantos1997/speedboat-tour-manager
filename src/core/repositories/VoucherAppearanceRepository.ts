@@ -1,7 +1,6 @@
 // src/core/repositories/VoucherAppearanceRepository.ts
 import { doc, getDoc, setDoc, onSnapshot, type Unsubscribe } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { auditLogRepository } from './AuditLogRepository';
 
 export interface VoucherAppearanceData {
   id: string;
@@ -70,20 +69,7 @@ export class VoucherAppearanceRepository {
     const { id, ...data } = updatedData;
     const docRef = doc(db, this.collectionName, this.docId);
 
-    const oldSnap = await getDoc(docRef);
-    const oldData = oldSnap.exists() ? { ...oldSnap.data(), id: oldSnap.id } : null;
-
     await setDoc(docRef, data, { merge: true });
-
-    await auditLogRepository.log({
-      userId: this.currentUser.id,
-      userName: this.currentUser.name,
-      action: 'UPDATE',
-      collection: this.collectionName,
-      docId: this.docId,
-      oldData,
-      newData: updatedData,
-    });
 
     this.data = updatedData;
     return updatedData;

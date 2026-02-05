@@ -100,12 +100,5 @@ service cloud.firestore {
       allow read, write: if isApproved();
     }
 
-    // Regras para Logs de Auditoria
-    match /audit_logs/{logId} {
-      // Apenas criação é permitida pelo frontend
-      allow create: if isAuthenticated();
-      // Leitura permitida apenas para Owner e Super Admin
-      allow read: if isOwner();
-    }
   }
 }
