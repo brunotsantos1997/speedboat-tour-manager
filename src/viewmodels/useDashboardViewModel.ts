@@ -31,7 +31,27 @@ export const useDashboardViewModel = () => {
         return eventRepository.getEventsByDate(dateString);
       });
       const eventsPerDay = await Promise.all(datePromises);
-      setAllEvents(eventsPerDay.flat());
+      const allFetchedEvents = eventsPerDay.flat();
+
+      // Auto-cancel expired pre-reservations (older than 24h)
+      const now = Date.now();
+      const twentyFourHours = 24 * 60 * 60 * 1000;
+      const updatedEvents = [...allFetchedEvents];
+
+      for (let i = 0; i < updatedEvents.length; i++) {
+        const event = updatedEvents[i];
+        if (event.status === 'PRE_SCHEDULED' && event.preScheduledAt && (now - event.preScheduledAt > twentyFourHours)) {
+          const cancelledEvent = { ...event, status: 'CANCELLED' as const };
+          try {
+            await eventRepository.updateEvent(cancelledEvent);
+            updatedEvents[i] = cancelledEvent;
+          } catch (error) {
+            console.error(`Failed to auto-cancel event ${event.id}:`, error);
+          }
+        }
+      }
+
+      setAllEvents(updatedEvents);
     } catch (err) {
       setError('Failed to fetch events.');
       console.error(err);

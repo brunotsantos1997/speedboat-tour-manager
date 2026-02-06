@@ -115,7 +115,7 @@ const EventCard: React.FC<{
           <p className="font-bold text-lg text-gray-800">{eventType.boat.name}</p>
           <p className="flex items-center text-gray-600 mt-1">
             <Calendar size={16} className="mr-2" />
-            {new Date(eventType.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} às {eventType.startTime}
+            {new Date(eventType.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} às {eventType.startTime} - {eventType.endTime}
           </p>
         </div>
         <div className="text-right">

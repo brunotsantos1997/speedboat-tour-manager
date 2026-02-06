@@ -3,7 +3,6 @@ import React from 'react';
 import {
   Anchor,
   User,
-  Phone,
   CalendarDays,
   Clock,
   Users,
@@ -129,7 +128,6 @@ export const VoucherScreen: React.FC = () => {
                   <h3 className="font-bold text-lg mb-4 text-gray-700">Dados do Cliente</h3>
                   <div className="space-y-4">
                       <InfoItem icon={User} label="Nome" value={client.name} />
-                      <InfoItem icon={Phone} label="Telefone" value={client.phone} />
                   </div>
               </div>
               <div className="border-t md:border-t-0 md:border-l border-gray-200 pt-6 md:pt-0 md:pl-6">

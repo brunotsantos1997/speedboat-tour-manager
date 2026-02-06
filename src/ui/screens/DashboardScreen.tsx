@@ -53,7 +53,7 @@ const EventListItem: React.FC<{ event: EventType; onConfirmPayment: (id: string,
         </div>
         <div className="flex items-center text-sm text-gray-500 mt-1">
           <Anchor size={14} className="mr-2" /> {event.boat.name}
-          <Clock size={14} className="ml-4 mr-2" /> {event.startTime}
+          <Clock size={14} className="ml-4 mr-2" /> {event.startTime} - {event.endTime}
         </div>
       </div>
       <div className="flex items-center">
