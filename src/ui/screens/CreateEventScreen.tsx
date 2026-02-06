@@ -264,6 +264,57 @@ export const CreateEventScreen: React.FC = () => {
               </div>
             </section>
 
+            {/* Section: Date and Time */}
+            <section className="bg-white p-4 rounded-lg shadow">
+              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Data e Horário</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                <div className="flex justify-center md:justify-start">
+                  <DayPicker
+                    mode="single"
+                    selected={vm.selectedDate}
+                    onSelect={vm.setSelectedDate}
+                    locale={ptBR}
+                    modifiers={{ booked: bookedDays }}
+                    modifiersStyles={{ booked: { color: 'red', fontWeight: 'bold' } }}
+                    className="rounded-md m-0"
+                  />
+                </div>
+                <div>
+                  <div className="grid grid-cols-2 gap-4">
+                    {vm.isBusinessClosed ? (
+                      <div className="col-span-2 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 rounded-md">
+                        <p className="font-bold">Fechado neste dia</p>
+                        <p className="text-sm">Por favor, selecione outra data para ver os horários disponíveis.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Início</label>
+                          <CustomTimePicker
+                            value={vm.startTime}
+                            onChange={vm.setStartTime}
+                            disabled={vm.isBusinessClosed}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Término</label>
+                          <EndTimePicker
+                            value={vm.endTime}
+                            onChange={vm.setEndTime}
+                            options={vm.availableEndTimeSlots}
+                            disabled={vm.isBusinessClosed}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-4 italic">
+                    * O horário final é calculado com base na disponibilidade da lancha.
+                  </p>
+                </div>
+              </div>
+            </section>
+
             {/* Section: Available Products */}
             <section>
               <h2 className="text-lg font-semibold mb-3">Produtos Disponíveis</h2>
@@ -339,20 +390,16 @@ export const CreateEventScreen: React.FC = () => {
               </section>
             )}
 
-          </div>
-
-          {/* Right Column: Scheduling */}
-          <aside className="lg:col-span-1 space-y-6">
-            {/* Discount & Tax */}
+            {/* Section: Discount & Tax */}
             <section className="bg-white p-4 rounded-lg shadow">
               <h2 className="text-lg font-semibold mb-3 border-b pb-2">Desconto e Taxas</h2>
               <div className="space-y-4 mt-4">
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">Desconto</h3>
-                  <div className="grid grid-cols-3 gap-2 bg-white p-2 rounded-lg border">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
                     <div className="col-span-1 flex">
-                      <button onClick={() => vm.updateDiscountType('FIXED')} className={`w-full px-2 py-2 text-sm rounded-l-md ${vm.discount.type === 'FIXED' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>R$</button>
-                      <button onClick={() => vm.updateDiscountType('PERCENTAGE')} className={`w-full px-2 py-2 text-sm rounded-r-md ${vm.discount.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>%</button>
+                      <button onClick={() => vm.updateDiscountType('FIXED')} className={`flex-grow px-2 py-2 text-sm rounded-l-md ${vm.discount.type === 'FIXED' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>R$</button>
+                      <button onClick={() => vm.updateDiscountType('PERCENTAGE')} className={`flex-grow px-2 py-2 text-sm rounded-r-md ${vm.discount.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>%</button>
                     </div>
                     <div className="col-span-2">
                       {vm.discount.type === 'PERCENTAGE' ? (
@@ -372,19 +419,36 @@ export const CreateEventScreen: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">Taxa Adicional</h3>
-                  <MoneyInput
-                    value={vm.tax}
-                    onChange={vm.updateTax}
-                  />
+                  <div className="max-w-xs">
+                    <MoneyInput
+                        value={vm.tax}
+                        onChange={vm.updateTax}
+                    />
+                  </div>
                 </div>
               </div>
             </section>
 
+            {/* Section: Description */}
             <section className="bg-white p-4 rounded-lg shadow">
-              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Agendamento</h2>
+              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Descrição / Observações</h2>
+              <textarea
+                value={vm.observations}
+                onChange={(e) => vm.setObservations(e.target.value)}
+                placeholder="Adicione informações adicionais sobre o passeio..."
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 h-32"
+              />
+            </section>
+
+          </div>
+
+          {/* Right Column: Boat and Boarding */}
+          <aside className="lg:col-span-1 space-y-6">
+            <section className="bg-white p-4 rounded-lg shadow">
+              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Configurações da Reserva</h2>
 
               {/* Pre-schedule Toggle */}
-              <div className="mb-4">
+              <div className="mb-6">
                 <label htmlFor="pre-schedule-toggle" className="flex items-center justify-between cursor-pointer">
                   <span className="font-medium text-gray-700">Pré-reserva</span>
                   <div className="relative inline-flex items-center">
@@ -401,47 +465,6 @@ export const CreateEventScreen: React.FC = () => {
                 <p className="text-xs text-gray-500 mt-1">
                   A pré-reserva fica pendente por 24h. Se não for confirmada, a vaga é liberada.
                 </p>
-              </div>
-
-              {/* Calendar */}
-              <DayPicker
-                mode="single"
-                selected={vm.selectedDate}
-                onSelect={vm.setSelectedDate}
-                locale={ptBR}
-                modifiers={{ booked: bookedDays }}
-                modifiersStyles={{ booked: { color: 'red', fontWeight: 'bold' } }}
-                className="rounded-md"
-              />
-
-              {/* Time Pickers */}
-              <div className="grid grid-cols-2 gap-4 mt-4">
-                {vm.isBusinessClosed ? (
-                  <div className="col-span-2 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 rounded-md">
-                    <p className="font-bold">Fechado neste dia</p>
-                    <p className="text-sm">Por favor, selecione outra data para ver os horários disponíveis.</p>
-                  </div>
-                ) : (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Início</label>
-                      <CustomTimePicker
-                        value={vm.startTime}
-                        onChange={vm.setStartTime}
-                        disabled={vm.isBusinessClosed}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Término</label>
-                      <EndTimePicker
-                        value={vm.endTime}
-                        onChange={vm.setEndTime}
-                        options={vm.availableEndTimeSlots}
-                        disabled={vm.isBusinessClosed}
-                      />
-                    </div>
-                  </>
-                )}
               </div>
 
               {/* Boat Selection */}

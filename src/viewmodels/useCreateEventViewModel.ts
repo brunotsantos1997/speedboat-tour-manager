@@ -569,6 +569,7 @@ export const useCreateEventViewModel = () => {
     total,
     tax,
     observations,
+    setObservations,
     selectedClient,
     clientSearchTerm,
     clientSearchResults,
