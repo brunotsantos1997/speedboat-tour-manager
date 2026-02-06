@@ -342,7 +342,20 @@ export const useCreateEventViewModel = () => {
       throw new Error('Campos obrigatórios ausentes.');
     }
 
+    const productsRevenue = selectedProducts.reduce((acc, p) => {
+        if (p.isCourtesy) return acc;
+        if (p.pricingType === 'PER_PERSON') return acc + (p.price || 0) * passengerCount;
+        if (p.pricingType === 'HOURLY' && p.startTime && p.endTime && p.hourlyPrice) {
+            const d = (timeToMinutes(p.endTime) - timeToMinutes(p.startTime)) / 60;
+            return acc + (d > 0 ? d * p.hourlyPrice : 0);
+        }
+        return acc + (p.price || 0);
+    }, 0);
+
+    const rentalRevenue = boatRentalCost;
+
     const eventStatus = isPreScheduled ? 'PRE_SCHEDULED' : 'SCHEDULED';
+
     const eventData: any = {
       date: format(selectedDate, 'yyyy-MM-dd'),
       startTime: startTime,
@@ -359,6 +372,8 @@ export const useCreateEventViewModel = () => {
       total,
       tax: tax || 0,
       observations,
+      rentalRevenue,
+      productsRevenue,
     };
 
     if (isPreScheduled) {
@@ -379,6 +394,7 @@ export const useCreateEventViewModel = () => {
       };
       await eventRepository.add(newEventData);
     }
+
     return selectedClient;
   }, [
     selectedDate,
@@ -398,7 +414,8 @@ export const useCreateEventViewModel = () => {
     currentUser,
     originalEvent,
     originalPaymentStatus,
-    tax
+    tax,
+    boatRentalCost
   ]);
 
   useEffect(() => {

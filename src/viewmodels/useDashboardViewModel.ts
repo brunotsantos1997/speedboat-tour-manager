@@ -2,7 +2,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { EventType } from '../core/domain/types';
 import { eventRepository } from '../core/repositories/EventRepository';
-import { startOfDay, isWithinInterval, addDays, startOfWeek, endOfWeek, getMonth, isSameDay } from 'date-fns';
+import { paymentRepository } from '../core/repositories/PaymentRepository';
+import { startOfDay, isWithinInterval, addDays, startOfWeek, endOfWeek, getMonth, isSameDay, format } from 'date-fns';
 import { useToastContext } from '../ui/contexts/ToastContext';
 
 // Helper to parse date string as local time to avoid timezone issues.
@@ -14,6 +15,9 @@ export const useDashboardViewModel = () => {
   const [allEvents, setAllEvents] = useState<EventType[]>([]);
   const { showToast } = useToastContext();
   const [isLoading, setIsLoading] = useState(true);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [activeEventForPayment, setActiveEventForPayment] = useState<EventType | null>(null);
+  const [paymentType, setPaymentType] = useState<'DOWN_PAYMENT' | 'BALANCE' | 'FULL'>('DOWN_PAYMENT');
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
 
@@ -41,15 +45,46 @@ export const useDashboardViewModel = () => {
   }, [fetchEvents]);
 
   // --- Actions ---
-  const confirmPayment = useCallback(async (eventId: string) => {
+  const initiatePayment = useCallback((eventId: string, type: 'DOWN_PAYMENT' | 'BALANCE' | 'FULL') => {
+    const event = allEvents.find(e => e.id === eventId);
+    if (event) {
+      setActiveEventForPayment(event);
+      setPaymentType(type);
+      setIsPaymentModalOpen(true);
+    }
+  }, [allEvents]);
+
+  const confirmPaymentRecord = useCallback(async (amount: number, method: any, type: any) => {
+    if (!activeEventForPayment) return;
+
     try {
-      const eventToUpdate = allEvents.find(e => e.id === eventId);
-      if (!eventToUpdate) return;
+      const eventId = activeEventForPayment.id;
 
-      const updatedEvent = { ...eventToUpdate, paymentStatus: 'CONFIRMED' as const };
+      // Record the payment
+      await paymentRepository.add({
+        eventId,
+        amount,
+        method,
+        type,
+        date: format(new Date(), 'yyyy-MM-dd'),
+        timestamp: Date.now()
+      });
 
-      if (updatedEvent.status === 'PRE_SCHEDULED') {
+      // Update event status/paymentStatus if necessary
+      let updatedEvent = { ...activeEventForPayment };
+
+      if (type === 'DOWN_PAYMENT' && updatedEvent.status === 'PRE_SCHEDULED') {
         updatedEvent.status = 'SCHEDULED';
+      }
+
+      // Check if fully paid (simple check for now)
+      const eventPayments = await paymentRepository.getByEventId(eventId);
+      const totalPaid = eventPayments.reduce((acc, p) => acc + p.amount, 0);
+
+      if (totalPaid >= updatedEvent.total) {
+        updatedEvent.paymentStatus = 'CONFIRMED';
+      } else {
+        updatedEvent.paymentStatus = 'PENDING';
       }
 
       await eventRepository.updateEvent(updatedEvent);
@@ -59,12 +94,16 @@ export const useDashboardViewModel = () => {
           event.id === eventId ? updatedEvent : event
         )
       );
-      showToast('Pagamento confirmado com sucesso!');
+
+      showToast('Pagamento registrado com sucesso!');
+      setIsPaymentModalOpen(false);
+      setActiveEventForPayment(null);
     } catch (error) {
-      console.error('Failed to confirm payment:', error);
-      showToast('Erro ao confirmar o pagamento.');
+      console.error('Failed to record payment:', error);
+      showToast('Erro ao registrar o pagamento.');
+      throw error;
     }
-  }, [allEvents, showToast]);
+  }, [activeEventForPayment, showToast]);
 
   const processNotification = useCallback(async (eventId: string) => {
     try {
@@ -168,7 +207,12 @@ export const useDashboardViewModel = () => {
     calendarEvents,
     selectedDate,
     setSelectedDate,
-    confirmPayment,
+    isPaymentModalOpen,
+    setIsPaymentModalOpen,
+    activeEventForPayment,
+    paymentType,
+    initiatePayment,
+    confirmPaymentRecord,
     processNotification,
   };
 };

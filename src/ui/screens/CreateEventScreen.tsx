@@ -338,6 +338,7 @@ export const CreateEventScreen: React.FC = () => {
                 </div>
               </section>
             )}
+
           </div>
 
           {/* Right Column: Scheduling */}

@@ -1,7 +1,7 @@
 // src/ui/components/Layout.tsx
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Menu, PlusCircle, Settings, Users, LayoutDashboard, Palette, UserCog, TrendingUp, LogOut } from 'lucide-react';
+import { Menu, PlusCircle, Settings, Users, LayoutDashboard, Palette, UserCog, TrendingUp, LogOut, Wallet } from 'lucide-react';
 import { useCompanyDataViewModel } from '../../viewmodels/CompanyDataViewModel';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -74,6 +74,13 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
                   {pendingUsersCount}
                 </span>
               )}
+            </NavLink>
+          )}
+
+          {(currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN') && (
+            <NavLink to="/finance" className={navLinkClass} onClick={onClose}>
+              <Wallet className="mr-3" />
+              <span>Financeiro</span>
             </NavLink>
           )}
 
