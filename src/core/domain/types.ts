@@ -57,6 +57,21 @@ export interface BoardingLocation {
 
 export type EventStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'PRE_SCHEDULED' | 'PENDING_REFUND' | 'REFUNDED' | 'ARCHIVED_COMPLETED' | 'ARCHIVED_CANCELLED';
 export type PaymentStatus = 'PENDING' | 'CONFIRMED';
+export type PaymentMethod = 'PIX' | 'CARD_CREDIT' | 'CARD_DEBIT' | 'CASH' | 'TRANSFER' | 'OTHER';
+export type PaymentType = 'DOWN_PAYMENT' | 'BALANCE' | 'FULL';
+
+/**
+ * Represents a payment for an event.
+ */
+export interface Payment {
+  id: string;
+  eventId: string;
+  amount: number;
+  method: PaymentMethod;
+  type: PaymentType;
+  date: string; // YYYY-MM-DD
+  timestamp: number;
+}
 
 /**
  * Represents the main event being created.
@@ -81,6 +96,35 @@ export interface EventType {
   observations?: string;
   isAcknowledged?: boolean; // For dashboard notifications
   createdByUserId?: string;
+  payments?: Payment[];
+  rentalRevenue?: number;
+  productsRevenue?: number;
+}
+
+/**
+ * Represents a category for expenses.
+ */
+export interface ExpenseCategory {
+  id: string;
+  name: string;
+  isArchived?: boolean;
+}
+
+/**
+ * Represents an expense.
+ */
+export interface Expense {
+  id: string;
+  date: string; // YYYY-MM-DD
+  amount: number;
+  description: string;
+  categoryId: string;
+  categoryName?: string; // Denormalized for easier display
+  boatId?: string; // Optional: linked to a specific boat
+  boatName?: string;
+  status: 'PENDING' | 'PAID';
+  paymentMethod?: PaymentMethod;
+  timestamp: number;
 }
 
 /**

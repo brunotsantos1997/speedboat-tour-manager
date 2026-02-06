@@ -1,0 +1,137 @@
+// src/viewmodels/useExpenseViewModel.ts
+import { useState, useEffect, useCallback } from 'react';
+import type { Expense, ExpenseCategory, Boat } from '../core/domain/types';
+import { expenseRepository } from '../core/repositories/ExpenseRepository';
+import { expenseCategoryRepository } from '../core/repositories/ExpenseCategoryRepository';
+import { boatRepository } from '../core/repositories/BoatRepository';
+import { useToastContext } from '../ui/contexts/ToastContext';
+
+export const useExpenseViewModel = () => {
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
+  const [boats, setBoats] = useState<Boat[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToastContext();
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [expList, catList, boatList] = await Promise.all([
+        expenseRepository.getAll(),
+        expenseCategoryRepository.getAll(),
+        boatRepository.getAll()
+      ]);
+      // Filter out archived expenses if needed, or rely on repository
+      setExpenses(expList.filter((e: any) => !e.isArchived));
+      setCategories(catList);
+      setBoats(boatList);
+    } catch (err) {
+      setError('Erro ao carregar dados financeiros.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const addExpense = async (expenseData: Omit<Expense, 'id' | 'timestamp'>) => {
+    try {
+      const category = categories.find(c => c.id === expenseData.categoryId);
+      const boat = boats.find(b => b.id === expenseData.boatId);
+
+      const newExpense = await expenseRepository.add({
+        ...expenseData,
+        categoryName: category?.name,
+        boatName: boat?.name,
+        timestamp: Date.now()
+      });
+      setExpenses(prev => [newExpense, ...prev]);
+      showToast('Despesa cadastrada com sucesso!');
+      return newExpense;
+    } catch (err: any) {
+      showToast('Erro ao cadastrar despesa: ' + err.message);
+      throw err;
+    }
+  };
+
+  const updateExpense = async (expense: Expense) => {
+    try {
+      const category = categories.find(c => c.id === expense.categoryId);
+      const boat = boats.find(b => b.id === expense.boatId);
+
+      const updatedExpense = await expenseRepository.update({
+        ...expense,
+        categoryName: category?.name,
+        boatName: boat?.name
+      });
+      setExpenses(prev => prev.map(e => e.id === expense.id ? updatedExpense : e));
+      showToast('Despesa atualizada com sucesso!');
+      return updatedExpense;
+    } catch (err: any) {
+      showToast('Erro ao atualizar despesa: ' + err.message);
+      throw err;
+    }
+  };
+
+  const removeExpense = async (expenseId: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta despesa?')) return;
+    try {
+      await expenseRepository.remove(expenseId);
+      setExpenses(prev => prev.filter(e => e.id !== expenseId));
+      showToast('Despesa excluída com sucesso!');
+    } catch (err: any) {
+      showToast('Erro ao excluir despesa: ' + err.message);
+    }
+  };
+
+  const addCategory = async (name: string) => {
+    try {
+      const newCategory = await expenseCategoryRepository.add({ name });
+      setCategories(prev => [...prev, newCategory]);
+      showToast('Categoria criada com sucesso!');
+      return newCategory;
+    } catch (err: any) {
+      showToast('Erro ao criar categoria: ' + err.message);
+    }
+  };
+
+  const updateCategory = async (category: ExpenseCategory) => {
+    try {
+      const updated = await expenseCategoryRepository.update(category);
+      setCategories(prev => prev.map(c => c.id === category.id ? updated : c));
+      showToast('Categoria atualizada com sucesso!');
+    } catch (err: any) {
+      showToast('Erro ao atualizar categoria: ' + err.message);
+    }
+  };
+
+  const removeCategory = async (categoryId: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta categoria?')) return;
+    try {
+      await expenseCategoryRepository.remove(categoryId);
+      setCategories(prev => prev.filter(c => c.id !== categoryId));
+      showToast('Categoria excluída com sucesso!');
+    } catch (err: any) {
+      showToast('Erro ao excluir categoria: ' + err.message);
+    }
+  };
+
+  return {
+    expenses,
+    categories,
+    boats,
+    loading,
+    error,
+    addExpense,
+    updateExpense,
+    removeExpense,
+    addCategory,
+    updateCategory,
+    removeCategory,
+    refresh: loadData
+  };
+};

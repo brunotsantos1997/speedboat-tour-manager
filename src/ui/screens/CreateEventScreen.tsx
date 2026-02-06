@@ -1,11 +1,11 @@
 // src/ui/screens/CreateEventScreen.tsx
 import React from 'react';
-import { Anchor, Utensils, Beer, User, Circle, HelpCircle, Users, Search, X, Package, Pencil, Trash2, AlertTriangle, Minus, Plus } from 'lucide-react';
+import { Anchor, Utensils, Beer, User, Circle, HelpCircle, Users, Search, X, Package, Pencil, Trash2, AlertTriangle, Minus, Plus, CreditCard, Wallet, Smartphone, Landmark, Receipt, DollarSign } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import { useCreateEventViewModel } from '../../viewmodels/useCreateEventViewModel';
 import { useToastContext } from '../../ui/contexts/ToastContext';
 import { useNavigate } from 'react-router-dom';
-import type { Product, ClientProfile } from '../../core/domain/types';
+import type { Product, ClientProfile, PaymentMethod, PaymentType } from '../../core/domain/types';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 import { MoneyInput } from '../components/MoneyInput';
 import { CustomTimePicker } from '../components/CustomTimePicker';
@@ -176,6 +176,11 @@ const NewClientModal: React.FC<{
 
 export const CreateEventScreen: React.FC = () => {
   const vm = useCreateEventViewModel();
+  const [paymentAmount, setPaymentAmount] = React.useState(0);
+
+  React.useEffect(() => {
+    setPaymentAmount(vm.balanceRemaining);
+  }, [vm.balanceRemaining]);
   const { showToast } = useToastContext();
   const navigate = useNavigate();
   const isProductSelected = (product: Product) => vm.selectedProducts.some(p => p.id === product.id);
@@ -338,6 +343,85 @@ export const CreateEventScreen: React.FC = () => {
                 </div>
               </section>
             )}
+
+            {/* Section: Payments */}
+            <section className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-bold flex items-center">
+                        <Wallet className="mr-2 text-blue-500" size={20} />
+                        Pagamentos e Sinal
+                    </h2>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${vm.balanceRemaining === 0 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                        {vm.balanceRemaining === 0 ? 'TOTAL PAGO' : `SALDO: ${formatCurrencyBRL(vm.balanceRemaining)}`}
+                    </span>
+                </div>
+
+                <div className="space-y-4">
+                    {vm.payments.length > 0 ? (
+                        <div className="divide-y divide-gray-100 border rounded-lg">
+                            {vm.payments.map((p, index) => (
+                                <div key={index} className="p-3 flex justify-between items-center hover:bg-gray-50">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-gray-100 rounded-full text-gray-500">
+                                            {p.method === 'PIX' && <Smartphone size={16} />}
+                                            {(p.method === 'CARD_CREDIT' || p.method === 'CARD_DEBIT') && <CreditCard size={16} />}
+                                            {p.method === 'CASH' && <DollarSign size={16} />}
+                                            {p.method === 'TRANSFER' && <Landmark size={16} />}
+                                            {p.method === 'OTHER' && <Receipt size={16} />}
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-sm">{formatCurrencyBRL(p.amount)}</p>
+                                            <p className="text-xs text-gray-500 uppercase">
+                                                {p.method.replace('_', ' ')} • {p.type === 'DOWN_PAYMENT' ? 'Sinal' : p.type === 'BALANCE' ? 'Saldo' : 'Total'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => vm.removePayment(index)} className="p-1 text-gray-400 hover:text-red-600">
+                                        <X size={18} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="p-8 text-center border-2 border-dashed border-gray-100 rounded-lg text-gray-400 text-sm">
+                            Nenhum pagamento registrado.
+                        </div>
+                    )}
+
+                    {vm.balanceRemaining > 0 && (
+                        <div className="bg-gray-50 p-4 rounded-lg space-y-3 border border-gray-100">
+                            <p className="text-sm font-semibold text-gray-700">Adicionar Pagamento</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <MoneyInput
+                                    value={paymentAmount}
+                                    onChange={setPaymentAmount}
+                                />
+                                <div className="flex gap-2">
+                                    <select id="payment-method" className="flex-grow p-2 border border-gray-300 rounded-lg bg-white text-sm outline-none">
+                                        <option value="PIX">PIX</option>
+                                        <option value="CARD_CREDIT">Crédito</option>
+                                        <option value="CARD_DEBIT">Débito</option>
+                                        <option value="CASH">Dinheiro</option>
+                                        <option value="TRANSFER">Transf.</option>
+                                    </select>
+                                    <button
+                                        onClick={() => {
+                                            const method = (document.getElementById('payment-method') as HTMLSelectElement).value as PaymentMethod;
+                                            const amount = paymentAmount;
+                                            if (amount <= 0) return;
+                                            const type: PaymentType = vm.payments.length === 0 ? 'DOWN_PAYMENT' : 'BALANCE';
+                                            vm.addPayment(amount, method, type);
+                                        }}
+                                        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors"
+                                    >
+                                        Adicionar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </section>
           </div>
 
           {/* Right Column: Scheduling */}

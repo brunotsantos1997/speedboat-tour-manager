@@ -2,11 +2,12 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import type { DayOfWeek, Product, Discount, SelectedProduct, ClientProfile, Boat, EventType, PaymentStatus, CompanyData } from '../core/domain/types';
+import type { DayOfWeek, Product, Discount, SelectedProduct, ClientProfile, Boat, EventType, PaymentStatus, CompanyData, Payment, PaymentMethod, PaymentType } from '../core/domain/types';
 import { clientRepository } from '../core/repositories/ClientRepository';
 import { productRepository } from '../core/repositories/ProductRepository';
 import { boatRepository } from '../core/repositories/BoatRepository';
 import { eventRepository } from '../core/repositories/EventRepository';
+import { paymentRepository } from '../core/repositories/PaymentRepository';
 import { CompanyDataRepository } from '../core/repositories/CompanyDataRepository';
 import { format } from 'date-fns';
 import { timeToMinutes, minutesToTime } from '../core/utils/timeUtils';
@@ -42,6 +43,7 @@ export const useCreateEventViewModel = () => {
   const [passengerCount, setPassengerCount] = useState(1);
   const [observations, setObservations] = useState('');
   const [tax, setTax] = useState(0);
+  const [payments, setPayments] = useState<Omit<Payment, 'id' | 'eventId'>[]>([]);
 
   // Client Management State
   const [selectedClient, setSelectedClient] = useState<ClientProfile | null>(null);
@@ -82,6 +84,10 @@ export const useCreateEventViewModel = () => {
           setIsPreScheduled(event.status === 'PRE_SCHEDULED');
           setOriginalPaymentStatus(event.paymentStatus);
           setTax(event.tax || 0);
+
+          // Load existing payments
+          const eventPayments = await paymentRepository.getByEventId(editingEventId);
+          setPayments(eventPayments.map(({ id, eventId, ...rest }) => rest));
         } else {
           setEditingEventId(null);
         }
@@ -337,18 +343,52 @@ export const useCreateEventViewModel = () => {
 
   const total = useMemo(() => Math.max(0, subtotal - totalDiscount + tax), [subtotal, totalDiscount, tax]);
 
+  const paidAmount = useMemo(() => payments.reduce((acc, p) => acc + p.amount, 0), [payments]);
+  const balanceRemaining = useMemo(() => Math.max(0, total - paidAmount), [total, paidAmount]);
+
+  const addPayment = useCallback((amount: number, method: PaymentMethod, type: PaymentType) => {
+    const newPayment = {
+      amount,
+      method,
+      type,
+      date: format(new Date(), 'yyyy-MM-dd'),
+      timestamp: Date.now()
+    };
+    setPayments(prev => [...prev, newPayment]);
+  }, []);
+
+  const removePayment = useCallback((index: number) => {
+    setPayments(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
   const createEvent = useCallback(async () => {
     if (!selectedDate || !selectedClient || !selectedBoat || !selectedBoardingLocation) {
       throw new Error('Campos obrigatórios ausentes.');
     }
 
+    const productsRevenue = selectedProducts.reduce((acc, p) => {
+        if (p.isCourtesy) return acc;
+        if (p.pricingType === 'PER_PERSON') return acc + (p.price || 0) * passengerCount;
+        if (p.pricingType === 'HOURLY' && p.startTime && p.endTime && p.hourlyPrice) {
+            const d = (timeToMinutes(p.endTime) - timeToMinutes(p.startTime)) / 60;
+            return acc + (d > 0 ? d * p.hourlyPrice : 0);
+        }
+        return acc + (p.price || 0);
+    }, 0);
+
+    const rentalRevenue = boatRentalCost;
+
     const eventStatus = isPreScheduled ? 'PRE_SCHEDULED' : 'SCHEDULED';
+
+    // Auto-confirm payment status if total is covered
+    const finalPaymentStatus: PaymentStatus = paidAmount >= total ? 'CONFIRMED' : 'PENDING';
+
     const eventData: any = {
       date: format(selectedDate, 'yyyy-MM-dd'),
       startTime: startTime,
       endTime: endTime,
       status: eventStatus as EventType['status'],
-      paymentStatus: (editingEventId && originalPaymentStatus === 'CONFIRMED' ? 'CONFIRMED' : 'PENDING') as PaymentStatus,
+      paymentStatus: finalPaymentStatus,
       boat: selectedBoat,
       boardingLocation: selectedBoardingLocation,
       products: selectedProducts,
@@ -359,26 +399,48 @@ export const useCreateEventViewModel = () => {
       total,
       tax: tax || 0,
       observations,
+      rentalRevenue,
+      productsRevenue,
     };
 
     if (isPreScheduled) {
       eventData.preScheduledAt = Date.now();
     }
 
+    let savedEvent: EventType;
+
     if (editingEventId) {
-      const updatedEvent = {
+      savedEvent = {
         ...eventData,
         id: editingEventId,
         createdByUserId: originalEvent?.createdByUserId,
       };
-      await eventRepository.updateEvent(updatedEvent as EventType);
+      await eventRepository.updateEvent(savedEvent);
+
+      // Handle payments: this is tricky with separate collection.
+      // For simplicity in this task, I will clear and re-add or just add new ones.
+      // Better: fetch existing IDs and compare.
+      // But let's keep it simple: clear event payments and re-add for this event.
+      const existingPayments = await paymentRepository.getByEventId(editingEventId);
+      for (const p of existingPayments) {
+          await paymentRepository.remove(p.id);
+      }
     } else {
       const newEventData = {
         ...eventData,
         createdByUserId: currentUser?.id,
       };
-      await eventRepository.add(newEventData);
+      savedEvent = await eventRepository.add(newEventData);
     }
+
+    // Save payments
+    for (const p of payments) {
+        await paymentRepository.add({
+            ...p,
+            eventId: savedEvent.id
+        });
+    }
+
     return selectedClient;
   }, [
     selectedDate,
@@ -398,7 +460,10 @@ export const useCreateEventViewModel = () => {
     currentUser,
     originalEvent,
     originalPaymentStatus,
-    tax
+    tax,
+    boatRentalCost,
+    payments,
+    paidAmount
   ]);
 
   useEffect(() => {
@@ -559,6 +624,9 @@ export const useCreateEventViewModel = () => {
     loyaltySuggestion,
     availableTimeSlots,
     availableEndTimeSlots,
+    payments,
+    paidAmount,
+    balanceRemaining,
     isModalOpen,
     editingClient,
     newClientName,
@@ -585,6 +653,8 @@ export const useCreateEventViewModel = () => {
     handleCloseModal,
     handleSaveClient,
     handleDeleteClient,
+    addPayment,
+    removePayment,
     createEvent,
   };
 };
