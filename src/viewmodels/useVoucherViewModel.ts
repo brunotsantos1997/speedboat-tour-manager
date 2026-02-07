@@ -6,10 +6,12 @@ import { eventRepository } from '../core/repositories/EventRepository';
 import { CompanyDataRepository } from '../core/repositories/CompanyDataRepository';
 import { VoucherTermsRepository } from '../core/repositories/VoucherTermsRepository';
 import { VoucherAppearanceRepository } from '../core/repositories/VoucherAppearanceRepository';
+import { paymentRepository } from '../core/repositories/PaymentRepository';
 import html2pdf from 'html2pdf.js';
 
 interface VoucherDetails extends EventType {
   reservationFee: number;
+  remainingReservationFee: number;
   remainingBalance: number;
   durationHours: number;
 }
@@ -44,6 +46,7 @@ export const useVoucherViewModel = () => {
           termsRepo.get(),
           appearanceRepo.get(),
           eventRepository.getById(eventId),
+          paymentRepository.getByEventId(eventId),
         ]);
 
         const companyInfo = results[0].status === 'fulfilled' ? results[0].value : {
@@ -63,6 +66,7 @@ export const useVoucherViewModel = () => {
 
         const appearance = results[2].status === 'fulfilled' ? results[2].value : undefined;
         const eventData = results[3].status === 'fulfilled' ? results[3].value : undefined;
+        const eventPayments = results[4].status === 'fulfilled' ? results[4].value : [];
 
         if (results[3].status === 'rejected') {
           const error = results[3].reason;
@@ -83,9 +87,10 @@ export const useVoucherViewModel = () => {
         if (terms) setVoucherTerms(terms);
         if (appearance) setWatermark(appearance?.watermarkImage || null);
 
-        const feePercentage = (companyInfo?.reservationFeePercentage || 30) / 100;
-        const reservationFee = eventData.total * feePercentage;
-        const remainingBalance = eventData.total - reservationFee;
+        const totalPaid = eventPayments.reduce((acc, p) => acc + p.amount, 0);
+        const reservationFee = eventData.total * ((companyInfo?.reservationFeePercentage || 30) / 100);
+        const remainingReservationFee = Math.max(0, reservationFee - totalPaid);
+        const remainingBalance = Math.max(0, eventData.total - totalPaid);
 
         // Calculate duration in hours
         const parseTime = (time: string) => {
@@ -94,7 +99,13 @@ export const useVoucherViewModel = () => {
         };
         const durationHours = parseTime(eventData.endTime) - parseTime(eventData.startTime);
 
-        setVoucher({ ...eventData, reservationFee, remainingBalance, durationHours });
+        setVoucher({
+          ...eventData,
+          reservationFee,
+          remainingReservationFee,
+          remainingBalance,
+          durationHours
+        });
 
       } catch (err) {
         setError('Falha ao buscar os detalhes do voucher.');

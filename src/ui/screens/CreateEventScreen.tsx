@@ -310,26 +310,6 @@ export const CreateEventScreen: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Pre-schedule Toggle */}
-                  <div className="pt-4 border-t border-gray-100">
-                    <label htmlFor="pre-schedule-toggle" className="flex items-center justify-between cursor-pointer">
-                      <span className="font-medium text-gray-700">Pré-reserva</span>
-                      <div className="relative inline-flex items-center">
-                        <input
-                          type="checkbox"
-                          id="pre-schedule-toggle"
-                          className="sr-only peer"
-                          checked={vm.isPreScheduled}
-                          onChange={(e) => vm.setIsPreScheduled(e.target.checked)}
-                        />
-                        <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
-                      </div>
-                    </label>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Pendente por 24h se não confirmada.
-                    </p>
-                  </div>
-
                   {/* Boat Selection */}
                   <div>
                       <label htmlFor="boat-select" className="block text-sm font-medium text-gray-700 mb-1 font-semibold">Lancha</label>
@@ -587,9 +567,9 @@ export const CreateEventScreen: React.FC = () => {
                 }
               });
             }}
-            className={`px-8 py-4 text-white rounded-lg text-lg font-bold shadow-lg transition-colors ${vm.isPreScheduled ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-600 hover:bg-green-700'}`}
+            className="px-8 py-4 text-white rounded-lg text-lg font-bold shadow-lg transition-colors bg-blue-600 hover:bg-blue-700"
           >
-            {vm.isPreScheduled ? 'Pré-agendar Passeio' : 'Agendar Passeio'}
+            {vm.editingEventId ? 'Atualizar Passeio' : 'Agendar Passeio'}
           </button>
         </div>
       </footer>

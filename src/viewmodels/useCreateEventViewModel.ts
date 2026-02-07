@@ -25,7 +25,7 @@ export const useCreateEventViewModel = () => {
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('13:00');
   const [scheduledEvents, setScheduledEvents] = useState<EventType[]>([]);
-  const [isPreScheduled, setIsPreScheduled] = useState(false);
+  const [isPreScheduled, setIsPreScheduled] = useState(true);
 
   // Boat State
   const [availableBoats, setAvailableBoats] = useState<Boat[]>([]);

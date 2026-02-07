@@ -90,13 +90,15 @@ export const DashboardScreen: React.FC = () => {
     setIsPaymentModalOpen,
     activeEventForPayment,
     paymentType,
+    defaultPaymentAmount,
     initiatePayment,
     confirmPaymentRecord,
-    processNotification
+    processNotification,
+    revertCancellation
   } = useDashboardViewModel();
 
   // A new component for notifications
-  const NotificationCard: React.FC<{ event: EventType; onAcknowledge: (id: string) => void; onPayment: (id: string, type: PaymentType) => void; }> = ({ event, onAcknowledge, onPayment }) => {
+  const NotificationCard: React.FC<{ event: EventType; onAcknowledge: (id: string) => void; onPayment: (id: string, type: PaymentType) => void; onRevert: (id: string) => void; }> = ({ event, onAcknowledge, onPayment, onRevert }) => {
     const styleMap = {
       CANCELLED: {
         container: 'bg-red-50 border-l-4 border-red-500',
@@ -136,18 +138,28 @@ export const DashboardScreen: React.FC = () => {
           </div>
           <p className="text-sm text-gray-600 ml-7">{new Date(event.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} - {event.boat.name}</p>
         </div>
-        <button
-          onClick={() => {
-            if (status === 'COMPLETED' && event.paymentStatus === 'PENDING') {
-                onPayment(event.id, 'BALANCE');
-            } else {
-                onAcknowledge(event.id);
-            }
-          }}
-          className={`${button} text-white px-3 py-1 rounded-lg text-sm transition-colors`}
-        >
-          {actionText}
-        </button>
+        <div className="flex gap-2">
+            {status === 'CANCELLED' && event.autoCancelled && (
+                <button
+                    onClick={() => onRevert(event.id)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+                >
+                    Reverter
+                </button>
+            )}
+            <button
+                onClick={() => {
+                    if (status === 'COMPLETED' && event.paymentStatus === 'PENDING') {
+                        onPayment(event.id, 'BALANCE');
+                    } else {
+                        onAcknowledge(event.id);
+                    }
+                }}
+                className={`${button} text-white px-3 py-1 rounded-lg text-sm transition-colors`}
+            >
+                {actionText}
+            </button>
+        </div>
       </div>
     );
   };
@@ -194,6 +206,7 @@ export const DashboardScreen: React.FC = () => {
                     event={event}
                     onAcknowledge={processNotification}
                     onPayment={initiatePayment}
+                    onRevert={revertCancellation}
                   />
                 )}
               </div>
@@ -263,7 +276,7 @@ export const DashboardScreen: React.FC = () => {
           onClose={() => setIsPaymentModalOpen(false)}
           onConfirm={confirmPaymentRecord}
           title={paymentType === 'DOWN_PAYMENT' ? 'Confirmar Reserva (Sinal)' : 'Registrar Pagamento de Saldo'}
-          defaultAmount={paymentType === 'DOWN_PAYMENT' ? activeEventForPayment.total * 0.3 : activeEventForPayment.total} // Placeholder suggested values
+          defaultAmount={defaultPaymentAmount}
           type={paymentType}
         />
       )}
