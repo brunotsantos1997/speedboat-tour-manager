@@ -35,7 +35,7 @@ export const useDashboardViewModel = () => {
       for (let i = 0; i < updatedEvents.length; i++) {
         const event = updatedEvents[i];
         if (event.status === 'PRE_SCHEDULED' && event.preScheduledAt && (now - event.preScheduledAt > twentyFourHours)) {
-          const cancelledEvent = { ...event, status: 'CANCELLED' as const };
+          const cancelledEvent = { ...event, status: 'CANCELLED' as const, autoCancelled: true };
           try {
             await eventRepository.updateEvent(cancelledEvent);
             updatedEvents[i] = cancelledEvent;
@@ -169,6 +169,31 @@ export const useDashboardViewModel = () => {
     }
   }, [allEvents, showToast]);
 
+  const revertCancellation = useCallback(async (eventId: string) => {
+    try {
+      const eventToUpdate = allEvents.find(e => e.id === eventId);
+      if (!eventToUpdate) return;
+
+      const updatedEvent: EventType = {
+        ...eventToUpdate,
+        status: 'SCHEDULED',
+        autoCancelled: false
+      };
+
+      await eventRepository.updateEvent(updatedEvent);
+
+      setAllEvents(prev =>
+        prev.map(event =>
+          event.id === eventId ? updatedEvent : event
+        )
+      );
+      showToast('Cancelamento revertido e reserva confirmada!');
+    } catch (error: any) {
+      console.error('Failed to revert cancellation:', error);
+      showToast(error.message || 'Erro ao reverter cancelamento.');
+    }
+  }, [allEvents, showToast]);
+
 
   // --- Derived State ---
   const today = startOfDay(new Date());
@@ -244,5 +269,6 @@ export const useDashboardViewModel = () => {
     initiatePayment,
     confirmPaymentRecord,
     processNotification,
+    revertCancellation,
   };
 };

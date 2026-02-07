@@ -58,7 +58,7 @@ export const useClientHistoryViewModel = () => {
         event.preScheduledAt &&
         (now - event.preScheduledAt > twentyFourHours)
       ) {
-        const updatedEvent = { ...event, status: 'CANCELLED' as const };
+        const updatedEvent = { ...event, status: 'CANCELLED' as const, autoCancelled: true };
         eventRepository.updateEvent(updatedEvent).catch(err =>
           console.error(`Failed to auto-cancel event ${event.id}:`, err)
         );
@@ -162,6 +162,28 @@ export const useClientHistoryViewModel = () => {
     }
   }, [activeEventForPayment, selectedClient, selectClient]);
 
+  const revertCancellation = useCallback(async (eventId: string) => {
+    try {
+      const eventToUpdate = clientEvents.find(e => e.id === eventId);
+      if (!eventToUpdate) return;
+
+      const updatedEvent: EventType = {
+        ...eventToUpdate,
+        status: 'SCHEDULED',
+        autoCancelled: false
+      };
+
+      await eventRepository.updateEvent(updatedEvent);
+
+      if (selectedClient) {
+        await selectClient(selectedClient);
+      }
+    } catch (error: any) {
+      console.error('Failed to revert cancellation:', error);
+      throw error;
+    }
+  }, [clientEvents, selectedClient, selectClient]);
+
   // --- Client Edit Handlers ---
   const openEditModal = () => {
     if (!selectedClient) return;
@@ -230,6 +252,7 @@ export const useClientHistoryViewModel = () => {
     paymentType,
     defaultPaymentAmount,
     initiatePayment,
-    confirmPaymentRecord
+    confirmPaymentRecord,
+    revertCancellation
   };
 };

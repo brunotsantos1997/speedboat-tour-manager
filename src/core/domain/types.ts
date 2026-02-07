@@ -115,6 +115,7 @@ export interface EventType {
   payments?: Payment[];
   rentalRevenue?: number;
   productsRevenue?: number;
+  autoCancelled?: boolean;
 }
 
 /**

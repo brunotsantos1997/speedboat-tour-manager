@@ -3,7 +3,7 @@
 import React from 'react';
 import { useClientHistoryViewModel } from '../../viewmodels/useClientHistoryViewModel';
 import { useToastContext } from '../contexts/ToastContext';
-import { Search, X, Calendar, Edit, Ban, CheckCircle, Clock, Pencil, FileText, Share2, DollarSign, AlertTriangle } from 'lucide-react';
+import { Search, X, Calendar, Edit, Ban, CheckCircle, Clock, Pencil, FileText, Share2, DollarSign, AlertTriangle, History } from 'lucide-react';
 import type { EventStatus, PaymentStatus, EventType, ClientProfile } from '../../core/domain/types';
 import { useNavigate } from 'react-router-dom';
 import { PaymentModal } from '../components/PaymentModal';
@@ -97,7 +97,8 @@ const EventCard: React.FC<{
   onCancel: (id: string) => void;
   onEdit: (id: string) => void;
   onConfirmPayment: (id: string, type: 'DOWN_PAYMENT' | 'BALANCE' | 'FULL') => void;
-}> = ({ eventType, onCancel, onEdit, onConfirmPayment }) => {
+  onRevert?: (id: string) => void;
+}> = ({ eventType, onCancel, onEdit, onConfirmPayment, onRevert }) => {
 
   const shareVoucher = (eventId: string) => {
     const url = `${window.location.origin}/voucher/${eventId}`;
@@ -150,6 +151,15 @@ const EventCard: React.FC<{
             <button onClick={() => onEdit(eventType.id)} className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"><Edit size={14} className="mr-1" /> Alterar</button>
             <button onClick={() => onCancel(eventType.id)} className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 flex items-center"><Ban size={14} className="mr-1" /> Cancelar</button>
           </>
+        )}
+
+        {eventType.status === 'CANCELLED' && eventType.autoCancelled && onRevert && (
+            <button
+                onClick={() => onRevert(eventType.id)}
+                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
+            >
+                <History size={14} className="mr-1" /> Reverter Cancelamento
+            </button>
         )}
       </div>
     </div>
@@ -215,6 +225,7 @@ export const ClientHistoryScreen: React.FC = () => {
                                           onCancel={vm.cancelEvent}
                                           onEdit={handleEditEvent}
                                           onConfirmPayment={vm.initiatePayment}
+                                          onRevert={vm.revertCancellation}
                                        />
                                     ))
                                 ) : <p>Nenhum evento encontrado para este cliente.</p>}
