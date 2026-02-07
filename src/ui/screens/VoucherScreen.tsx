@@ -147,6 +147,12 @@ export const VoucherScreen: React.FC = () => {
                   <h3 className="font-bold text-lg mb-4 text-gray-700">Dados do Cliente</h3>
                   <div className="space-y-4">
                       <InfoItem icon={User} label="Nome" value={client.name} />
+                      {voucher.observations && (
+                        <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                           <p className="text-xs font-bold text-blue-600 uppercase mb-1">Descrição do Passeio</p>
+                           <p className="text-sm text-gray-700 whitespace-pre-wrap">{voucher.observations}</p>
+                        </div>
+                      )}
                   </div>
               </div>
               <div className="border-t md:border-t-0 md:border-l border-gray-200 pt-6 md:pt-0 md:pl-6">
@@ -290,7 +296,10 @@ export const VoucherScreen: React.FC = () => {
 
                       {(voucher.tax ?? 0) > 0 && (
                         <div className="flex justify-between text-green-600">
-                          <span>{voucher.taxDescription || 'Taxa'}</span>
+                          <span className="italic flex flex-col">
+                            <span>Taxa Adicional</span>
+                            {voucher.taxDescription && <span className="text-[10px] text-gray-500">Motivo: {voucher.taxDescription}</span>}
+                          </span>
                           <span className="font-medium">+ {formatCurrencyBRL(voucher.tax ?? 0)}</span>
                         </div>
                       )}
@@ -311,10 +320,10 @@ export const VoucherScreen: React.FC = () => {
               </div>
             </section>
 
-            {/* Observations Section */}
+            {/* Observations Section (Keep it but rename) */}
             {voucher.observations && (
               <section className="mb-8 p-4 bg-yellow-50 border border-yellow-100 rounded-lg">
-                <h3 className="font-bold text-lg mb-2 text-gray-700">Observações Importantes</h3>
+                <h3 className="font-bold text-lg mb-2 text-gray-700">Notas Adicionais</h3>
                 <p className="text-sm text-gray-700 whitespace-pre-wrap">{voucher.observations}</p>
               </section>
             )}

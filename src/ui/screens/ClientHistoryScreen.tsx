@@ -98,7 +98,8 @@ const EventCard: React.FC<{
   onEdit: (id: string) => void;
   onConfirmPayment: (id: string, type: 'DOWN_PAYMENT' | 'BALANCE' | 'FULL') => void;
   onRevert?: (id: string) => void;
-}> = ({ eventType, onCancel, onEdit, onConfirmPayment, onRevert }) => {
+  onConfirmLegacyPayment?: (id: string) => void;
+}> = ({ eventType, onCancel, onEdit, onConfirmPayment, onRevert, onConfirmLegacyPayment }) => {
 
   const shareVoucher = (eventId: string) => {
     const url = `${window.location.origin}/voucher/${eventId}`;
@@ -142,10 +143,15 @@ const EventCard: React.FC<{
 
         {(eventType.status === 'SCHEDULED' || eventType.status === 'PRE_SCHEDULED') && (
           <>
-            {eventType.paymentStatus === 'PENDING' && (
+            {eventType.paymentStatus === 'PENDING' && !hasLegacyDiscounts && (
               <button onClick={() => onConfirmPayment(eventType.id, eventType.status === 'PRE_SCHEDULED' ? 'DOWN_PAYMENT' : 'BALANCE')} className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 flex items-center">
                 <DollarSign size={14} className="mr-1" />
                 {eventType.status === 'PRE_SCHEDULED' ? 'Confirmar Reserva' : 'Confirmar Pagamento'}
+              </button>
+            )}
+            {hasLegacyDiscounts && eventType.paymentStatus !== 'CONFIRMED' && onConfirmLegacyPayment && (
+              <button onClick={() => onConfirmLegacyPayment(eventType.id)} className="px-3 py-1 text-sm bg-orange-600 text-white rounded hover:bg-orange-700 flex items-center">
+                <DollarSign size={14} className="mr-1" /> Confirmar Pagamento (Legado)
               </button>
             )}
             <button onClick={() => onEdit(eventType.id)} className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"><Edit size={14} className="mr-1" /> Alterar</button>
@@ -226,6 +232,11 @@ export const ClientHistoryScreen: React.FC = () => {
                                           onEdit={handleEditEvent}
                                           onConfirmPayment={vm.initiatePayment}
                                           onRevert={vm.revertCancellation}
+                                          onConfirmLegacyPayment={(id) => {
+                                            if (window.confirm('Confirmar o pagamento total (sinal + saldo) para este evento antigo? Isso gerará registros no livro caixa.')) {
+                                                vm.confirmLegacyPayment(id).then(() => showToast('Pagamento legado confirmado!'));
+                                            }
+                                          }}
                                        />
                                     ))
                                 ) : <p>Nenhum evento encontrado para este cliente.</p>}
