@@ -264,11 +264,11 @@ export const CreateEventScreen: React.FC = () => {
               </div>
             </section>
 
-            {/* Section: Date and Time */}
+            {/* Section: Date, Time & Reservation Settings */}
             <section className="bg-white p-4 rounded-lg shadow">
-              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Data e Horário</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-                <div className="flex justify-center md:justify-start">
+              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Agendamento e Reserva</h2>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                <div className="flex justify-center lg:justify-start border rounded-lg p-2 bg-gray-50">
                   <DayPicker
                     mode="single"
                     selected={vm.selectedDate}
@@ -279,12 +279,13 @@ export const CreateEventScreen: React.FC = () => {
                     className="rounded-md m-0"
                   />
                 </div>
-                <div>
+                <div className="space-y-6">
+                  {/* Time Picker */}
                   <div className="grid grid-cols-2 gap-4">
                     {vm.isBusinessClosed ? (
                       <div className="col-span-2 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 rounded-md">
                         <p className="font-bold">Fechado neste dia</p>
-                        <p className="text-sm">Por favor, selecione outra data para ver os horários disponíveis.</p>
+                        <p className="text-sm">Por favor, selecione outra data.</p>
                       </div>
                     ) : (
                       <>
@@ -308,9 +309,71 @@ export const CreateEventScreen: React.FC = () => {
                       </>
                     )}
                   </div>
-                  <p className="text-sm text-gray-500 mt-4 italic">
-                    * O horário final é calculado com base na disponibilidade da lancha.
-                  </p>
+
+                  {/* Pre-schedule Toggle */}
+                  <div className="pt-4 border-t border-gray-100">
+                    <label htmlFor="pre-schedule-toggle" className="flex items-center justify-between cursor-pointer">
+                      <span className="font-medium text-gray-700">Pré-reserva</span>
+                      <div className="relative inline-flex items-center">
+                        <input
+                          type="checkbox"
+                          id="pre-schedule-toggle"
+                          className="sr-only peer"
+                          checked={vm.isPreScheduled}
+                          onChange={(e) => vm.setIsPreScheduled(e.target.checked)}
+                        />
+                        <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                      </div>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Pendente por 24h se não confirmada.
+                    </p>
+                  </div>
+
+                  {/* Boat Selection */}
+                  <div>
+                      <label htmlFor="boat-select" className="block text-sm font-medium text-gray-700 mb-1 font-semibold">Lancha</label>
+                      <select id="boat-select" value={vm.selectedBoat?.id || ''} onChange={(e) => vm.handleBoatSelection(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
+                          {vm.availableBoats.map(boat => (
+                              <option key={boat.id} value={boat.id}>{boat.name}</option>
+                          ))}
+                      </select>
+                  </div>
+
+                  {/* Boarding Location Selection */}
+                  <div>
+                      <label htmlFor="boarding-location-select" className="block text-sm font-medium text-gray-700 mb-1 font-semibold">Local de Embarque</label>
+                      <select id="boarding-location-select" value={vm.selectedBoardingLocation?.id || ''} onChange={(e) => vm.handleBoardingLocationSelection(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
+                          {vm.availableBoardingLocations.map(location => (
+                              <option key={location.id} value={location.id}>{location.name}</option>
+                          ))}
+                      </select>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Section: Boat Discount (Immediately after settings) */}
+            <section className="bg-white p-4 rounded-lg shadow">
+              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Desconto no Aluguel</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center mt-2">
+                <div className="col-span-1 flex">
+                  <button onClick={() => vm.updateDiscountType('FIXED', 'rental')} className={`flex-grow px-2 py-2 text-sm rounded-l-md font-bold ${vm.rentalDiscount.type === 'FIXED' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>R$</button>
+                  <button onClick={() => vm.updateDiscountType('PERCENTAGE', 'rental')} className={`flex-grow px-2 py-2 text-sm rounded-r-md font-bold ${vm.rentalDiscount.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>%</button>
+                </div>
+                <div className="col-span-2">
+                  {vm.rentalDiscount.type === 'PERCENTAGE' ? (
+                    <NumericInput
+                      value={vm.rentalDiscount.value}
+                      onChange={(val) => vm.updateDiscountValue(val, 'rental')}
+                      min={0}
+                    />
+                  ) : (
+                    <MoneyInput
+                      value={vm.rentalDiscount.value}
+                      onChange={(val) => vm.updateDiscountValue(val, 'rental')}
+                    />
+                  )}
                 </div>
               </div>
             </section>
@@ -344,26 +407,56 @@ export const CreateEventScreen: React.FC = () => {
                 <div className="bg-white p-4 rounded-lg shadow-sm divide-y divide-gray-200">
                   {vm.selectedProducts.map((product) => {
                     const selectedProd = vm.selectedProducts.find(p => p.id === product.id);
+                    const prodDiscount = selectedProd?.discount || { type: 'FIXED', value: 0 };
                     return (
-                      <div key={product.id} className="py-3">
+                      <div key={product.id} className="py-4 first:pt-0">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-semibold">{product.name}</p>
+                            <p className="font-semibold text-gray-900">{product.name}</p>
                             <p className={`text-sm ${product.isCourtesy ? 'line-through text-gray-400' : 'text-gray-600'}`}>
                               {product.pricingType === 'HOURLY'
                                 ? `${formatCurrencyBRL(product.hourlyPrice || 0)} / hora`
                                 : `${formatCurrencyBRL(product.price || 0)}`}
-                              {product.pricingType === 'PER_PERSON' && ` x ${vm.passengerCount} passageiros`}
+                              {product.pricingType === 'PER_PERSON' && ` x ${vm.passengerCount} pessoas`}
                             </p>
                           </div>
-                          <div className="flex items-center">
-                            <span className="text-sm mr-2">{product.isCourtesy ? 'Cortesia' : 'Marcar Cortesia'}</span>
-                            <label htmlFor={`courtesy-${product.id}`} className="relative inline-flex items-center cursor-pointer">
-                              <input type="checkbox" id={`courtesy-${product.id}`} className="sr-only peer" checked={product.isCourtesy} onChange={() => vm.toggleCourtesy(product.id)} />
-                              <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                            </label>
+                          <div className="flex items-center space-x-4">
+                            <div className="flex items-center">
+                              <span className="text-xs text-gray-500 mr-2 uppercase font-bold">{product.isCourtesy ? 'Cortesia' : 'Cortesia?'}</span>
+                              <label htmlFor={`courtesy-${product.id}`} className="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id={`courtesy-${product.id}`} className="sr-only peer" checked={product.isCourtesy} onChange={() => vm.toggleCourtesy(product.id)} />
+                                <div className="w-10 h-5 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                              </label>
+                            </div>
                           </div>
                         </div>
+
+                        {/* Per-Product Discount */}
+                        {!product.isCourtesy && (
+                          <div className="mt-3 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <label className="block text-xs font-bold text-gray-500 mb-2 uppercase">Desconto no Produto</label>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+                              <div className="col-span-1 flex">
+                                <button onClick={() => vm.updateProductDiscount(product.id, { ...prodDiscount, type: 'FIXED' })} className={`flex-grow px-2 py-1.5 text-xs rounded-l-md font-bold ${prodDiscount.type === 'FIXED' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>R$</button>
+                                <button onClick={() => vm.updateProductDiscount(product.id, { ...prodDiscount, type: 'PERCENTAGE' })} className={`flex-grow px-2 py-1.5 text-xs rounded-r-md font-bold ${prodDiscount.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>%</button>
+                              </div>
+                              <div className="col-span-2">
+                                {prodDiscount.type === 'PERCENTAGE' ? (
+                                  <NumericInput
+                                    value={prodDiscount.value}
+                                    onChange={(val) => vm.updateProductDiscount(product.id, { ...prodDiscount, value: val })}
+                                    min={0}
+                                  />
+                                ) : (
+                                  <MoneyInput
+                                    value={prodDiscount.value}
+                                    onChange={(val) => vm.updateProductDiscount(product.id, { ...prodDiscount, value: val })}
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         {product.pricingType === 'HOURLY' && (
                           <div className="grid grid-cols-2 gap-4 mt-3">
@@ -390,93 +483,26 @@ export const CreateEventScreen: React.FC = () => {
               </section>
             )}
 
-            {/* Section: Discount & Tax */}
+            {/* Section: Taxas */}
             <section className="bg-white p-4 rounded-lg shadow">
-              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Desconto e Taxas</h2>
-              <div className="space-y-4 mt-4">
-                {/* Boat Discount */}
+              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Taxas e Encargos</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2 font-bold">Desconto no Aluguel da Lancha</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                    <div className="col-span-1 flex">
-                      <button onClick={() => vm.updateDiscountType('FIXED', 'rental')} className={`flex-grow px-2 py-2 text-sm rounded-l-md ${vm.rentalDiscount.type === 'FIXED' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>R$</button>
-                      <button onClick={() => vm.updateDiscountType('PERCENTAGE', 'rental')} className={`flex-grow px-2 py-2 text-sm rounded-r-md ${vm.rentalDiscount.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>%</button>
-                    </div>
-                    <div className="col-span-2">
-                      {vm.rentalDiscount.type === 'PERCENTAGE' ? (
-                        <NumericInput
-                          value={vm.rentalDiscount.value}
-                          onChange={(val) => vm.updateDiscountValue(val, 'rental')}
-                          min={0}
-                        />
-                      ) : (
-                        <MoneyInput
-                          value={vm.rentalDiscount.value}
-                          onChange={(val) => vm.updateDiscountValue(val, 'rental')}
-                        />
-                      )}
-                    </div>
-                  </div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 font-semibold">Valor da Taxa Adicional</label>
+                  <MoneyInput
+                      value={vm.tax}
+                      onChange={vm.updateTax}
+                  />
                 </div>
-
-                {/* Products Discount */}
                 <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2 font-bold">Desconto nos Produtos</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                    <div className="col-span-1 flex">
-                      <button onClick={() => vm.updateDiscountType('FIXED', 'products')} className={`flex-grow px-2 py-2 text-sm rounded-l-md ${vm.productsDiscount.type === 'FIXED' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>R$</button>
-                      <button onClick={() => vm.updateDiscountType('PERCENTAGE', 'products')} className={`flex-grow px-2 py-2 text-sm rounded-r-md ${vm.productsDiscount.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>%</button>
-                    </div>
-                    <div className="col-span-2">
-                      {vm.productsDiscount.type === 'PERCENTAGE' ? (
-                        <NumericInput
-                          value={vm.productsDiscount.value}
-                          onChange={(val) => vm.updateDiscountValue(val, 'products')}
-                          min={0}
-                        />
-                      ) : (
-                        <MoneyInput
-                          value={vm.productsDiscount.value}
-                          onChange={(val) => vm.updateDiscountValue(val, 'products')}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Global Discount (Optional / Backward Compatibility) */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Desconto Adicional (Geral)</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                    <div className="col-span-1 flex">
-                      <button onClick={() => vm.updateDiscountType('FIXED')} className={`flex-grow px-2 py-2 text-sm rounded-l-md ${vm.discount.type === 'FIXED' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>R$</button>
-                      <button onClick={() => vm.updateDiscountType('PERCENTAGE')} className={`flex-grow px-2 py-2 text-sm rounded-r-md ${vm.discount.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>%</button>
-                    </div>
-                    <div className="col-span-2">
-                      {vm.discount.type === 'PERCENTAGE' ? (
-                        <NumericInput
-                          value={vm.discount.value}
-                          onChange={vm.updateDiscountValue}
-                          min={0}
-                        />
-                      ) : (
-                        <MoneyInput
-                          value={vm.discount.value}
-                          onChange={vm.updateDiscountValue}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Taxa Adicional</h3>
-                  <div className="max-w-xs">
-                    <MoneyInput
-                        value={vm.tax}
-                        onChange={vm.updateTax}
-                    />
-                  </div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 font-semibold">Descrição da Taxa</label>
+                  <input
+                    type="text"
+                    value={vm.taxDescription}
+                    onChange={(e) => vm.updateTaxDescription(e.target.value)}
+                    placeholder="Ex: Taxa de limpeza, rolha..."
+                    className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
               </div>
             </section>
@@ -494,51 +520,25 @@ export const CreateEventScreen: React.FC = () => {
 
           </div>
 
-          {/* Right Column: Boat and Boarding */}
-          <aside className="lg:col-span-1 space-y-6">
-            <section className="bg-white p-4 rounded-lg shadow">
-              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Configurações da Reserva</h2>
-
-              {/* Pre-schedule Toggle */}
-              <div className="mb-6">
-                <label htmlFor="pre-schedule-toggle" className="flex items-center justify-between cursor-pointer">
-                  <span className="font-medium text-gray-700">Pré-reserva</span>
-                  <div className="relative inline-flex items-center">
-                    <input
-                      type="checkbox"
-                      id="pre-schedule-toggle"
-                      className="sr-only peer"
-                      checked={vm.isPreScheduled}
-                      onChange={(e) => vm.setIsPreScheduled(e.target.checked)}
-                    />
-                    <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
-                  </div>
-                </label>
-                <p className="text-xs text-gray-500 mt-1">
-                  A pré-reserva fica pendente por 24h. Se não for confirmada, a vaga é liberada.
-                </p>
-              </div>
-
-              {/* Boat Selection */}
-              <div className="mt-4">
-                  <label htmlFor="boat-select" className="block text-sm font-medium text-gray-700 mb-1">Lancha</label>
-                  <select id="boat-select" value={vm.selectedBoat?.id || ''} onChange={(e) => vm.handleBoatSelection(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
-                      {vm.availableBoats.map(boat => (
-                          <option key={boat.id} value={boat.id}>{boat.name} (Cap: {boat.capacity})</option>
-                      ))}
-                  </select>
-              </div>
-
-              {/* Boarding Location Selection */}
-              <div className="mt-4">
-                  <label htmlFor="boarding-location-select" className="block text-sm font-medium text-gray-700 mb-1">Local de Embarque</label>
-                  <select id="boarding-location-select" value={vm.selectedBoardingLocation?.id || ''} onChange={(e) => vm.handleBoardingLocationSelection(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
-                      {vm.availableBoardingLocations.map(location => (
-                          <option key={location.id} value={location.id}>{location.name}</option>
-                      ))}
-                  </select>
-              </div>
-            </section>
+          {/* Right Column: Empty or Summary could go here, but user wanted it grouped on the left */}
+          <aside className="lg:col-span-1 space-y-6 hidden lg:block">
+             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm sticky top-4">
+                <h3 className="font-bold text-gray-400 uppercase text-xs tracking-widest mb-4">Dicas de Uso</h3>
+                <ul className="space-y-3 text-sm text-gray-600">
+                   <li className="flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></div>
+                      Agrupe o agendamento para facilitar a visualização da agenda.
+                   </li>
+                   <li className="flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></div>
+                      Cada produto agora possui seu próprio campo de desconto.
+                   </li>
+                   <li className="flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></div>
+                      A taxa adicional aceita descrição para aparecer no voucher.
+                   </li>
+                </ul>
+             </div>
           </aside>
         </div>
       </main>
@@ -561,7 +561,7 @@ export const CreateEventScreen: React.FC = () => {
             </div>
             {vm.tax > 0 && (
               <div className="flex justify-between items-center text-sm text-green-600">
-                <span>Taxa Adicional</span>
+                <span>{vm.taxDescription || 'Taxa Adicional'}</span>
                 <span className="font-medium">+ {formatCurrencyBRL(vm.tax)}</span>
               </div>
             )}

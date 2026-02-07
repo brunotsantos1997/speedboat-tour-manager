@@ -41,6 +41,17 @@ const InfoItem: React.FC<{ icon: React.ElementType; label: string; value: React.
   </div>
 );
 
+const formatDuration = (hours: number) => {
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+
+  const parts = [];
+  if (h > 0) parts.push(`${h} ${h === 1 ? 'hora' : 'horas'}`);
+  if (m > 0) parts.push(`${m} ${m === 1 ? 'minuto' : 'minutos'}`);
+
+  return parts.length > 0 ? parts.join(' e ') : '0 minutos';
+};
+
 // --- Main Voucher Screen ---
 
 export const VoucherScreen: React.FC = () => {
@@ -145,7 +156,7 @@ export const VoucherScreen: React.FC = () => {
                       <InfoItem icon={CalendarDays} label="Data" value={new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} />
                       <InfoItem icon={Clock} label="Horário" value={`${startTime} - ${endTime}`} />
                       <InfoItem icon={Users} label="Nº de Passageiros" value={`${passengerCount} pessoas`} />
-                      <InfoItem icon={Anchor} label="Lancha" value={`${boat.name} (Cap: ${boat.capacity})`} />
+                      <InfoItem icon={Anchor} label="Lancha" value={boat.name} />
                       <InfoItem
                         icon={MapPin}
                         label="Local de Embarque"
@@ -179,10 +190,10 @@ export const VoucherScreen: React.FC = () => {
                     <Anchor className="w-6 h-6 mr-4 text-blue-600" />
                     <div>
                       <p className="font-semibold text-gray-800">
-                        Pacote de {voucher.durationHours} {voucher.durationHours === 1 ? 'hora' : 'horas'} de passeio
+                        Pacote de {formatDuration(voucher.durationHours)} de passeio
                       </p>
                       <p className="text-xs text-gray-500">
-                        {boat.name} (Capacidade: {boat.capacity} pessoas)
+                        {boat.name}
                       </p>
                     </div>
                   </div>
@@ -196,36 +207,53 @@ export const VoucherScreen: React.FC = () => {
                   </div>
                 </div>
 
-                {products.map((item) => (
-                  <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center">
-                      <DynamicIcon name={item.iconKey} className="w-6 h-6 mr-4 text-blue-600" />
-                      <div>
-                          <p className="font-semibold text-gray-800">
-                              {item.name}
-                              {item.isCourtesy && <span className="text-sm font-normal text-green-600 ml-2">(Cortesia)</span>}
+                {products.map((item) => {
+                  const itemGross = item.pricingType === 'PER_PERSON'
+                    ? (item.price || 0) * passengerCount
+                    : (item.price || 0);
+
+                  let itemDiscountValue = 0;
+                  if (item.discount && item.discount.value > 0 && !item.isCourtesy) {
+                    if (item.discount.type === 'FIXED') itemDiscountValue = item.discount.value;
+                    else itemDiscountValue = itemGross * (item.discount.value / 100);
+                  }
+
+                  const itemNet = Math.max(0, itemGross - itemDiscountValue);
+
+                  return (
+                    <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <DynamicIcon name={item.iconKey} className="w-6 h-6 mr-4 text-blue-600" />
+                        <div>
+                            <p className="font-semibold text-gray-800">
+                                {item.name}
+                                {item.isCourtesy && <span className="text-sm font-normal text-green-600 ml-2">(Cortesia)</span>}
+                            </p>
+                            {item.pricingType === 'HOURLY' && item.startTime && item.endTime && (
+                                <p className="text-xs text-gray-500">
+                                    Horário: {item.startTime} - {item.endTime}
+                                </p>
+                            )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-semibold ${item.isCourtesy ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                          {item.isCourtesy ? formatCurrencyBRL(itemGross) : formatCurrencyBRL(itemNet)}
+                        </p>
+                        {item.pricingType === 'PER_PERSON' && !item.isCourtesy && (
+                          <p className="text-xs text-gray-500">
+                            ({passengerCount}x {formatCurrencyBRL(item.price || 0)})
                           </p>
-                           {item.pricingType === 'HOURLY' && item.startTime && item.endTime && (
-                              <p className="text-xs text-gray-500">
-                                  Horário: {item.startTime} - {item.endTime}
-                              </p>
-                          )}
+                        )}
+                        {itemDiscountValue > 0 && !item.isCourtesy && (
+                          <p className="text-xs text-red-500">
+                            Desc: -{formatCurrencyBRL(itemDiscountValue)}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className={`font-semibold ${item.isCourtesy ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                        {item.pricingType === 'PER_PERSON' && !item.isCourtesy
-                          ? formatCurrencyBRL((item.price || 0) * passengerCount)
-                          : formatCurrencyBRL(item.price || 0)}
-                      </p>
-                      {item.pricingType === 'PER_PERSON' && (
-                        <p className="text-xs text-gray-500">
-                          {item.isCourtesy ? "" : `(${passengerCount}x ${formatCurrencyBRL(item.price || 0)})`}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
 
@@ -241,28 +269,32 @@ export const VoucherScreen: React.FC = () => {
                           <span className="font-medium">- {formatCurrencyBRL(voucher.rentalDiscount.type === 'FIXED' ? voucher.rentalDiscount.value : (boat.pricePerHour * voucher.durationHours) * (voucher.rentalDiscount.value / 100))}</span>
                         </div>
                       )}
-                      {voucher.productsDiscount && voucher.productsDiscount.value > 0 && (
-                        <div className="flex justify-between text-red-600 text-sm italic">
-                          <span>Desconto Produtos</span>
-                          <span className="font-medium">- {formatCurrencyBRL(voucher.productsDiscount.type === 'FIXED' ? voucher.productsDiscount.value : (subtotal - (boat.pricePerHour * voucher.durationHours)) * (voucher.productsDiscount.value / 100))}</span>
-                        </div>
-                      )}
-
-                      {/* Total Discount */}
+                      {/* Per-Product Discounts Summary (Optional, but showing total discounts is good) */}
                       {(() => {
-                        const totalD = total - (subtotal + (voucher.tax ?? 0));
-                        if (totalD < 0) {
+                        const productDiscountsTotal = products.reduce((acc, p) => {
+                          if (p.isCourtesy || !p.discount || p.discount.value <= 0) return acc;
+                          let itemGross = p.pricingType === 'PER_PERSON' ? (p.price || 0) * passengerCount : (p.price || 0);
+                          if (p.discount.type === 'FIXED') return acc + p.discount.value;
+                          return acc + (itemGross * (p.discount.value / 100));
+                        }, 0);
+
+                        if (productDiscountsTotal > 0) {
                           return (
-                            <div className="flex justify-between text-red-600 font-semibold">
-                              <span>Total Descontos</span>
-                              <span className="font-medium">{formatCurrencyBRL(totalD)}</span>
+                            <div className="flex justify-between text-red-600 text-sm italic">
+                              <span>Desconto nos Itens</span>
+                              <span className="font-medium">- {formatCurrencyBRL(productDiscountsTotal)}</span>
                             </div>
                           );
                         }
                         return null;
                       })()}
 
-                      {(voucher.tax ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Taxa</span> <span className="font-medium">+ {formatCurrencyBRL(voucher.tax ?? 0)}</span></div>}
+                      {(voucher.tax ?? 0) > 0 && (
+                        <div className="flex justify-between text-green-600">
+                          <span>{voucher.taxDescription || 'Taxa'}</span>
+                          <span className="font-medium">+ {formatCurrencyBRL(voucher.tax ?? 0)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between font-bold text-lg border-t border-gray-200 pt-2 mt-2"><span>Total</span> <span>{formatCurrencyBRL(total)}</span></div>
                       <div className="flex justify-between font-bold text-lg text-blue-600 bg-blue-50 p-3 rounded-lg">
                           <span>Sinal (Reserva 30%)</span>
@@ -275,6 +307,14 @@ export const VoucherScreen: React.FC = () => {
                   </div>
               </div>
             </section>
+
+            {/* Observations Section */}
+            {voucher.observations && (
+              <section className="mb-8 p-4 bg-yellow-50 border border-yellow-100 rounded-lg">
+                <h3 className="font-bold text-lg mb-2 text-gray-700">Observações Importantes</h3>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{voucher.observations}</p>
+              </section>
+            )}
 
             {/* Legal Clauses */}
             <section className="p-6 bg-gray-50 border border-gray-200 rounded-lg">
