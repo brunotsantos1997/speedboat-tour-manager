@@ -164,7 +164,7 @@ class EventRepositoryImpl implements IEventRepository {
     if (!updatedEvent.id || !updatedEvent.boat?.id || !updatedEvent.client?.id) {
       throw new Error('Dados incompletos para atualização do passeio.');
     }
-    if (this.currentUser.role !== 'OWNER' && this.currentUser.role !== 'SUPER_ADMIN' && updatedEvent.createdByUserId !== this.currentUser.id) {
+    if (this.currentUser.role !== 'OWNER' && this.currentUser.role !== 'SUPER_ADMIN' && this.currentUser.role !== 'ADMIN' && updatedEvent.createdByUserId !== this.currentUser.id) {
       throw new Error('Você não tem permissão para alterar este evento.');
     }
     const allEvents = await this.getAll();
