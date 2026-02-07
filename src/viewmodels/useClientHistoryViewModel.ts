@@ -189,6 +189,12 @@ export const useClientHistoryViewModel = () => {
     if (!event) return;
 
     try {
+      // Check for existing payments to avoid duplicates
+      const existingPayments = await paymentRepository.getByEventId(eventId);
+      if (existingPayments.length > 0) {
+        throw new Error('Este evento já possui registros de pagamento.');
+      }
+
       const reservationFee = event.total * 0.3;
       const balance = event.total - reservationFee;
 

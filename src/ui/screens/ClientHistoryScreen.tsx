@@ -143,20 +143,20 @@ const EventCard: React.FC<{
 
         {['SCHEDULED', 'PRE_SCHEDULED', 'COMPLETED', 'ARCHIVED_COMPLETED'].includes(eventType.status) && (
           <>
-            {eventType.paymentStatus !== 'CONFIRMED' && (
-              <>
-                 <button onClick={() => onConfirmPayment(eventType.id, eventType.status === 'PRE_SCHEDULED' ? 'DOWN_PAYMENT' : 'BALANCE')} className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 flex items-center">
-                    <DollarSign size={14} className="mr-1" />
-                    {eventType.status === 'PRE_SCHEDULED' ? 'Confirmar Reserva' : 'Confirmar Pagamento'}
-                  </button>
-
-                  {onConfirmLegacyPayment && (
-                    <button onClick={() => onConfirmLegacyPayment(eventType.id)} className="px-3 py-1 text-sm bg-orange-600 text-white rounded hover:bg-orange-700 flex items-center">
-                      <DollarSign size={14} className="mr-1" /> Confirmar Total (Livro Caixa)
+            <div className="flex gap-2">
+                {eventType.paymentStatus !== 'CONFIRMED' && (
+                    <button onClick={() => onConfirmPayment(eventType.id, eventType.status === 'PRE_SCHEDULED' ? 'DOWN_PAYMENT' : 'BALANCE')} className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 flex items-center">
+                        <DollarSign size={14} className="mr-1" />
+                        {eventType.status === 'PRE_SCHEDULED' ? 'Confirmar Reserva' : 'Confirmar Pagamento'}
                     </button>
-                  )}
-              </>
-            )}
+                )}
+
+                {onConfirmLegacyPayment && (
+                    <button onClick={() => onConfirmLegacyPayment(eventType.id)} className="px-3 py-1 text-sm bg-orange-600 text-white rounded hover:bg-orange-700 flex items-center">
+                        <DollarSign size={14} className="mr-1" /> Confirmar Total (Livro Caixa)
+                    </button>
+                )}
+            </div>
 
             {(eventType.status === 'SCHEDULED' || eventType.status === 'PRE_SCHEDULED') && (
               <>
