@@ -51,9 +51,17 @@ const EventListItem: React.FC<{ event: EventType; onConfirmPayment: (id: string,
           <Link to={`/clients?clientId=${event.client.id}`} className="font-semibold text-blue-600 hover:underline">{event.client.name}</Link>
           <span className="font-normal text-sm text-gray-600">{capitalizedDate}</span>
         </div>
-        <div className="flex items-center text-sm text-gray-500 mt-1">
-          <Anchor size={14} className="mr-2" /> {event.boat.name}
-          <Clock size={14} className="ml-4 mr-2" /> {event.startTime} - {event.endTime}
+        <div className="flex flex-wrap items-center text-sm text-gray-500 mt-1 gap-y-1">
+          <div className="flex items-center mr-4">
+            <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: event.tourType?.color || '#cbd5e1' }}></div>
+            <span className="font-medium text-gray-700">{event.tourType?.name || 'Passeio'}</span>
+          </div>
+          <div className="flex items-center mr-4">
+            <Anchor size={14} className="mr-2" /> {event.boat.name}
+          </div>
+          <div className="flex items-center">
+            <Clock size={14} className="mr-2" /> {event.startTime} - {event.endTime}
+          </div>
         </div>
       </div>
       <div className="flex items-center">

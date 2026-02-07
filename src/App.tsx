@@ -8,6 +8,7 @@ import { BoatsScreen } from './ui/screens/BoatsScreen';
 import { ClientHistoryScreen } from './ui/screens/ClientHistoryScreen';
 import { VoucherScreen } from './ui/screens/VoucherScreen';
 import { BoardingLocationsScreen } from './ui/screens/BoardingLocationsScreen';
+import { TourTypesScreen } from './ui/screens/TourTypesScreen';
 import { VoucherTermsScreen } from './ui/screens/VoucherTermsScreen';
 import { CompanyDataScreen } from './ui/screens/CompanyDataScreen';
 import { VoucherAppearanceScreen } from './ui/screens/VoucherAppearanceScreen';
@@ -48,6 +49,7 @@ function App() {
             <Route path="products" element={<ProductsScreen />} />
             <Route path="boats" element={<BoatsScreen />} />
             <Route path="boarding-locations" element={<BoardingLocationsScreen />} />
+            <Route path="tour-types" element={<TourTypesScreen />} />
             <Route path="clients" element={<ClientHistoryScreen />} />
             <Route path="profile" element={<ProfileScreen />} />
 

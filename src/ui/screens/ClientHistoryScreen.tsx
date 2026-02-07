@@ -123,6 +123,10 @@ const EventCard: React.FC<{
       )}
       <div className="flex justify-between items-start">
         <div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: eventType.tourType?.color || '#cbd5e1' }}></div>
+            <span className="text-sm font-bold text-gray-600 uppercase tracking-tight">{eventType.tourType?.name || 'Passeio'}</span>
+          </div>
           <p className="font-bold text-lg text-gray-800">{eventType.boat.name}</p>
           <p className="flex items-center text-gray-600 mt-1">
             <Calendar size={16} className="mr-2" />

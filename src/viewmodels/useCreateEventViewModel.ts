@@ -6,11 +6,12 @@ import type { DayOfWeek, Product, Discount, SelectedProduct, ClientProfile, Boat
 import { clientRepository } from '../core/repositories/ClientRepository';
 import { productRepository } from '../core/repositories/ProductRepository';
 import { boatRepository } from '../core/repositories/BoatRepository';
+import { tourTypeRepository } from '../core/repositories/TourTypeRepository';
 import { eventRepository } from '../core/repositories/EventRepository';
 import { CompanyDataRepository } from '../core/repositories/CompanyDataRepository';
 import { format } from 'date-fns';
 import { timeToMinutes, minutesToTime } from '../core/utils/timeUtils';
-import type { BoardingLocation } from '../core/domain/types';
+import type { BoardingLocation, TourType } from '../core/domain/types';
 import { boardingLocationRepository } from '../core/repositories/BoardingLocationRepository';
 
 export const useCreateEventViewModel = () => {
@@ -34,6 +35,10 @@ export const useCreateEventViewModel = () => {
   // Boarding Location State
   const [availableBoardingLocations, setAvailableBoardingLocations] = useState<BoardingLocation[]>([]);
   const [selectedBoardingLocation, setSelectedBoardingLocation] = useState<BoardingLocation | null>(null);
+
+  // Tour Type State
+  const [availableTourTypes, setAvailableTourTypes] = useState<TourType[]>([]);
+  const [selectedTourType, setSelectedTourType] = useState<TourType | null>(null);
 
   // Core State
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
@@ -74,6 +79,7 @@ export const useCreateEventViewModel = () => {
           setStartTime(event.startTime);
           setEndTime(event.endTime);
           setSelectedBoat(event.boat);
+          setSelectedTourType(event.tourType);
           setSelectedProducts(event.products);
           setRentalDiscount(event.rentalDiscount || { type: 'FIXED', value: 0 });
           setPassengerCount(event.passengerCount);
@@ -101,6 +107,7 @@ export const useCreateEventViewModel = () => {
       const products = await productRepository.getAll();
       const boats = await boatRepository.getAll();
       const boardingLocations = await boardingLocationRepository.getAll();
+      const tourTypes = await tourTypeRepository.getAll();
       const companyDataResponse = await CompanyDataRepository.getInstance().get();
 
       if (companyDataResponse) {
@@ -110,6 +117,7 @@ export const useCreateEventViewModel = () => {
       setAvailableProducts(products);
       setAvailableBoats(boats);
       setAvailableBoardingLocations(boardingLocations);
+      setAvailableTourTypes(tourTypes);
 
       if (boats.length > 0) {
         setSelectedBoat(boats[0]);
@@ -117,6 +125,11 @@ export const useCreateEventViewModel = () => {
 
       if (boardingLocations.length > 0) {
         setSelectedBoardingLocation(boardingLocations[0]);
+      }
+
+      if (tourTypes.length > 0) {
+        const defaultTourType = tourTypes.find(t => t.name.toLowerCase() === 'passeio') || tourTypes[0];
+        setSelectedTourType(defaultTourType);
       }
 
       const defaultCourtesies = products
@@ -189,6 +202,18 @@ export const useCreateEventViewModel = () => {
   const handleBoardingLocationSelection = (locationId: string) => {
     const location = availableBoardingLocations.find(l => l.id === locationId);
     setSelectedBoardingLocation(location || null);
+  };
+
+  const handleTourTypeSelection = (tourTypeId: string) => {
+    const tourType = availableTourTypes.find(t => t.id === tourTypeId);
+    setSelectedTourType(tourType || null);
+  };
+
+  const handleSaveTourType = async (name: string, color: string) => {
+    const newTourType = await tourTypeRepository.add({ name, color, isArchived: false });
+    const tourTypes = await tourTypeRepository.getAll();
+    setAvailableTourTypes(tourTypes);
+    setSelectedTourType(newTourType);
   };
 
   const updateHourlyProductTime = (productId: string, time: string, type: 'start' | 'end') => {
@@ -371,7 +396,7 @@ export const useCreateEventViewModel = () => {
   const total = useMemo(() => Math.max(0, subtotal - totalDiscount + tax), [subtotal, totalDiscount, tax]);
 
   const createEvent = useCallback(async () => {
-    if (!selectedDate || !selectedClient || !selectedBoat || !selectedBoardingLocation) {
+    if (!selectedDate || !selectedClient || !selectedBoat || !selectedBoardingLocation || !selectedTourType) {
       throw new Error('Campos obrigatórios ausentes.');
     }
 
@@ -402,6 +427,7 @@ export const useCreateEventViewModel = () => {
       paymentStatus: (editingEventId && originalPaymentStatus === 'CONFIRMED' ? 'CONFIRMED' : 'PENDING') as PaymentStatus,
       boat: selectedBoat,
       boardingLocation: selectedBoardingLocation,
+      tourType: selectedTourType,
       products: selectedProducts,
       rentalDiscount,
       // For editing legacy events, we want to clear the old discount fields upon saving
@@ -601,6 +627,8 @@ export const useCreateEventViewModel = () => {
     isBusinessClosed,
     availableBoardingLocations,
     selectedBoardingLocation,
+    availableTourTypes,
+    selectedTourType,
     availableProducts,
     selectedProducts,
     rentalDiscount,
@@ -630,6 +658,8 @@ export const useCreateEventViewModel = () => {
     setIsPreScheduled,
     handleBoatSelection,
     handleBoardingLocationSelection,
+    handleTourTypeSelection,
+    handleSaveTourType,
     updateHourlyProductTime,
     toggleProduct,
     toggleCourtesy,
