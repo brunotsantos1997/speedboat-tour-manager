@@ -39,6 +39,8 @@ export const useCreateEventViewModel = () => {
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
   const [discount, setDiscount] = useState<Discount>({ type: 'FIXED', value: 0 });
+  const [rentalDiscount, setRentalDiscount] = useState<Discount>({ type: 'FIXED', value: 0 });
+  const [productsDiscount, setProductsDiscount] = useState<Discount>({ type: 'FIXED', value: 0 });
   const [passengerCount, setPassengerCount] = useState(1);
   const [observations, setObservations] = useState('');
   const [tax, setTax] = useState(0);
@@ -75,6 +77,8 @@ export const useCreateEventViewModel = () => {
           setSelectedBoat(event.boat);
           setSelectedProducts(event.products);
           setDiscount(event.discount);
+          setRentalDiscount(event.rentalDiscount || { type: 'FIXED', value: 0 });
+          setProductsDiscount(event.productsDiscount || { type: 'FIXED', value: 0 });
           setPassengerCount(event.passengerCount);
           setSelectedClient(event.client);
           setClientSearchTerm(event.client.name);
@@ -149,12 +153,17 @@ export const useCreateEventViewModel = () => {
     );
   }, []);
 
-  const updateDiscountType = useCallback((type: 'FIXED' | 'PERCENTAGE') => {
-    setDiscount(prev => ({ ...prev, type }));
+  const updateDiscountType = useCallback((type: 'FIXED' | 'PERCENTAGE', category: 'all' | 'rental' | 'products' = 'all') => {
+    if (category === 'rental') setRentalDiscount(prev => ({ ...prev, type }));
+    else if (category === 'products') setProductsDiscount(prev => ({ ...prev, type }));
+    else setDiscount(prev => ({ ...prev, type }));
   }, []);
 
-  const updateDiscountValue = useCallback((value: number) => {
-    setDiscount(prev => ({ ...prev, value: isNaN(value) || value < 0 ? 0 : value }));
+  const updateDiscountValue = useCallback((value: number, category: 'all' | 'rental' | 'products' = 'all') => {
+    const val = isNaN(value) || value < 0 ? 0 : value;
+    if (category === 'rental') setRentalDiscount(prev => ({ ...prev, value: val }));
+    else if (category === 'products') setProductsDiscount(prev => ({ ...prev, value: val }));
+    else setDiscount(prev => ({ ...prev, value: val }));
   }, []);
 
   const updatePassengerCount = useCallback((count: number) => {
@@ -302,7 +311,7 @@ export const useCreateEventViewModel = () => {
     return cost;
   }, [startTime, endTime, selectedBoat]);
 
-  const subtotal = useMemo(() => {
+  const productsCost = useMemo(() => {
     return selectedProducts.reduce((acc, product) => {
       if (product.isCourtesy) {
         return acc;
@@ -327,13 +336,27 @@ export const useCreateEventViewModel = () => {
         default:
           return acc + (product.price || 0);
       }
-    }, 0) + boatRentalCost;
-  }, [selectedProducts, passengerCount, boatRentalCost]);
+    }, 0);
+  }, [selectedProducts, passengerCount]);
+
+  const subtotal = useMemo(() => productsCost + boatRentalCost, [productsCost, boatRentalCost]);
+
+  const rentalDiscountValue = useMemo(() => {
+    if (rentalDiscount.type === 'FIXED') return rentalDiscount.value;
+    return boatRentalCost * (rentalDiscount.value / 100);
+  }, [boatRentalCost, rentalDiscount]);
+
+  const productsDiscountValue = useMemo(() => {
+    if (productsDiscount.type === 'FIXED') return productsDiscount.value;
+    return productsCost * (productsDiscount.value / 100);
+  }, [productsCost, productsDiscount]);
 
   const totalDiscount = useMemo(() => {
-    if (discount.type === 'FIXED') return discount.value;
-    return subtotal * (discount.value / 100);
-  }, [subtotal, discount]);
+    let d = 0;
+    if (discount.type === 'FIXED') d = discount.value;
+    else d = subtotal * (discount.value / 100);
+    return d + rentalDiscountValue + productsDiscountValue;
+  }, [subtotal, discount, rentalDiscountValue, productsDiscountValue]);
 
   const total = useMemo(() => Math.max(0, subtotal - totalDiscount + tax), [subtotal, totalDiscount, tax]);
 
@@ -342,17 +365,8 @@ export const useCreateEventViewModel = () => {
       throw new Error('Campos obrigatórios ausentes.');
     }
 
-    const productsRevenue = selectedProducts.reduce((acc, p) => {
-        if (p.isCourtesy) return acc;
-        if (p.pricingType === 'PER_PERSON') return acc + (p.price || 0) * passengerCount;
-        if (p.pricingType === 'HOURLY' && p.startTime && p.endTime && p.hourlyPrice) {
-            const d = (timeToMinutes(p.endTime) - timeToMinutes(p.startTime)) / 60;
-            return acc + (d > 0 ? d * p.hourlyPrice : 0);
-        }
-        return acc + (p.price || 0);
-    }, 0);
-
-    const rentalRevenue = boatRentalCost;
+    const productsRevenue = productsCost - productsDiscountValue;
+    const rentalRevenue = boatRentalCost - rentalDiscountValue;
 
     const eventStatus = isPreScheduled ? 'PRE_SCHEDULED' : 'SCHEDULED';
 
@@ -366,6 +380,8 @@ export const useCreateEventViewModel = () => {
       boardingLocation: selectedBoardingLocation,
       products: selectedProducts,
       discount,
+      rentalDiscount,
+      productsDiscount,
       client: selectedClient,
       passengerCount,
       subtotal,
@@ -377,7 +393,8 @@ export const useCreateEventViewModel = () => {
     };
 
     if (isPreScheduled) {
-      eventData.preScheduledAt = Date.now();
+      // Use existing timestamp if editing, otherwise set now
+      eventData.preScheduledAt = originalEvent?.preScheduledAt || Date.now();
     }
 
     if (editingEventId) {
@@ -562,6 +579,8 @@ export const useCreateEventViewModel = () => {
     availableProducts,
     selectedProducts,
     discount,
+    rentalDiscount,
+    productsDiscount,
     passengerCount,
     boatRentalCost,
     subtotal,

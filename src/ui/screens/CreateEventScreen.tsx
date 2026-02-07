@@ -394,8 +394,59 @@ export const CreateEventScreen: React.FC = () => {
             <section className="bg-white p-4 rounded-lg shadow">
               <h2 className="text-lg font-semibold mb-3 border-b pb-2">Desconto e Taxas</h2>
               <div className="space-y-4 mt-4">
+                {/* Boat Discount */}
                 <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Desconto</h3>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2 font-bold">Desconto no Aluguel da Lancha</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <div className="col-span-1 flex">
+                      <button onClick={() => vm.updateDiscountType('FIXED', 'rental')} className={`flex-grow px-2 py-2 text-sm rounded-l-md ${vm.rentalDiscount.type === 'FIXED' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>R$</button>
+                      <button onClick={() => vm.updateDiscountType('PERCENTAGE', 'rental')} className={`flex-grow px-2 py-2 text-sm rounded-r-md ${vm.rentalDiscount.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>%</button>
+                    </div>
+                    <div className="col-span-2">
+                      {vm.rentalDiscount.type === 'PERCENTAGE' ? (
+                        <NumericInput
+                          value={vm.rentalDiscount.value}
+                          onChange={(val) => vm.updateDiscountValue(val, 'rental')}
+                          min={0}
+                        />
+                      ) : (
+                        <MoneyInput
+                          value={vm.rentalDiscount.value}
+                          onChange={(val) => vm.updateDiscountValue(val, 'rental')}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Products Discount */}
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2 font-bold">Desconto nos Produtos</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <div className="col-span-1 flex">
+                      <button onClick={() => vm.updateDiscountType('FIXED', 'products')} className={`flex-grow px-2 py-2 text-sm rounded-l-md ${vm.productsDiscount.type === 'FIXED' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>R$</button>
+                      <button onClick={() => vm.updateDiscountType('PERCENTAGE', 'products')} className={`flex-grow px-2 py-2 text-sm rounded-r-md ${vm.productsDiscount.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>%</button>
+                    </div>
+                    <div className="col-span-2">
+                      {vm.productsDiscount.type === 'PERCENTAGE' ? (
+                        <NumericInput
+                          value={vm.productsDiscount.value}
+                          onChange={(val) => vm.updateDiscountValue(val, 'products')}
+                          min={0}
+                        />
+                      ) : (
+                        <MoneyInput
+                          value={vm.productsDiscount.value}
+                          onChange={(val) => vm.updateDiscountValue(val, 'products')}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Global Discount (Optional / Backward Compatibility) */}
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Desconto Adicional (Geral)</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
                     <div className="col-span-1 flex">
                       <button onClick={() => vm.updateDiscountType('FIXED')} className={`flex-grow px-2 py-2 text-sm rounded-l-md ${vm.discount.type === 'FIXED' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>R$</button>
@@ -417,6 +468,7 @@ export const CreateEventScreen: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">Taxa Adicional</h3>
                   <div className="max-w-xs">

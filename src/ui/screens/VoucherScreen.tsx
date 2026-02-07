@@ -164,6 +164,21 @@ export const VoucherScreen: React.FC = () => {
             <section className="mb-8">
               <h3 className="font-bold text-lg mb-4 text-gray-700">Itens Inclusos no Pacote</h3>
               <div className="space-y-3">
+                {/* Boat Package Duration */}
+                <div className="flex justify-between items-center p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                  <div className="flex items-center">
+                    <Anchor className="w-6 h-6 mr-4 text-blue-600" />
+                    <div>
+                      <p className="font-semibold text-gray-800">
+                        Pacote de {voucher.durationHours} {voucher.durationHours === 1 ? 'hora' : 'horas'} de passeio
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {boat.name} (Capacidade: {boat.capacity} pessoas)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {products.map((item) => (
                   <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center">
@@ -202,7 +217,34 @@ export const VoucherScreen: React.FC = () => {
               <div className="w-full max-w-sm">
                   <div className="space-y-2 text-gray-700">
                       <div className="flex justify-between"><span>Subtotal</span> <span className="font-medium">{formatCurrencyBRL(subtotal)}</span></div>
-                      <div className="flex justify-between text-red-600"><span>Desconto</span> <span className="font-medium">- {formatCurrencyBRL(voucher.discount.type === 'FIXED' ? voucher.discount.value : subtotal * (voucher.discount.value / 100))}</span></div>
+                      {/* Granular Discounts Display */}
+                      {voucher.rentalDiscount && voucher.rentalDiscount.value > 0 && (
+                        <div className="flex justify-between text-red-600 text-sm italic">
+                          <span>Desconto Lancha</span>
+                          <span className="font-medium">- {formatCurrencyBRL(voucher.rentalDiscount.type === 'FIXED' ? voucher.rentalDiscount.value : (boat.pricePerHour * voucher.durationHours) * (voucher.rentalDiscount.value / 100))}</span>
+                        </div>
+                      )}
+                      {voucher.productsDiscount && voucher.productsDiscount.value > 0 && (
+                        <div className="flex justify-between text-red-600 text-sm italic">
+                          <span>Desconto Produtos</span>
+                          <span className="font-medium">- {formatCurrencyBRL(voucher.productsDiscount.type === 'FIXED' ? voucher.productsDiscount.value : (subtotal - (boat.pricePerHour * voucher.durationHours)) * (voucher.productsDiscount.value / 100))}</span>
+                        </div>
+                      )}
+
+                      {/* Total Discount */}
+                      {(() => {
+                        const totalD = total - (subtotal + (voucher.tax ?? 0));
+                        if (totalD < 0) {
+                          return (
+                            <div className="flex justify-between text-red-600 font-semibold">
+                              <span>Total Descontos</span>
+                              <span className="font-medium">{formatCurrencyBRL(totalD)}</span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+
                       {(voucher.tax ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Taxa</span> <span className="font-medium">+ {formatCurrencyBRL(voucher.tax ?? 0)}</span></div>}
                       <div className="flex justify-between font-bold text-lg border-t border-gray-200 pt-2 mt-2"><span>Total</span> <span>{formatCurrencyBRL(total)}</span></div>
                       <div className="flex justify-between font-bold text-lg text-blue-600 bg-blue-50 p-3 rounded-lg">

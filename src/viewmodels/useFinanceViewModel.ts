@@ -19,6 +19,9 @@ export const useFinanceViewModel = () => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
+      // Trigger backfill for events missing financial data
+      await eventRepository.backfillFinancialData();
+
       const [allEvents, allExpenses, allPayments, allIncomes] = await Promise.all([
         eventRepository.getAll(),
         expenseRepository.getAll(),

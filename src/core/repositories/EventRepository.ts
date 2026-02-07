@@ -22,6 +22,7 @@ export interface IEventRepository {
   add(event: Omit<EventType, 'id'>): Promise<EventType>;
   updateEvent(event: EventType): Promise<EventType>;
   getAll(): Promise<EventType[]>;
+  backfillFinancialData(): Promise<void>;
   dispose(): void;
   initialize(user?: any): void;
 }
@@ -206,6 +207,63 @@ class EventRepositoryImpl implements IEventRepository {
     });
 
     return updatedEvent;
+  }
+
+  async backfillFinancialData(): Promise<void> {
+    const events = await this.getAll();
+    const confirmedEvents = events.filter(e =>
+      (e.status === 'SCHEDULED' || e.status === 'COMPLETED' || e.status === 'ARCHIVED_COMPLETED') &&
+      (e.rentalRevenue === undefined || e.productsRevenue === undefined)
+    );
+
+    if (confirmedEvents.length === 0) return;
+
+    for (const event of confirmedEvents) {
+      try {
+        const startMin = timeToMinutes(event.startTime);
+        const endMin = timeToMinutes(event.endTime);
+        const durationInMinutes = endMin - startMin;
+
+        let rentalRevenue = 0;
+        if (durationInMinutes > 0 && event.boat) {
+          const hours = Math.floor(durationInMinutes / 60);
+          const remainingMinutes = durationInMinutes % 60;
+          rentalRevenue = hours * (event.boat.pricePerHour || 0);
+          if (remainingMinutes >= 30) {
+            rentalRevenue += (event.boat.pricePerHalfHour || 0);
+          }
+        }
+
+        const productsGross = (event.products || []).reduce((acc, p) => {
+          if (p.isCourtesy) return acc;
+          if (p.pricingType === 'PER_PERSON') return acc + (p.price || 0) * event.passengerCount;
+          if (p.pricingType === 'HOURLY' && p.startTime && p.endTime && p.hourlyPrice) {
+            const d = (timeToMinutes(p.endTime) - timeToMinutes(p.startTime)) / 60;
+            return acc + (d > 0 ? d * p.hourlyPrice : 0);
+          }
+          return acc + (p.price || 0);
+        }, 0);
+
+        // Apply discount proportionally to keep consistency with event.total (which is NET)
+        const totalGross = rentalRevenue + productsGross;
+        let finalRentalRevenue = rentalRevenue;
+        let finalProductsRevenue = productsGross;
+
+        if (totalGross > 0 && event.total !== totalGross) {
+          const ratio = event.total / totalGross;
+          finalRentalRevenue = rentalRevenue * ratio;
+          finalProductsRevenue = productsGross * ratio;
+        }
+
+        await this.updateEvent({
+          ...event,
+          rentalRevenue: finalRentalRevenue,
+          productsRevenue: finalProductsRevenue
+        });
+      } catch (err) {
+        console.error(`Failed to backfill event ${event.id}:`, err);
+      }
+    }
   }
 }
 

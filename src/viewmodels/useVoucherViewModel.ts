@@ -11,6 +11,7 @@ import html2pdf from 'html2pdf.js';
 interface VoucherDetails extends EventType {
   reservationFee: number;
   remainingBalance: number;
+  durationHours: number;
 }
 
 export const useVoucherViewModel = () => {
@@ -86,7 +87,14 @@ export const useVoucherViewModel = () => {
         const reservationFee = eventData.total * feePercentage;
         const remainingBalance = eventData.total - reservationFee;
 
-        setVoucher({ ...eventData, reservationFee, remainingBalance });
+        // Calculate duration in hours
+        const parseTime = (time: string) => {
+          const [h, m] = time.split(':').map(Number);
+          return h + m / 60;
+        };
+        const durationHours = parseTime(eventData.endTime) - parseTime(eventData.startTime);
+
+        setVoucher({ ...eventData, reservationFee, remainingBalance, durationHours });
 
       } catch (err) {
         setError('Falha ao buscar os detalhes do voucher.');
