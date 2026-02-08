@@ -11,6 +11,7 @@ export class VoucherTermsRepository {
   private data: VoucherTerms | null = null;
   private unsubscribe: Unsubscribe | null = null;
   private currentUser: any = null;
+  private listeners: ((data: VoucherTerms | null) => void)[] = [];
 
   private constructor() {}
 
@@ -34,8 +35,25 @@ export class VoucherTermsRepository {
     this.unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         this.data = { ...docSnap.data() as VoucherTerms, id: docSnap.id };
+      } else {
+        this.data = null;
       }
+      this.notifyListeners();
     });
+  }
+
+  private notifyListeners() {
+    this.listeners.forEach(listener => listener(this.data));
+  }
+
+  subscribe(listener: (data: VoucherTerms | null) => void) {
+    this.listeners.push(listener);
+    if (this.data) {
+      listener(this.data);
+    }
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
   }
 
   dispose() {
@@ -56,7 +74,29 @@ export class VoucherTermsRepository {
       this.data = { ...docSnap.data() as VoucherTerms, id: docSnap.id };
       return this.data;
     }
-    return { id: this.docId, terms: 'Termos padrão...' };
+
+    const defaultData = {
+      id: this.docId,
+      terms: `
+        <h2>Termos e Condições</h2>
+        <p><strong>1. Cancelamento e Reembolso:</strong> O cancelamento com reembolso de 100% do sinal é permitido apenas se feito com 7 dias de antecedência. Após este período, o sinal não é reembolsável.</p>
+        <p><strong>2. Condições Climáticas:</strong> Condições climáticas adversas (chuva forte, ventos perigosos) podem levar ao reagendamento do passeio sem custo adicional, a ser combinado entre as partes.</p>
+        <p><strong>3. Responsabilidade:</strong> Danos causados à embarcação por mau uso dos passageiros são de responsabilidade do contratante.</p>
+        <p><strong>4. Embarque:</strong> O embarque ocorrerá no local e horário combinados. É recomendado chegar com 15 minutos de antecedência. A tolerância de atraso é de 10 minutos.</p>
+      `.trim()
+    };
+
+    // Try to save default data to server
+    try {
+      const { id, ...dataToSave } = defaultData;
+      await setDoc(docRef, dataToSave);
+      this.data = defaultData;
+      this.notifyListeners();
+    } catch (e) {
+      console.warn("Could not save default voucher terms data to server:", e);
+    }
+
+    return defaultData;
   }
 
   async update(updatedData: VoucherTerms): Promise<VoucherTerms> {

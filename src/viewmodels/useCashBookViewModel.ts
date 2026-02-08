@@ -1,5 +1,5 @@
 // src/viewmodels/useCashBookViewModel.ts
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { EventType, Expense, Payment, Income, Boat } from '../core/domain/types';
 import { eventRepository } from '../core/repositories/EventRepository';
 import { expenseRepository } from '../core/repositories/ExpenseRepository';
@@ -40,31 +40,31 @@ export const useCashBookViewModel = () => {
     const [filterBoatId, setFilterBoatId] = useState<string>('ALL');
     const [filterCategory, setFilterCategory] = useState<string>('ALL');
 
-    const loadData = useCallback(async () => {
-        setLoading(true);
-        try {
-            const [allEvents, allExpenses, allPayments, allIncomes, allBoats] = await Promise.all([
-                eventRepository.getAll(),
-                expenseRepository.getAll(),
-                paymentRepository.getAll(),
-                incomeRepository.getAll(),
-                boatRepository.getAll()
-            ]);
-            setEvents(allEvents);
-            setExpenses(allExpenses.filter((e: any) => !e.isArchived));
-            setPayments(allPayments);
-            setIncomes(allIncomes);
-            setBoats(allBoats);
-        } catch (err) {
-            console.error('Failed to load cash book data:', err);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
     useEffect(() => {
-        loadData();
-    }, [loadData]);
+        setLoading(true);
+        // Initial load for all
+        Promise.all([
+            eventRepository.getAll(),
+            expenseRepository.getAll(),
+            paymentRepository.getAll(),
+            incomeRepository.getAll(),
+            boatRepository.getAll()
+        ]).finally(() => setLoading(false));
+
+        const unsubEvents = eventRepository.subscribe(setEvents);
+        const unsubExpenses = expenseRepository.subscribe((data) => setExpenses(data.filter(e => !e.isArchived)));
+        const unsubPayments = paymentRepository.subscribe(setPayments);
+        const unsubIncomes = incomeRepository.subscribe(setIncomes);
+        const unsubBoats = boatRepository.subscribe(setBoats);
+
+        return () => {
+            unsubEvents();
+            unsubExpenses();
+            unsubPayments();
+            unsubIncomes();
+            unsubBoats();
+        };
+    }, []);
 
     const cashBook = useMemo(() => {
         const entries: CashBookEntry[] = [
@@ -234,7 +234,6 @@ export const useCashBookViewModel = () => {
                     }
                 }
             }
-            await loadData();
         } catch (err) {
             console.error('Failed to delete entry:', err);
             alert('Erro ao excluir registro.');
@@ -261,6 +260,6 @@ export const useCashBookViewModel = () => {
         setFilterCategory,
         cashBook,
         deleteEntry,
-        refresh: loadData
+        refresh: () => {}
     };
 };

@@ -21,6 +21,7 @@ export class TourTypeRepository {
   private unsubscribe: Unsubscribe | null = null;
   private isInitialized = false;
   private currentUser: any = null;
+  private listeners: ((data: TourType[]) => void)[] = [];
 
   private constructor() {}
 
@@ -47,7 +48,23 @@ export class TourTypeRepository {
         id: doc.id
       }));
       this.isInitialized = true;
+      this.notifyListeners();
     });
+  }
+
+  private notifyListeners() {
+    const activeTourTypes = this.tourTypes.filter(t => !t.isArchived);
+    this.listeners.forEach(listener => listener(activeTourTypes));
+  }
+
+  subscribe(listener: (data: TourType[]) => void) {
+    this.listeners.push(listener);
+    if (this.isInitialized) {
+      listener(this.tourTypes.filter(t => !t.isArchived));
+    }
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
   }
 
   dispose() {

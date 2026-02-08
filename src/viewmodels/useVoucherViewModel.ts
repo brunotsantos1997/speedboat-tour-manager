@@ -1,7 +1,7 @@
 // src/viewmodels/useVoucherViewModel.ts
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import type { EventType, CompanyData, VoucherTerms } from '../core/domain/types';
+import type { EventType, CompanyData, VoucherTerms, Payment } from '../core/domain/types';
 import { eventRepository } from '../core/repositories/EventRepository';
 import { CompanyDataRepository } from '../core/repositories/CompanyDataRepository';
 import { VoucherTermsRepository } from '../core/repositories/VoucherTermsRepository';
@@ -28,107 +28,90 @@ export const useVoucherViewModel = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchVoucherData = async () => {
-      if (!eventId) {
-        setError('ID do evento não fornecido.');
-        setIsLoading(false);
-        return;
+    if (!eventId) {
+      setError('ID do evento não fornecido.');
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+
+    const companyRepo = CompanyDataRepository.getInstance();
+    const termsRepo = VoucherTermsRepository.getInstance();
+    const appearanceRepo = VoucherAppearanceRepository.getInstance();
+
+    // Trigger loads/seeding
+    companyRepo.get();
+    termsRepo.get();
+    appearanceRepo.get();
+
+    const unsubs: (() => void)[] = [];
+
+    unsubs.push(companyRepo.subscribe((data) => {
+      if (data) setCompanyData(data);
+    }));
+
+    unsubs.push(termsRepo.subscribe((data) => {
+      if (data) setVoucherTerms(data);
+    }));
+
+    unsubs.push(appearanceRepo.subscribe((data) => {
+      if (data) setWatermark(data.watermarkImage);
+    }));
+
+    let currentEvent: EventType | undefined;
+    let currentPayments: Payment[] = [];
+
+    const updateVoucherState = () => {
+      if (!currentEvent) return;
+
+      const totalPaid = currentPayments.reduce((acc, p) => acc + p.amount, 0);
+      const reservationFeePercentage = companyData?.reservationFeePercentage || 30;
+      const reservationFee = currentEvent.total * (reservationFeePercentage / 100);
+
+      const displaySignal = Math.max(reservationFee, totalPaid);
+      const remainingReservationFee = Math.max(0, reservationFee - totalPaid);
+      const remainingBalance = Math.max(0, currentEvent.total - totalPaid);
+
+      const parseTime = (time: string) => {
+        const [h, m] = time.split(':').map(Number);
+        return h + m / 60;
+      };
+      const durationHours = parseTime(currentEvent.endTime) - parseTime(currentEvent.startTime);
+
+      setVoucher({
+        ...currentEvent,
+        reservationFee: displaySignal,
+        remainingReservationFee,
+        remainingBalance,
+        durationHours,
+        totalPaid,
+        isFullyPaid: totalPaid >= currentEvent.total
+      });
+
+      if (currentEvent.client?.name) {
+        document.title = `Voucher - ${currentEvent.client.name}`;
       }
-
-      try {
-        setIsLoading(true);
-
-        const companyRepo = CompanyDataRepository.getInstance();
-        const termsRepo = VoucherTermsRepository.getInstance();
-        const appearanceRepo = VoucherAppearanceRepository.getInstance();
-
-        // Use Promise.allSettled to catch individual failures but try to proceed
-        const results = await Promise.allSettled([
-          companyRepo.get(),
-          termsRepo.get(),
-          appearanceRepo.get(),
-          eventRepository.getById(eventId),
-          paymentRepository.getByEventId(eventId),
-        ]);
-
-        const companyInfo = results[0].status === 'fulfilled' ? results[0].value : {
-          id: 'default',
-          cnpj: '',
-          phone: '',
-          appName: 'Voucher Online',
-          reservationFeePercentage: 30,
-          businessHours: {} as any,
-          eventIntervalMinutes: 30,
-        } as CompanyData;
-
-        const terms = results[1].status === 'fulfilled' ? results[1].value : {
-          id: 'default',
-          terms: '<p>Termos e condições de uso do voucher.</p>'
-        } as VoucherTerms;
-
-        const appearance = results[2].status === 'fulfilled' ? results[2].value : undefined;
-        const eventData = results[3].status === 'fulfilled' ? results[3].value : undefined;
-        const eventPayments = results[4].status === 'fulfilled' ? results[4].value : [];
-
-        if (results[3].status === 'rejected') {
-          const error = results[3].reason;
-          if (error?.code === 'permission-denied') {
-            setError('Acesso negado ao voucher. Verifique se o link está correto ou se as permissões do banco de dados permitem acesso público.');
-          } else {
-            setError('Falha ao buscar os detalhes do evento.');
-          }
-          return;
-        }
-
-        if (!eventData) {
-          setError('Evento não encontrado ou ID inválido.');
-          return;
-        }
-
-        if (companyInfo) setCompanyData(companyInfo);
-        if (terms) setVoucherTerms(terms);
-        if (appearance) setWatermark(appearance?.watermarkImage || null);
-
-        const totalPaid = eventPayments.reduce((acc, p) => acc + p.amount, 0);
-        const reservationFeePercentage = companyInfo?.reservationFeePercentage || 30;
-        const reservationFee = eventData.total * (reservationFeePercentage / 100);
-
-        // Use the higher of standard fee or what was actually paid for "Signal" display
-        const displaySignal = Math.max(reservationFee, totalPaid);
-        const remainingReservationFee = Math.max(0, reservationFee - totalPaid);
-        const remainingBalance = Math.max(0, eventData.total - totalPaid);
-
-        // Calculate duration in hours
-        const parseTime = (time: string) => {
-          const [h, m] = time.split(':').map(Number);
-          return h + m / 60;
-        };
-        const durationHours = parseTime(eventData.endTime) - parseTime(eventData.startTime);
-
-        setVoucher({
-          ...eventData,
-          reservationFee: displaySignal,
-          remainingReservationFee,
-          remainingBalance,
-          durationHours,
-          totalPaid,
-          isFullyPaid: totalPaid >= eventData.total
-        });
-
-        if (eventData.client?.name) {
-          document.title = `Voucher - ${eventData.client.name}`;
-        }
-
-      } catch (err) {
-        setError('Falha ao buscar os detalhes do voucher.');
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     };
 
-    fetchVoucherData();
-  }, [eventId]);
+    unsubs.push(eventRepository.subscribeToId(eventId, (event) => {
+      if (event) {
+        currentEvent = event;
+        updateVoucherState();
+      } else {
+        setError('Evento não encontrado.');
+        setIsLoading(false);
+      }
+    }));
+
+    unsubs.push(paymentRepository.subscribeToEventPayments(eventId, (payments) => {
+      currentPayments = payments;
+      updateVoucherState();
+    }));
+
+    return () => unsubs.forEach(fn => fn());
+  }, [eventId, companyData?.reservationFeePercentage]);
 
   const handleDownloadPdf = () => {
     const element = document.getElementById('voucher-content');

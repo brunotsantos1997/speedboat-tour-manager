@@ -30,6 +30,7 @@ class BoatRepositoryImpl implements IBoatRepository {
   private unsubscribe: Unsubscribe | null = null;
   private isInitialized = false;
   private currentUser: any = null;
+  private listeners: ((data: Boat[]) => void)[] = [];
 
   private constructor() {}
 
@@ -56,7 +57,23 @@ class BoatRepositoryImpl implements IBoatRepository {
         id: doc.id
       }));
       this.isInitialized = true;
+      this.notifyListeners();
     });
+  }
+
+  private notifyListeners() {
+    const activeBoats = this.boats.filter(b => !b.isArchived);
+    this.listeners.forEach(listener => listener(activeBoats));
+  }
+
+  subscribe(listener: (data: Boat[]) => void) {
+    this.listeners.push(listener);
+    if (this.isInitialized) {
+      listener(this.boats.filter(b => !b.isArchived));
+    }
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
   }
 
   dispose() {

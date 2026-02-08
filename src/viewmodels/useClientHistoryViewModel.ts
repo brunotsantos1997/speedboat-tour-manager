@@ -42,35 +42,44 @@ export const useClientHistoryViewModel = () => {
   }, []);
 
   const selectClient = useCallback(async (client: ClientProfile) => {
-    setIsLoading(true);
     setSelectedClient(client);
     setSearchTerm(client.name);
     setSearchResults([]);
-    const events = await eventRepository.getEventsByClient(client.id);
+  }, []);
 
-    // Auto-cancel logic for 24h old pre-reservations
-    const now = Date.now();
-    const twentyFourHours = 24 * 60 * 60 * 1000;
+  useEffect(() => {
+    if (!selectedClient) {
+      setClientEvents([]);
+      return;
+    }
 
-    const eventsWithAutoCancel = events.map(event => {
-      if (
-        event.status === 'PRE_SCHEDULED' &&
-        event.preScheduledAt &&
-        (now - event.preScheduledAt > twentyFourHours)
-      ) {
-        const updatedEvent = { ...event, status: 'CANCELLED' as const, autoCancelled: true };
-        eventRepository.updateEvent(updatedEvent).catch(err =>
-          console.error(`Failed to auto-cancel event ${event.id}:`, err)
-        );
-        return updatedEvent;
+    setIsLoading(true);
+
+    // Initial fetch for auto-cancel check
+    eventRepository.getEventsByClient(selectedClient.id).then(async (events) => {
+      const now = Date.now();
+      const twentyFourHours = 24 * 60 * 60 * 1000;
+
+      for (const event of events) {
+        if (event.status === 'PRE_SCHEDULED' && event.preScheduledAt && (now - event.preScheduledAt > twentyFourHours)) {
+          try {
+            await eventRepository.updateEvent({ ...event, status: 'CANCELLED', autoCancelled: true });
+          } catch (error) {
+            console.error(`Failed to auto-cancel event ${event.id}:`, error);
+          }
+        }
       }
-      return event;
+      setIsLoading(false);
     });
 
-    eventsWithAutoCancel.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    setClientEvents(eventsWithAutoCancel);
-    setIsLoading(false);
-  }, []);
+    const unsubscribe = eventRepository.subscribeToClientEvents(selectedClient.id, (events) => {
+      const sorted = [...events].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setClientEvents(sorted);
+      setIsLoading(false);
+    });
+
+    return unsubscribe;
+  }, [selectedClient]);
 
   const clearSelection = () => {
     setSelectedClient(null);
@@ -91,9 +100,6 @@ export const useClientHistoryViewModel = () => {
       const newStatus = eventToUpdate.paymentStatus === 'CONFIRMED' ? 'PENDING_REFUND' : 'CANCELLED';
       const updatedEvent = { ...eventToUpdate, status: newStatus as EventType['status'] };
       await eventRepository.updateEvent(updatedEvent);
-      if (selectedClient) {
-        selectClient(selectedClient);
-      }
     }
   }, [clientEvents, selectedClient, selectClient]);
 
@@ -148,10 +154,6 @@ export const useClientHistoryViewModel = () => {
 
         await eventRepository.updateEvent(updatedEvent);
 
-        if (selectedClient) {
-            await selectClient(selectedClient);
-        }
-
         setIsPaymentModalOpen(false);
         setActiveEventForPayment(null);
     } catch (error) {
@@ -172,10 +174,6 @@ export const useClientHistoryViewModel = () => {
       };
 
       await eventRepository.updateEvent(updatedEvent);
-
-      if (selectedClient) {
-        await selectClient(selectedClient);
-      }
     } catch (error: any) {
       console.error('Failed to revert cancellation:', error);
       throw error;

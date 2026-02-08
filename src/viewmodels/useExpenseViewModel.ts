@@ -1,5 +1,5 @@
 // src/viewmodels/useExpenseViewModel.ts
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import type { Expense, ExpenseCategory, Boat } from '../core/domain/types';
 import { expenseRepository } from '../core/repositories/ExpenseRepository';
 import { expenseCategoryRepository } from '../core/repositories/ExpenseCategoryRepository';
@@ -11,32 +11,26 @@ export const useExpenseViewModel = () => {
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [boats, setBoats] = useState<Boat[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { showToast } = useToastContext();
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [expList, catList, boatList] = await Promise.all([
-        expenseRepository.getAll(),
-        expenseCategoryRepository.getAll(),
-        boatRepository.getAll()
-      ]);
-      // Filter out archived expenses if needed, or rely on repository
-      setExpenses(expList.filter((e: any) => !e.isArchived));
-      setCategories(catList);
-      setBoats(boatList);
-    } catch (err) {
-      setError('Erro ao carregar dados financeiros.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    setLoading(true);
+    Promise.all([
+      expenseRepository.getAll(),
+      expenseCategoryRepository.getAll(),
+      boatRepository.getAll()
+    ]).finally(() => setLoading(false));
+
+    const unsubExpenses = expenseRepository.subscribe((data) => setExpenses(data.filter((e: any) => !e.isArchived)));
+    const unsubCategories = expenseCategoryRepository.subscribe(setCategories);
+    const unsubBoats = boatRepository.subscribe(setBoats);
+
+    return () => {
+      unsubExpenses();
+      unsubCategories();
+      unsubBoats();
+    };
+  }, []);
 
   const addExpense = async (expenseData: Omit<Expense, 'id' | 'timestamp'>) => {
     try {
@@ -49,7 +43,6 @@ export const useExpenseViewModel = () => {
         boatName: boat?.name,
         timestamp: Date.now()
       });
-      setExpenses(prev => [newExpense, ...prev]);
       showToast('Despesa cadastrada com sucesso!');
       return newExpense;
     } catch (err: any) {
@@ -68,7 +61,6 @@ export const useExpenseViewModel = () => {
         categoryName: category?.name,
         boatName: boat?.name
       });
-      setExpenses(prev => prev.map(e => e.id === expense.id ? updatedExpense : e));
       showToast('Despesa atualizada com sucesso!');
       return updatedExpense;
     } catch (err: any) {
@@ -81,7 +73,6 @@ export const useExpenseViewModel = () => {
     if (!window.confirm('Tem certeza que deseja excluir esta despesa?')) return;
     try {
       await expenseRepository.remove(expenseId);
-      setExpenses(prev => prev.filter(e => e.id !== expenseId));
       showToast('Despesa excluída com sucesso!');
     } catch (err: any) {
       showToast('Erro ao excluir despesa: ' + err.message);
@@ -91,7 +82,6 @@ export const useExpenseViewModel = () => {
   const addCategory = async (name: string) => {
     try {
       const newCategory = await expenseCategoryRepository.add({ name });
-      setCategories(prev => [...prev, newCategory]);
       showToast('Categoria criada com sucesso!');
       return newCategory;
     } catch (err: any) {
@@ -101,8 +91,7 @@ export const useExpenseViewModel = () => {
 
   const updateCategory = async (category: ExpenseCategory) => {
     try {
-      const updated = await expenseCategoryRepository.update(category);
-      setCategories(prev => prev.map(c => c.id === category.id ? updated : c));
+      await expenseCategoryRepository.update(category);
       showToast('Categoria atualizada com sucesso!');
     } catch (err: any) {
       showToast('Erro ao atualizar categoria: ' + err.message);
@@ -113,7 +102,6 @@ export const useExpenseViewModel = () => {
     if (!window.confirm('Tem certeza que deseja excluir esta categoria?')) return;
     try {
       await expenseCategoryRepository.remove(categoryId);
-      setCategories(prev => prev.filter(c => c.id !== categoryId));
       showToast('Categoria excluída com sucesso!');
     } catch (err: any) {
       showToast('Erro ao excluir categoria: ' + err.message);
@@ -125,13 +113,12 @@ export const useExpenseViewModel = () => {
     categories,
     boats,
     loading,
-    error,
     addExpense,
     updateExpense,
     removeExpense,
     addCategory,
     updateCategory,
     removeCategory,
-    refresh: loadData
+    refresh: () => {}
   };
 };

@@ -1,5 +1,5 @@
 // src/viewmodels/useBoatsViewModel.ts
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import type { Boat } from '../core/domain/types';
 import { boatRepository } from '../core/repositories/BoatRepository';
 
@@ -9,16 +9,17 @@ export const useBoatsViewModel = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBoat, setEditingBoat] = useState<Partial<Boat> | null>(null);
 
-  const fetchBoats = useCallback(async () => {
-    setIsLoading(true);
-    const fetchedBoats = await boatRepository.getAll();
-    setBoats(fetchedBoats);
-    setIsLoading(false);
-  }, []);
-
   useEffect(() => {
-    fetchBoats();
-  }, [fetchBoats]);
+    setIsLoading(true);
+    boatRepository.getAll().then(() => setIsLoading(false));
+
+    const unsubscribe = boatRepository.subscribe((data) => {
+      setBoats(data);
+      setIsLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
 
   const openNewBoatModal = () => {
     setEditingBoat({
@@ -53,7 +54,6 @@ export const useBoatsViewModel = () => {
       }
 
       closeModal();
-      await fetchBoats();
       return { success: true };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Erro ao salvar lancha.' };
@@ -77,7 +77,6 @@ export const useBoatsViewModel = () => {
     if (boatToDeleteId) {
       try {
         await boatRepository.remove(boatToDeleteId);
-        await fetchBoats();
         closeConfirmDeleteModal();
         return { success: true };
       } catch (error) {

@@ -8,7 +8,8 @@ import {
   onSnapshot,
   query,
   type Unsubscribe,
-  deleteDoc
+  deleteDoc,
+  where
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type { Payment } from '../domain/types';
@@ -31,6 +32,7 @@ class PaymentRepositoryImpl implements IPaymentRepository {
   private unsubscribe: Unsubscribe | null = null;
   private isInitialized = false;
   private currentUser: any = null;
+  private listeners: ((data: Payment[]) => void)[] = [];
 
   private constructor() {}
 
@@ -59,6 +61,32 @@ class PaymentRepositoryImpl implements IPaymentRepository {
         }))
         .sort((a, b) => b.timestamp - a.timestamp);
       this.isInitialized = true;
+      this.notifyListeners();
+    });
+  }
+
+  private notifyListeners() {
+    this.listeners.forEach(listener => listener(this.payments));
+  }
+
+  subscribe(listener: (data: Payment[]) => void) {
+    this.listeners.push(listener);
+    if (this.isInitialized) {
+      listener(this.payments);
+    }
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
+  }
+
+  subscribeToEventPayments(eventId: string, callback: (data: Payment[]) => void) {
+    const q = query(collection(db, this.collectionName), where('eventId', '==', eventId));
+    return onSnapshot(q, (snapshot) => {
+      const payments = snapshot.docs.map(doc => ({
+        ...doc.data() as Payment,
+        id: doc.id
+      })).sort((a, b) => a.timestamp - b.timestamp);
+      callback(payments);
     });
   }
 
