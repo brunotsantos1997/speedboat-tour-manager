@@ -5,7 +5,6 @@ import { eventRepository } from '../core/repositories/EventRepository';
 import { expenseRepository } from '../core/repositories/ExpenseRepository';
 import { incomeRepository } from '../core/repositories/IncomeRepository';
 import { paymentRepository } from '../core/repositories/PaymentRepository';
-import { timeToMinutes } from '../core/utils/timeUtils';
 import { startOfMonth, endOfMonth, format, subMonths, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
