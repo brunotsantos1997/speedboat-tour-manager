@@ -102,10 +102,8 @@ export const useDashboardViewModel = () => {
       const payments = await paymentRepository.getByEventId(eventId);
       const totalPaid = payments.reduce((acc, p) => acc + p.amount, 0);
 
-      const reservationFee = updatedEvent.total * 0.3;
-
-      // Logic: If total paid >= 30% fee, confirm the reservation
-      if (totalPaid >= reservationFee && updatedEvent.status === 'PRE_SCHEDULED') {
+      // Logic: If any amount is paid, confirm the reservation
+      if (totalPaid > 0 && updatedEvent.status === 'PRE_SCHEDULED') {
         updatedEvent.status = 'SCHEDULED';
       }
 

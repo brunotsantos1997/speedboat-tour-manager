@@ -3,8 +3,8 @@ import React from 'react';
 import { useFinanceViewModel } from '../../viewmodels/useFinanceViewModel';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 import { format } from 'date-fns';
-import { DollarSign, TrendingDown, TrendingUp, BarChart3, Calendar, PlusCircle, Settings, X, Trash2, ArrowUpCircle, ArrowDownCircle, History } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { DollarSign, TrendingDown, TrendingUp, BarChart3, Calendar, PlusCircle, Settings, X, Trash2, ArrowUpCircle, ArrowDownCircle, History, BookOpen } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { MoneyInput } from '../components/MoneyInput';
 import { incomeRepository } from '../../core/repositories/IncomeRepository';
 import { useToastContext } from '../contexts/ToastContext';
@@ -25,7 +25,8 @@ const StatCard: React.FC<{ title: string; value: string; subValue?: string; icon
 );
 
 export const FinanceScreen: React.FC = () => {
-  const { loading, stats, cashFlowData, dailyCashFlow, cashBook, deleteEntry, startDate, setStartDate, endDate, setEndDate, refresh } = useFinanceViewModel();
+  const { loading, stats, cashFlowData, dailyCashFlow, startDate, setStartDate, endDate, setEndDate, refresh } = useFinanceViewModel();
+  const navigate = useNavigate();
   const { showToast } = useToastContext();
   const [isIncomeModalOpen, setIsIncomeModalOpen] = React.useState(false);
   const [incomeAmount, setIncomeAmount] = React.useState(0);
@@ -107,6 +108,16 @@ export const FinanceScreen: React.FC = () => {
       </div>
 
       {/* Overview Stats */}
+      <div className="flex justify-end mb-4">
+          <button
+            onClick={() => navigate('/cash-book')}
+            className="flex items-center gap-2 bg-gray-800 text-white px-6 py-3 rounded-xl hover:bg-black transition-all shadow-md font-bold"
+          >
+            <BookOpen size={20} />
+            <span>Abrir Livro Caixa Detalhado</span>
+          </button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Receita Total"
@@ -303,68 +314,6 @@ export const FinanceScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Cash Book (Livro Caixa) */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b bg-gray-50">
-            <h2 className="text-xl font-bold text-gray-900">Livro Caixa</h2>
-            <p className="text-sm text-gray-500">Histórico detalhado de todas as entradas e saídas no período selecionado</p>
-        </div>
-        <div className="overflow-x-auto">
-            <table className="w-full text-left">
-                <thead>
-                    <tr className="bg-gray-100 text-gray-600 text-sm uppercase tracking-wider font-semibold">
-                        <th className="px-6 py-4">Data</th>
-                        <th className="px-6 py-4">Descrição</th>
-                        <th className="px-6 py-4">Tipo</th>
-                        <th className="px-6 py-4 text-right">Valor</th>
-                        <th className="px-6 py-4 text-center">Ações</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                    {cashBook.length > 0 ? cashBook.map((entry) => (
-                        <tr key={entry.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                                {new Date(entry.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
-                            </td>
-                            <td className="px-6 py-4">
-                                <p className="font-medium text-gray-800">{entry.description}</p>
-                                <p className="text-xs text-gray-400 capitalize">{entry.type.toLowerCase()}</p>
-                            </td>
-                            <td className="px-6 py-4">
-                                {entry.type === 'EXPENSE' ? (
-                                    <span className="inline-flex items-center gap-1 text-red-600 font-medium text-sm">
-                                        <ArrowDownCircle size={14} /> Saída
-                                    </span>
-                                ) : (
-                                    <span className="inline-flex items-center gap-1 text-green-600 font-medium text-sm">
-                                        <ArrowUpCircle size={14} /> Entrada
-                                    </span>
-                                )}
-                            </td>
-                            <td className={`px-6 py-4 text-right font-bold ${entry.type === 'EXPENSE' ? 'text-red-600' : 'text-green-600'}`}>
-                                {entry.type === 'EXPENSE' ? '-' : '+'} {formatCurrencyBRL(entry.amount)}
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                                <button
-                                    onClick={() => deleteEntry(entry.id, entry.type)}
-                                    className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                                    title="Excluir"
-                                >
-                                    <Trash2 size={18} />
-                                </button>
-                            </td>
-                        </tr>
-                    )) : (
-                        <tr>
-                            <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
-                                Nenhum lançamento encontrado no período.
-                            </td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
-        </div>
-      </div>
 
       {/* Add Income Modal */}
       {isIncomeModalOpen && (

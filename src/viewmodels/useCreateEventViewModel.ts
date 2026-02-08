@@ -62,84 +62,85 @@ export const useCreateEventViewModel = () => {
   const [newClientName, setNewClientName] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
 
+  // Loading state
+  const [isLoading, setIsLoading] = useState(true);
+
   // Company Data
   const [companyData, setCompanyData] = useState<CompanyData | null>(null);
 
-  // Effect to load event for editing
+  // Unified Data Loading
   useEffect(() => {
-    const loadEventForEditing = async () => {
-      if (editingEventId) {
-        const event = await eventRepository.getById(editingEventId);
-        if (event) {
-          setOriginalEvent(event);
-          const eventDate = new Date(event.date);
-          const userTimezoneOffset = eventDate.getTimezoneOffset() * 60000;
-
-          setSelectedDate(new Date(eventDate.getTime() + userTimezoneOffset));
-          setStartTime(event.startTime);
-          setEndTime(event.endTime);
-          setSelectedBoat(event.boat);
-          setSelectedTourType(event.tourType || null);
-          setSelectedProducts(event.products);
-          setRentalDiscount(event.rentalDiscount || { type: 'FIXED', value: 0 });
-          setPassengerCount(event.passengerCount);
-          setSelectedClient(event.client);
-          setClientSearchTerm(event.client.name);
-          setObservations(event.observations || '');
-          setIsPreScheduled(event.status === 'PRE_SCHEDULED');
-          setOriginalPaymentStatus(event.paymentStatus);
-          setTax(event.tax || 0);
-          setTaxDescription(event.taxDescription || '');
+    const loadAllData = async () => {
+      setIsLoading(true);
+      try {
+        // Load event if editing
+        let initialEvent: EventType | null = null;
+        if (editingEventId) {
+          const event = await eventRepository.getById(editingEventId);
+          if (event) {
+            initialEvent = event;
+            setOriginalEvent(event);
+            setOriginalPaymentStatus(event.paymentStatus);
+          } else {
+            setEditingEventId(null);
+          }
         } else {
-          setEditingEventId(null);
+          setOriginalEvent(null);
         }
-      } else {
-        setOriginalEvent(null);
+
+        // Load reference data
+        const [products, boats, boardingLocations, tourTypes, companyDataResponse] = await Promise.all([
+          productRepository.getAll(),
+          boatRepository.getAll(),
+          boardingLocationRepository.getAll(),
+          tourTypeRepository.getAll(),
+          CompanyDataRepository.getInstance().get()
+        ]);
+
+        if (companyDataResponse) setCompanyData(companyDataResponse);
+        setAvailableProducts(products);
+        setAvailableBoats(boats);
+        setAvailableBoardingLocations(boardingLocations);
+        setAvailableTourTypes(tourTypes);
+
+        if (initialEvent) {
+          // Set state from event
+          const eventDate = new Date(initialEvent.date);
+          const userTimezoneOffset = eventDate.getTimezoneOffset() * 60000;
+          setSelectedDate(new Date(eventDate.getTime() + userTimezoneOffset));
+          setStartTime(initialEvent.startTime);
+          setEndTime(initialEvent.endTime);
+          setSelectedBoat(initialEvent.boat);
+          setSelectedTourType(initialEvent.tourType || null);
+          setSelectedProducts(initialEvent.products);
+          setRentalDiscount(initialEvent.rentalDiscount || { type: 'FIXED', value: 0 });
+          setPassengerCount(initialEvent.passengerCount);
+          setSelectedClient(initialEvent.client);
+          setClientSearchTerm(initialEvent.client.name);
+          setObservations(initialEvent.observations || '');
+          setIsPreScheduled(initialEvent.status === 'PRE_SCHEDULED');
+          setTax(initialEvent.tax || 0);
+          setTaxDescription(initialEvent.taxDescription || '');
+        } else {
+          // Set defaults for new event
+          if (boats.length > 0) setSelectedBoat(boats[0]);
+          if (boardingLocations.length > 0) setSelectedBoardingLocation(boardingLocations[0]);
+          if (tourTypes.length > 0) {
+            const defaultTourType = tourTypes.find(t => t.name.toLowerCase() === 'passeio') || tourTypes[0];
+            setSelectedTourType(defaultTourType);
+          }
+          const defaultCourtesies = products
+            .filter(p => p.isDefaultCourtesy)
+            .map(p => ({ ...p, isCourtesy: true }));
+          setSelectedProducts(defaultCourtesies);
+        }
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    loadEventForEditing();
+    loadAllData();
   }, [editingEventId]);
-
-  // Fetch initial data
-  useEffect(() => {
-    const loadInitialData = async () => {
-      const products = await productRepository.getAll();
-      const boats = await boatRepository.getAll();
-      const boardingLocations = await boardingLocationRepository.getAll();
-      const tourTypes = await tourTypeRepository.getAll();
-      const companyDataResponse = await CompanyDataRepository.getInstance().get();
-
-      if (companyDataResponse) {
-        setCompanyData(companyDataResponse);
-      }
-
-      setAvailableProducts(products);
-      setAvailableBoats(boats);
-      setAvailableBoardingLocations(boardingLocations);
-      setAvailableTourTypes(tourTypes);
-
-      if (boats.length > 0) {
-        setSelectedBoat(boats[0]);
-      }
-
-      if (boardingLocations.length > 0) {
-        setSelectedBoardingLocation(boardingLocations[0]);
-      }
-
-      if (tourTypes.length > 0) {
-        const defaultTourType = tourTypes.find(t => t.name.toLowerCase() === 'passeio') || tourTypes[0];
-        setSelectedTourType(defaultTourType);
-      }
-
-      const defaultCourtesies = products
-        .filter(p => p.isDefaultCourtesy)
-        .map(p => ({ ...p, isCourtesy: true }));
-      setSelectedProducts(defaultCourtesies);
-    };
-
-    loadInitialData();
-  }, []);
 
   // Fetch scheduled events when selected date changes
   useEffect(() => {
@@ -620,6 +621,7 @@ export const useCreateEventViewModel = () => {
 
 
   return {
+    isLoading,
     editingEventId,
     selectedDate,
     startTime,

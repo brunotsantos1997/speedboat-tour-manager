@@ -14,6 +14,8 @@ interface VoucherDetails extends EventType {
   remainingReservationFee: number;
   remainingBalance: number;
   durationHours: number;
+  totalPaid: number;
+  isFullyPaid: boolean;
 }
 
 export const useVoucherViewModel = () => {
@@ -88,7 +90,11 @@ export const useVoucherViewModel = () => {
         if (appearance) setWatermark(appearance?.watermarkImage || null);
 
         const totalPaid = eventPayments.reduce((acc, p) => acc + p.amount, 0);
-        const reservationFee = eventData.total * ((companyInfo?.reservationFeePercentage || 30) / 100);
+        const reservationFeePercentage = companyInfo?.reservationFeePercentage || 30;
+        const reservationFee = eventData.total * (reservationFeePercentage / 100);
+
+        // Use the higher of standard fee or what was actually paid for "Signal" display
+        const displaySignal = Math.max(reservationFee, totalPaid);
         const remainingReservationFee = Math.max(0, reservationFee - totalPaid);
         const remainingBalance = Math.max(0, eventData.total - totalPaid);
 
@@ -101,10 +107,12 @@ export const useVoucherViewModel = () => {
 
         setVoucher({
           ...eventData,
-          reservationFee,
+          reservationFee: displaySignal,
           remainingReservationFee,
           remainingBalance,
-          durationHours
+          durationHours,
+          totalPaid,
+          isFullyPaid: totalPaid >= eventData.total
         });
 
         if (eventData.client?.name) {

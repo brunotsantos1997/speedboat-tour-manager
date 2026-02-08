@@ -136,9 +136,7 @@ export const useClientHistoryViewModel = () => {
         const payments = await paymentRepository.getByEventId(eventId);
         const totalPaid = payments.reduce((acc, p) => acc + p.amount, 0);
 
-        const reservationFee = updatedEvent.total * 0.3;
-
-        if (totalPaid >= reservationFee && updatedEvent.status === 'PRE_SCHEDULED') {
+        if (totalPaid > 0 && updatedEvent.status === 'PRE_SCHEDULED') {
             updatedEvent.status = 'SCHEDULED';
         }
 

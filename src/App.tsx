@@ -18,6 +18,7 @@ import { PendingApprovalScreen } from './ui/screens/PendingApprovalScreen';
 import { UserManagementScreen } from './ui/screens/UserManagementScreen';
 import { CommissionReportScreen } from './ui/screens/CommissionReportScreen';
 import { FinanceScreen } from './ui/screens/FinanceScreen';
+import { CashBookScreen } from './ui/screens/CashBookScreen';
 import { ExpensesScreen } from './ui/screens/ExpensesScreen';
 import { ExpenseCategoriesScreen } from './ui/screens/ExpenseCategoriesScreen';
 import { ProfileScreen } from './ui/screens/ProfileScreen';
@@ -60,6 +61,7 @@ function App() {
               <Route path="voucher-appearance" element={<VoucherAppearanceScreen />} />
               <Route path="commission-report" element={<CommissionReportScreen />} />
               <Route path="finance" element={<FinanceScreen />} />
+              <Route path="cash-book" element={<CashBookScreen />} />
               <Route path="expenses" element={<ExpensesScreen />} />
               <Route path="expense-categories" element={<ExpenseCategoriesScreen />} />
             </Route>
