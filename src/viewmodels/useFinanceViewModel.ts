@@ -195,12 +195,8 @@ export const useFinanceViewModel = () => {
         const ratio = p.amount / event.total;
         const entries = [];
 
-        // Helper to format percentage
-        const getPct = (val: number) => {
-          if (!event.total) return '0%';
-          const pct = (val / event.total) * 100;
-          return pct.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
-        };
+        // Helper to format percentage (ratio of payment to total)
+        const paymentRatioPct = (ratio * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
 
         // 1. Boat Rental
         const boatNet = event.rentalRevenue || 0;
@@ -210,7 +206,7 @@ export const useFinanceViewModel = () => {
             id: `${p.id}-boat`,
             date: p.date,
             amount: boatAmount,
-            description: `Passeio (${event.boat.name}) [${getPct(boatNet)}]: ${event.client.name}`,
+            description: `Passeio (${event.boat.name}) [${paymentRatioPct}]: ${event.client.name}`,
             type: 'PAYMENT' as const,
             timestamp: p.timestamp,
             eventId: p.eventId
@@ -242,7 +238,7 @@ export const useFinanceViewModel = () => {
               id: `${p.id}-prod-${prod.id}-${idx}`,
               date: p.date,
               amount: prodAmount,
-              description: `Produto (${prod.name}) [${getPct(prodNet)}]: ${event.client.name}`,
+              description: `Produto (${prod.name}) [${paymentRatioPct}]: ${event.client.name}`,
               type: 'PAYMENT' as const,
               timestamp: p.timestamp,
               eventId: p.eventId
@@ -258,7 +254,7 @@ export const useFinanceViewModel = () => {
             id: `${p.id}-tax`,
             date: p.date,
             amount: taxAmount,
-            description: `Taxa (${event.taxDescription || 'Adicional'}) [${getPct(taxNet)}]: ${event.client.name}`,
+            description: `Taxa (${event.taxDescription || 'Adicional'}) [${paymentRatioPct}]: ${event.client.name}`,
             type: 'PAYMENT' as const,
             timestamp: p.timestamp,
             eventId: p.eventId
