@@ -72,6 +72,7 @@ export class CompanyDataRepository {
         friday: { startTime: '08:00', endTime: '18:00', isClosed: false },
         saturday: { startTime: '08:00', endTime: '18:00', isClosed: true },
       },
+      commissionBasis: 'RENTAL_ONLY',
     };
     return defaultData;
   }

@@ -2,6 +2,7 @@
 import type { CommissionReportEntry } from '../domain/types';
 import { eventRepository } from './EventRepository';
 import { expenseRepository } from './ExpenseRepository';
+import { companyDataRepository } from './CompanyDataRepository';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type { User } from '../domain/User';
@@ -47,12 +48,15 @@ class CommissionRepository implements ICommissionRepository {
 
     const report: CommissionReportEntry[] = [];
 
+    const companyData = await companyDataRepository.get();
+    const useTotalForCommission = companyData?.commissionBasis === 'TOTAL_PRICE';
+
     for (const event of filteredEvents) {
       if (event.createdByUserId) {
         const user = userMap.get(event.createdByUserId);
         if (user && user.commissionPercentage) {
-          // Commission is calculated only on the boat rental value (rentalRevenue)
-          const baseValue = event.rentalRevenue || 0;
+          // Commission calculation base depends on company configuration
+          const baseValue = useTotalForCommission ? event.total : (event.rentalRevenue || 0);
           const commissionValue = baseValue * (user.commissionPercentage / 100);
 
           // Check if there's an expense that corresponds to this commission

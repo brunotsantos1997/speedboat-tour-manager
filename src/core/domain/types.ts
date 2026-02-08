@@ -201,6 +201,7 @@ export interface CompanyData {
   businessHours: BusinessHours;
   rentalHourlyRate?: number;
   rentalHalfHourRate?: number;
+  commissionBasis?: 'RENTAL_ONLY' | 'TOTAL_PRICE';
 }
 
 export interface VoucherTerms {
