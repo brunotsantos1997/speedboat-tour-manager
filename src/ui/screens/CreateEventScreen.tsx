@@ -1,6 +1,6 @@
 // src/ui/screens/CreateEventScreen.tsx
-import React from 'react';
-import { Anchor, Utensils, Beer, User, Circle, HelpCircle, Users, Search, X, Package, Pencil, Trash2, AlertTriangle, Minus, Plus } from 'lucide-react';
+import React, { useState } from 'react';
+import { Anchor, Utensils, Beer, User, Circle, HelpCircle, Users, Search, X, Package, Pencil, Trash2, AlertTriangle, Minus, Plus, Tag } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import { useCreateEventViewModel } from '../../viewmodels/useCreateEventViewModel';
 import { useToastContext } from '../../ui/contexts/ToastContext';
@@ -80,6 +80,63 @@ const NumericInput: React.FC<{
           margin: 0;
         }
       `}</style>
+    </div>
+  );
+};
+
+
+const QuickTourTypeModal: React.FC<{
+  isOpen: boolean;
+  onSave: (name: string, color: string) => Promise<void>;
+  onClose: () => void;
+}> = ({ isOpen, onSave, onClose }) => {
+  const [name, setName] = useState('');
+  const [color, setColor] = useState('#3b82f6');
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+        <h2 className="text-xl font-bold mb-4">Novo Tipo de Passeio</h2>
+        <div className="space-y-4">
+          <input
+            type="text"
+            placeholder="Nome do Tipo"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          />
+          <div>
+             <label className="block text-sm font-medium text-gray-700 mb-1">Cor de Identificação</label>
+             <input
+               type="color"
+               value={color}
+               onChange={(e) => setColor(e.target.value)}
+               className="w-full h-12 p-1 border border-gray-300 rounded-lg cursor-pointer"
+             />
+          </div>
+        </div>
+        <div className="flex justify-end space-x-3 mt-6">
+          <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">
+            Cancelar
+          </button>
+          <button
+            onClick={async () => {
+              if (name) {
+                await onSave(name, color);
+                setName('');
+                setColor('#3b82f6');
+                onClose();
+              }
+            }}
+            disabled={!name}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            Salvar
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
@@ -178,6 +235,8 @@ export const CreateEventScreen: React.FC = () => {
   const vm = useCreateEventViewModel();
   const { showToast } = useToastContext();
   const navigate = useNavigate();
+  const [isTourTypeModalOpen, setIsTourTypeModalOpen] = useState(false);
+
   const isProductSelected = (product: Product) => vm.selectedProducts.some(p => p.id === product.id);
 
   const bookedDays = vm.scheduledEvents.map(event => new Date(event.date));
@@ -310,26 +369,6 @@ export const CreateEventScreen: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Pre-schedule Toggle */}
-                  <div className="pt-4 border-t border-gray-100">
-                    <label htmlFor="pre-schedule-toggle" className="flex items-center justify-between cursor-pointer">
-                      <span className="font-medium text-gray-700">Pré-reserva</span>
-                      <div className="relative inline-flex items-center">
-                        <input
-                          type="checkbox"
-                          id="pre-schedule-toggle"
-                          className="sr-only peer"
-                          checked={vm.isPreScheduled}
-                          onChange={(e) => vm.setIsPreScheduled(e.target.checked)}
-                        />
-                        <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
-                      </div>
-                    </label>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Pendente por 24h se não confirmada.
-                    </p>
-                  </div>
-
                   {/* Boat Selection */}
                   <div>
                       <label htmlFor="boat-select" className="block text-sm font-medium text-gray-700 mb-1 font-semibold">Lancha</label>
@@ -346,6 +385,34 @@ export const CreateEventScreen: React.FC = () => {
                       <select id="boarding-location-select" value={vm.selectedBoardingLocation?.id || ''} onChange={(e) => vm.handleBoardingLocationSelection(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
                           {vm.availableBoardingLocations.map(location => (
                               <option key={location.id} value={location.id}>{location.name}</option>
+                          ))}
+                      </select>
+                  </div>
+
+                  {/* Tour Type Selection */}
+                  <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label htmlFor="tour-type-select" className="block text-sm font-medium text-gray-700 font-semibold flex items-center">
+                          <Tag size={16} className="mr-1 text-gray-500" />
+                          Tipo de Passeio
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setIsTourTypeModalOpen(true)}
+                          className="text-xs text-blue-600 hover:underline flex items-center"
+                        >
+                          <Plus size={12} className="mr-0.5" /> Novo Tipo
+                        </button>
+                      </div>
+                      <select
+                        id="tour-type-select"
+                        value={vm.selectedTourType?.id || ''}
+                        onChange={(e) => vm.handleTourTypeSelection(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
+                      >
+                          <option value="" disabled>Selecione um tipo...</option>
+                          {vm.availableTourTypes.map(type => (
+                              <option key={type.id} value={type.id}>{type.name}</option>
                           ))}
                       </select>
                   </div>
@@ -581,18 +648,24 @@ export const CreateEventScreen: React.FC = () => {
                 }
               }).catch((err) => {
                 if (err.message === 'Campos obrigatórios ausentes.') {
-                  showToast('Por favor, preencha todos os campos obrigatórios: Data, Cliente, Lancha e Local de Embarque.');
+                  showToast('Por favor, preencha todos os campos obrigatórios: Data, Cliente, Lancha, Local de Embarque e Tipo de Passeio.');
                 } else {
                   showToast('Ocorreu um erro ao salvar o passeio: ' + (err.message || 'Erro desconhecido'));
                 }
               });
             }}
-            className={`px-8 py-4 text-white rounded-lg text-lg font-bold shadow-lg transition-colors ${vm.isPreScheduled ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-600 hover:bg-green-700'}`}
+            className="px-8 py-4 text-white rounded-lg text-lg font-bold shadow-lg transition-colors bg-blue-600 hover:bg-blue-700"
           >
-            {vm.isPreScheduled ? 'Pré-agendar Passeio' : 'Agendar Passeio'}
+            {vm.editingEventId ? 'Atualizar Passeio' : 'Agendar Passeio'}
           </button>
         </div>
       </footer>
+
+      <QuickTourTypeModal
+        isOpen={isTourTypeModalOpen}
+        onSave={vm.handleSaveTourType}
+        onClose={() => setIsTourTypeModalOpen(false)}
+      />
 
       <NewClientModal
         isOpen={vm.isModalOpen}

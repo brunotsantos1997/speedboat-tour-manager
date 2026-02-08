@@ -64,7 +64,7 @@ service cloud.firestore {
       allow delete: if hasStaffPermission(true);
     }
 
-    // Cadastros (Produtos, Barcos, Locais)
+    // Cadastros (Produtos, Barcos, Locais, Tipos de Passeio)
     match /products/{id} {
       allow read: if isApproved();
       allow write: if hasStaffPermission(true);
@@ -78,6 +78,11 @@ service cloud.firestore {
     match /boarding_locations/{id} {
       allow read: if isApproved();
       allow write: if hasStaffPermission(true);
+    }
+
+    match /tour_types/{id} {
+      allow read: if true;
+      allow write: if isApproved();
     }
 
     // Configurações Sensíveis (Apenas OWNER e SUPER_ADMIN para escrita, PÚBLICO para leitura no Voucher)

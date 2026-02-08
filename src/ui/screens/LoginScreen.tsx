@@ -16,7 +16,7 @@ export function LoginScreen() {
       await login(email, password);
       navigate('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to login.');
+      setError(err instanceof Error ? err.message : 'Falha ao fazer login.');
     }
   };
 
@@ -27,7 +27,7 @@ export function LoginScreen() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="email" className="text-sm font-medium text-gray-700">
-              Email
+              E-mail
             </label>
             <input
               id="email"

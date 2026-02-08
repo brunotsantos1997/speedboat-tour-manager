@@ -4,6 +4,8 @@ import { useSearchParams } from 'react-router-dom';
 import type { ClientProfile, EventType } from '../core/domain/types';
 import { clientRepository } from '../core/repositories/ClientRepository';
 import { eventRepository } from '../core/repositories/EventRepository';
+import { paymentRepository } from '../core/repositories/PaymentRepository';
+import { format } from 'date-fns';
 
 export const useClientHistoryViewModel = () => {
   const [searchParams] = useSearchParams();
@@ -20,6 +22,12 @@ export const useClientHistoryViewModel = () => {
   const [editingClient, setEditingClient] = useState<ClientProfile | null>(null);
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
+
+  // Payment Modal State
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [activeEventForPayment, setActiveEventForPayment] = useState<EventType | null>(null);
+  const [paymentType, setPaymentType] = useState<'DOWN_PAYMENT' | 'BALANCE' | 'FULL'>('BALANCE');
+  const [defaultPaymentAmount, setDefaultPaymentAmount] = useState(0);
 
   const handleSearch = useCallback(async (term: string) => {
     setSearchTerm(term);
@@ -50,7 +58,7 @@ export const useClientHistoryViewModel = () => {
         event.preScheduledAt &&
         (now - event.preScheduledAt > twentyFourHours)
       ) {
-        const updatedEvent = { ...event, status: 'CANCELLED' as const };
+        const updatedEvent = { ...event, status: 'CANCELLED' as const, autoCancelled: true };
         eventRepository.updateEvent(updatedEvent).catch(err =>
           console.error(`Failed to auto-cancel event ${event.id}:`, err)
         );
@@ -89,18 +97,90 @@ export const useClientHistoryViewModel = () => {
     }
   }, [clientEvents, selectedClient, selectClient]);
 
-  const confirmPayment = useCallback(async (eventId: string) => {
-    if (window.confirm('Tem certeza que deseja confirmar o pagamento da reserva?')) {
+  const initiatePayment = useCallback(async (eventId: string, type: 'DOWN_PAYMENT' | 'BALANCE' | 'FULL') => {
+    const event = clientEvents.find(e => e.id === eventId);
+    if (event) {
+        const payments = await paymentRepository.getByEventId(eventId);
+        const totalPaid = payments.reduce((acc, p) => acc + p.amount, 0);
+
+        let suggested = 0;
+        if (type === 'DOWN_PAYMENT') {
+          suggested = Math.max(0, (event.total * 0.3) - totalPaid);
+        } else {
+          suggested = Math.max(0, event.total - totalPaid);
+        }
+
+        setActiveEventForPayment(event);
+        setPaymentType(type);
+        setDefaultPaymentAmount(suggested);
+        setIsPaymentModalOpen(true);
+    }
+  }, [clientEvents]);
+
+  const confirmPaymentRecord = useCallback(async (amount: number, method: any, type: any) => {
+    if (!activeEventForPayment) return;
+
+    try {
+        const eventId = activeEventForPayment.id;
+
+        await paymentRepository.add({
+            eventId,
+            amount,
+            method,
+            type,
+            date: format(new Date(), 'yyyy-MM-dd'),
+            timestamp: Date.now()
+        });
+
+        let updatedEvent = { ...activeEventForPayment };
+        const payments = await paymentRepository.getByEventId(eventId);
+        const totalPaid = payments.reduce((acc, p) => acc + p.amount, 0);
+
+        const reservationFee = updatedEvent.total * 0.3;
+
+        if (totalPaid >= reservationFee && updatedEvent.status === 'PRE_SCHEDULED') {
+            updatedEvent.status = 'SCHEDULED';
+        }
+
+        if (totalPaid >= updatedEvent.total) {
+            updatedEvent.paymentStatus = 'CONFIRMED';
+        } else {
+            updatedEvent.paymentStatus = 'PENDING';
+        }
+
+        await eventRepository.updateEvent(updatedEvent);
+
+        if (selectedClient) {
+            await selectClient(selectedClient);
+        }
+
+        setIsPaymentModalOpen(false);
+        setActiveEventForPayment(null);
+    } catch (error) {
+        console.error('Failed to record payment:', error);
+        throw error;
+    }
+  }, [activeEventForPayment, selectedClient, selectClient]);
+
+  const revertCancellation = useCallback(async (eventId: string) => {
+    try {
       const eventToUpdate = clientEvents.find(e => e.id === eventId);
       if (!eventToUpdate) return;
-      const updatedEvent = { ...eventToUpdate, paymentStatus: 'CONFIRMED' as const };
-      if (updatedEvent.status === 'PRE_SCHEDULED') {
-        updatedEvent.status = 'SCHEDULED';
-      }
+
+      const updatedEvent: EventType = {
+        ...eventToUpdate,
+        status: 'SCHEDULED',
+        autoCancelled: false
+      };
+
       await eventRepository.updateEvent(updatedEvent);
-      if(selectedClient) {
-        selectClient(selectedClient);
+
+      if (selectedClient) {
+        await selectClient(selectedClient);
       }
+    } catch (error: any) {
+      console.error('Failed to revert cancellation:', error);
+      throw error;
     }
   }, [clientEvents, selectedClient, selectClient]);
 
@@ -163,9 +243,16 @@ export const useClientHistoryViewModel = () => {
     selectClient,
     clearSelection,
     cancelEvent,
-    confirmPayment,
     openEditModal,
     closeEditModal,
     handleSaveChanges,
+    isPaymentModalOpen,
+    setIsPaymentModalOpen,
+    activeEventForPayment,
+    paymentType,
+    defaultPaymentAmount,
+    initiatePayment,
+    confirmPaymentRecord,
+    revertCancellation
   };
 };

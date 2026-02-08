@@ -28,7 +28,7 @@ export function UserManagementScreen() {
         .map(user => ({ ...user, commissionInput: (user.commissionPercentage ?? 0).toString() }));
       setUsers(editableUsers);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch users.');
+      setError(err instanceof Error ? err.message : 'Falha ao buscar usuários.');
     } finally {
       setLoading(false);
     }
@@ -80,16 +80,16 @@ export function UserManagementScreen() {
 
     const commissionValue = parseFloat(user.commissionInput);
     if (isNaN(commissionValue) || commissionValue < 0 || commissionValue > 100) {
-      setToastMessage('Please enter a valid commission percentage (0-100).');
+      setToastMessage('Por favor, insira uma porcentagem de comissão válida (0-100).');
       return;
     }
 
     try {
       await updateUserCommission(userId, commissionValue);
-      setToastMessage('Commission updated successfully!');
+      setToastMessage('Comissão atualizada com sucesso!');
       fetchUsers();
     } catch (err) {
-      setToastMessage(err instanceof Error ? err.message : 'Failed to update commission.');
+      setToastMessage(err instanceof Error ? err.message : 'Falha ao atualizar comissão.');
     }
   };
 
@@ -119,7 +119,7 @@ export function UserManagementScreen() {
   };
 
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div>Carregando...</div>;
   if (error) return <div className="text-red-600">{error}</div>;
 
   return (
@@ -161,9 +161,9 @@ export function UserManagementScreen() {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">E-mail</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cargo</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Comissão (%)</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
             </tr>
@@ -185,9 +185,10 @@ export function UserManagementScreen() {
                         user.role === 'OWNER'
                     }
                   >
-                    <option value="SELLER">SELLER</option>
-                    <option value="ADMIN">ADMIN</option>
-                    {(currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN') && <option value="SUPER_ADMIN">SUPER_ADMIN</option>}
+                    <option value="SELLER">VENDEDOR</option>
+                    <option value="ADMIN">ADMINISTRADOR</option>
+                    {(currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN') && <option value="SUPER_ADMIN">SUPER ADMIN</option>}
+                    {user.role === 'OWNER' && <option value="OWNER">PROPRIETÁRIO</option>}
                   </select>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

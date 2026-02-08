@@ -68,6 +68,16 @@ export interface BoardingLocation {
   isArchived?: boolean;
 }
 
+/**
+ * Represents a type of tour (e.g., Anniversary, Bachelor Party).
+ */
+export interface TourType {
+  id: string;
+  name: string;
+  color: string;
+  isArchived?: boolean;
+}
+
 export type EventStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'PRE_SCHEDULED' | 'PENDING_REFUND' | 'REFUNDED' | 'ARCHIVED_COMPLETED' | 'ARCHIVED_CANCELLED';
 export type PaymentStatus = 'PENDING' | 'CONFIRMED';
 export type PaymentMethod = 'PIX' | 'CARD_CREDIT' | 'CARD_DEBIT' | 'CASH' | 'TRANSFER' | 'OTHER';
@@ -99,6 +109,7 @@ export interface EventType {
   preScheduledAt?: number; // Timestamp for pre-booking expiration
   boat: Boat;
   boardingLocation: BoardingLocation;
+  tourType?: TourType;
   products: SelectedProduct[];
   rentalDiscount?: Discount;
   productsDiscount?: Discount; // Legacy
@@ -115,6 +126,7 @@ export interface EventType {
   payments?: Payment[];
   rentalRevenue?: number;
   productsRevenue?: number;
+  autoCancelled?: boolean;
 }
 
 /**

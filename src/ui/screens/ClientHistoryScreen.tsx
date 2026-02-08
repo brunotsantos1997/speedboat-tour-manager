@@ -3,9 +3,10 @@
 import React from 'react';
 import { useClientHistoryViewModel } from '../../viewmodels/useClientHistoryViewModel';
 import { useToastContext } from '../contexts/ToastContext';
-import { Search, X, Calendar, Edit, Ban, CheckCircle, Clock, Pencil, FileText, Share2, DollarSign, AlertTriangle } from 'lucide-react';
+import { Search, X, Calendar, Edit, Ban, CheckCircle, Clock, Pencil, FileText, Share2, DollarSign, AlertTriangle, History } from 'lucide-react';
 import type { EventStatus, PaymentStatus, EventType, ClientProfile } from '../../core/domain/types';
 import { useNavigate } from 'react-router-dom';
+import { PaymentModal } from '../components/PaymentModal';
 
 const ClientModal: React.FC<{
   isOpen: boolean;
@@ -95,8 +96,9 @@ const EventCard: React.FC<{
   eventType: EventType;
   onCancel: (id: string) => void;
   onEdit: (id: string) => void;
-  onConfirmPayment: (id: string) => void;
-}> = ({ eventType, onCancel, onEdit, onConfirmPayment }) => {
+  onConfirmPayment: (id: string, type: 'DOWN_PAYMENT' | 'BALANCE' | 'FULL') => void;
+  onRevert?: (id: string) => void;
+}> = ({ eventType, onCancel, onEdit, onConfirmPayment, onRevert }) => {
 
   const shareVoucher = (eventId: string) => {
     const url = `${window.location.origin}/voucher/${eventId}`;
@@ -120,6 +122,10 @@ const EventCard: React.FC<{
       )}
       <div className="flex justify-between items-start">
         <div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: eventType.tourType?.color || '#cbd5e1' }}></div>
+            <span className="text-sm font-bold text-gray-600 uppercase tracking-tight">{eventType.tourType?.name || 'Passeio'}</span>
+          </div>
           <p className="font-bold text-lg text-gray-800">{eventType.boat.name}</p>
           <p className="flex items-center text-gray-600 mt-1">
             <Calendar size={16} className="mr-2" />
@@ -138,17 +144,33 @@ const EventCard: React.FC<{
         <button onClick={() => shareVoucher(eventType.id)} className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 flex items-center"><Share2 size={14} className="mr-1" /> Compartilhar</button>
         <a href={`/voucher/${eventType.id}`} target="_blank" rel="noopener noreferrer" className="px-3 py-1 text-sm bg-indigo-500 text-white rounded hover:bg-indigo-600 flex items-center"><FileText size={14} className="mr-1" /> Ver Voucher</a>
 
-        {(eventType.status === 'SCHEDULED' || eventType.status === 'PRE_SCHEDULED') && (
+        {['SCHEDULED', 'PRE_SCHEDULED', 'COMPLETED', 'ARCHIVED_COMPLETED'].includes(eventType.status) && (
           <>
-            {eventType.paymentStatus === 'PENDING' && (
-              <button onClick={() => onConfirmPayment(eventType.id)} className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 flex items-center">
-                <DollarSign size={14} className="mr-1" />
-                {eventType.status === 'PRE_SCHEDULED' ? 'Confirmar Reserva' : 'Confirmar Pagamento'}
-              </button>
+            <div className="flex gap-2">
+                {eventType.paymentStatus !== 'CONFIRMED' && (
+                    <button onClick={() => onConfirmPayment(eventType.id, eventType.status === 'PRE_SCHEDULED' ? 'DOWN_PAYMENT' : 'BALANCE')} className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 flex items-center">
+                        <DollarSign size={14} className="mr-1" />
+                        {eventType.status === 'PRE_SCHEDULED' ? 'Confirmar Reserva' : 'Confirmar Pagamento'}
+                    </button>
+                )}
+            </div>
+
+            {(eventType.status === 'SCHEDULED' || eventType.status === 'PRE_SCHEDULED') && (
+              <>
+                <button onClick={() => onEdit(eventType.id)} className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"><Edit size={14} className="mr-1" /> Alterar</button>
+                <button onClick={() => onCancel(eventType.id)} className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 flex items-center"><Ban size={14} className="mr-1" /> Cancelar</button>
+              </>
             )}
-            <button onClick={() => onEdit(eventType.id)} className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"><Edit size={14} className="mr-1" /> Alterar</button>
-            <button onClick={() => onCancel(eventType.id)} className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 flex items-center"><Ban size={14} className="mr-1" /> Cancelar</button>
           </>
+        )}
+
+        {eventType.status === 'CANCELLED' && eventType.autoCancelled && onRevert && (
+            <button
+                onClick={() => onRevert(eventType.id)}
+                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
+            >
+                <History size={14} className="mr-1" /> Reverter Cancelamento
+            </button>
         )}
       </div>
     </div>
@@ -179,7 +201,7 @@ export const ClientHistoryScreen: React.FC = () => {
                         onChange={(e) => vm.handleSearch(e.target.value)}
                         className="w-full p-3 pl-12 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500"
                     />
-                    {vm.selectedClient && (
+                    {(vm.searchTerm || vm.selectedClient) && (
                          <button onClick={vm.clearSelection} className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-red-600">
                             <X size={20} />
                         </button>
@@ -213,7 +235,8 @@ export const ClientHistoryScreen: React.FC = () => {
                                           eventType={eventType}
                                           onCancel={vm.cancelEvent}
                                           onEdit={handleEditEvent}
-                                          onConfirmPayment={vm.confirmPayment}
+                                          onConfirmPayment={vm.initiatePayment}
+                                          onRevert={vm.revertCancellation}
                                        />
                                     ))
                                 ) : <p>Nenhum evento encontrado para este cliente.</p>}
@@ -222,6 +245,17 @@ export const ClientHistoryScreen: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {vm.isPaymentModalOpen && vm.activeEventForPayment && (
+                <PaymentModal
+                    isOpen={vm.isPaymentModalOpen}
+                    onClose={() => vm.setIsPaymentModalOpen(false)}
+                    onConfirm={vm.confirmPaymentRecord}
+                    title={vm.paymentType === 'DOWN_PAYMENT' ? 'Confirmar Reserva (Sinal)' : 'Registrar Pagamento de Saldo'}
+                    defaultAmount={vm.defaultPaymentAmount}
+                    type={vm.paymentType}
+                />
+            )}
 
             <ClientModal
                 isOpen={vm.isModalOpen}

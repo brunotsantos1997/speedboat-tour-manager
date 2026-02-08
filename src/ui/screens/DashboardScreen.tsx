@@ -7,6 +7,7 @@ import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 import { DollarSign, Hash, PlusCircle, Search, Clock, AlertTriangle, Anchor, CheckCircle, Bell, Ban, Wallet } from 'lucide-react';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
+import { ptBR } from 'date-fns/locale';
 import type { EventType, PaymentType } from '../../core/domain/types';
 import { PaymentModal } from '../components/PaymentModal';
 
@@ -51,9 +52,17 @@ const EventListItem: React.FC<{ event: EventType; onConfirmPayment: (id: string,
           <Link to={`/clients?clientId=${event.client.id}`} className="font-semibold text-blue-600 hover:underline">{event.client.name}</Link>
           <span className="font-normal text-sm text-gray-600">{capitalizedDate}</span>
         </div>
-        <div className="flex items-center text-sm text-gray-500 mt-1">
-          <Anchor size={14} className="mr-2" /> {event.boat.name}
-          <Clock size={14} className="ml-4 mr-2" /> {event.startTime} - {event.endTime}
+        <div className="flex flex-wrap items-center text-sm text-gray-500 mt-1 gap-y-1">
+          <div className="flex items-center mr-4">
+            <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: event.tourType?.color || '#cbd5e1' }}></div>
+            <span className="font-medium text-gray-700">{event.tourType?.name || 'Passeio'}</span>
+          </div>
+          <div className="flex items-center mr-4">
+            <Anchor size={14} className="mr-2" /> {event.boat.name}
+          </div>
+          <div className="flex items-center">
+            <Clock size={14} className="mr-2" /> {event.startTime} - {event.endTime}
+          </div>
         </div>
       </div>
       <div className="flex items-center">
@@ -90,13 +99,15 @@ export const DashboardScreen: React.FC = () => {
     setIsPaymentModalOpen,
     activeEventForPayment,
     paymentType,
+    defaultPaymentAmount,
     initiatePayment,
     confirmPaymentRecord,
-    processNotification
+    processNotification,
+    revertCancellation
   } = useDashboardViewModel();
 
   // A new component for notifications
-  const NotificationCard: React.FC<{ event: EventType; onAcknowledge: (id: string) => void; onPayment: (id: string, type: PaymentType) => void; }> = ({ event, onAcknowledge, onPayment }) => {
+  const NotificationCard: React.FC<{ event: EventType; onAcknowledge: (id: string) => void; onPayment: (id: string, type: PaymentType) => void; onRevert: (id: string) => void; }> = ({ event, onAcknowledge, onPayment, onRevert }) => {
     const styleMap = {
       CANCELLED: {
         container: 'bg-red-50 border-l-4 border-red-500',
@@ -136,18 +147,28 @@ export const DashboardScreen: React.FC = () => {
           </div>
           <p className="text-sm text-gray-600 ml-7">{new Date(event.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} - {event.boat.name}</p>
         </div>
-        <button
-          onClick={() => {
-            if (status === 'COMPLETED' && event.paymentStatus === 'PENDING') {
-                onPayment(event.id, 'BALANCE');
-            } else {
-                onAcknowledge(event.id);
-            }
-          }}
-          className={`${button} text-white px-3 py-1 rounded-lg text-sm transition-colors`}
-        >
-          {actionText}
-        </button>
+        <div className="flex gap-2">
+            {status === 'CANCELLED' && event.autoCancelled && (
+                <button
+                    onClick={() => onRevert(event.id)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+                >
+                    Reverter
+                </button>
+            )}
+            <button
+                onClick={() => {
+                    if (status === 'COMPLETED' && event.paymentStatus === 'PENDING') {
+                        onPayment(event.id, 'BALANCE');
+                    } else {
+                        onAcknowledge(event.id);
+                    }
+                }}
+                className={`${button} text-white px-3 py-1 rounded-lg text-sm transition-colors`}
+            >
+                {actionText}
+            </button>
+        </div>
       </div>
     );
   };
@@ -194,6 +215,7 @@ export const DashboardScreen: React.FC = () => {
                     event={event}
                     onAcknowledge={processNotification}
                     onPayment={initiatePayment}
+                    onRevert={revertCancellation}
                   />
                 )}
               </div>
@@ -249,6 +271,7 @@ export const DashboardScreen: React.FC = () => {
                 setSelectedDate(date);
               }
             }}
+            locale={ptBR}
             modifiers={{ booked: calendarEvents }}
             modifiersStyles={{ booked: { color: 'red', fontWeight: 'bold' } }}
             className="w-full"
@@ -263,7 +286,7 @@ export const DashboardScreen: React.FC = () => {
           onClose={() => setIsPaymentModalOpen(false)}
           onConfirm={confirmPaymentRecord}
           title={paymentType === 'DOWN_PAYMENT' ? 'Confirmar Reserva (Sinal)' : 'Registrar Pagamento de Saldo'}
-          defaultAmount={paymentType === 'DOWN_PAYMENT' ? activeEventForPayment.total * 0.3 : activeEventForPayment.total} // Placeholder suggested values
+          defaultAmount={defaultPaymentAmount}
           type={paymentType}
         />
       )}

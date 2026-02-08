@@ -14,6 +14,7 @@ import {
   Package,
   MapPin,
   ExternalLink,
+  Tag,
 } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 
@@ -57,6 +58,15 @@ const formatDuration = (hours: number) => {
 export const VoucherScreen: React.FC = () => {
   const { voucher, companyData, voucherTerms, watermark, isLoading, error, handleDownloadPdf } = useVoucherViewModel();
 
+  const boatRentalGross = React.useMemo(() => {
+    if (!voucher || !voucher.boat) return 0;
+    const hours = Math.floor(voucher.durationHours);
+    const mins = Math.round((voucher.durationHours - hours) * 60);
+    let cost = hours * (voucher.boat.pricePerHour || 0);
+    if (mins >= 30) cost += (voucher.boat.pricePerHalfHour || 0);
+    return cost;
+  }, [voucher]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
@@ -91,18 +101,8 @@ export const VoucherScreen: React.FC = () => {
     products,
     subtotal,
     total,
-    reservationFee,
     remainingBalance,
   } = voucher;
-
-  const boatRentalGross = React.useMemo(() => {
-    if (!voucher || !boat) return 0;
-    const hours = Math.floor(voucher.durationHours);
-    const mins = Math.round((voucher.durationHours - hours) * 60);
-    let cost = hours * (boat.pricePerHour || 0);
-    if (mins >= 30) cost += (boat.pricePerHalfHour || 0);
-    return cost;
-  }, [voucher, boat]);
 
   const watermarkStyle = watermark
     ? {
@@ -148,6 +148,12 @@ export const VoucherScreen: React.FC = () => {
                   <h3 className="font-bold text-lg mb-4 text-gray-700">Dados do Cliente</h3>
                   <div className="space-y-4">
                       <InfoItem icon={User} label="Nome" value={client.name} />
+                      {voucher.observations && (
+                        <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                           <p className="text-xs font-bold text-blue-600 uppercase mb-1">Descrição do Passeio</p>
+                           <p className="text-sm text-gray-700 whitespace-pre-wrap">{voucher.observations}</p>
+                        </div>
+                      )}
                   </div>
               </div>
               <div className="border-t md:border-t-0 md:border-l border-gray-200 pt-6 md:pt-0 md:pl-6">
@@ -156,6 +162,7 @@ export const VoucherScreen: React.FC = () => {
                       <InfoItem icon={CalendarDays} label="Data" value={new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} />
                       <InfoItem icon={Clock} label="Horário" value={`${startTime} - ${endTime}`} />
                       <InfoItem icon={Users} label="Nº de Passageiros" value={`${passengerCount} pessoas`} />
+                      <InfoItem icon={Tag} label="Tipo de Passeio" value={voucher.tourType?.name || 'Passeio'} />
                       <InfoItem icon={Anchor} label="Lancha" value={boat.name} />
                       <InfoItem
                         icon={MapPin}
@@ -291,14 +298,21 @@ export const VoucherScreen: React.FC = () => {
 
                       {(voucher.tax ?? 0) > 0 && (
                         <div className="flex justify-between text-green-600">
-                          <span>{voucher.taxDescription || 'Taxa'}</span>
+                          <span className="italic flex flex-col">
+                            <span>Taxa Adicional</span>
+                            {voucher.taxDescription && <span className="text-[10px] text-gray-500">Motivo: {voucher.taxDescription}</span>}
+                          </span>
                           <span className="font-medium">+ {formatCurrencyBRL(voucher.tax ?? 0)}</span>
                         </div>
                       )}
                       <div className="flex justify-between font-bold text-lg border-t border-gray-200 pt-2 mt-2"><span>Total</span> <span>{formatCurrencyBRL(total)}</span></div>
                       <div className="flex justify-between font-bold text-lg text-blue-600 bg-blue-50 p-3 rounded-lg">
-                          <span>Sinal (Reserva 30%)</span>
-                          <span>{formatCurrencyBRL(reservationFee)}</span>
+                          <span>
+                            {voucher.remainingReservationFee < voucher.reservationFee && voucher.remainingReservationFee > 0
+                              ? "Sinal Pendente (Reserva)"
+                              : "Sinal (Reserva 30%)"}
+                          </span>
+                          <span>{formatCurrencyBRL(voucher.remainingReservationFee)}</span>
                       </div>
                        <div className="flex justify-between text-gray-600 pt-2 mt-2">
                           <span>Saldo a pagar no dia</span>
@@ -308,10 +322,10 @@ export const VoucherScreen: React.FC = () => {
               </div>
             </section>
 
-            {/* Observations Section */}
+            {/* Observations Section (Keep it but rename) */}
             {voucher.observations && (
               <section className="mb-8 p-4 bg-yellow-50 border border-yellow-100 rounded-lg">
-                <h3 className="font-bold text-lg mb-2 text-gray-700">Observações Importantes</h3>
+                <h3 className="font-bold text-lg mb-2 text-gray-700">Notas Adicionais</h3>
                 <p className="text-sm text-gray-700 whitespace-pre-wrap">{voucher.observations}</p>
               </section>
             )}

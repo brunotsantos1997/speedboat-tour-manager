@@ -9,8 +9,6 @@ import {
   onSnapshot,
   query,
   type Unsubscribe,
-  where,
-  orderBy,
   deleteDoc
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -53,12 +51,14 @@ class IncomeRepositoryImpl implements IIncomeRepository {
   }
 
   private initListener() {
-    const q = query(collection(db, this.collectionName), orderBy('date', 'desc'));
+    const q = query(collection(db, this.collectionName));
     this.unsubscribe = onSnapshot(q, (snapshot) => {
-      this.incomes = snapshot.docs.map(doc => ({
-        ...doc.data() as Income,
-        id: doc.id
-      }));
+      this.incomes = snapshot.docs
+        .map(doc => ({
+          ...doc.data() as Income,
+          id: doc.id
+        }))
+        .sort((a, b) => b.date.localeCompare(a.date));
       this.isInitialized = true;
     });
   }
@@ -75,29 +75,22 @@ class IncomeRepositoryImpl implements IIncomeRepository {
 
   async getAll(): Promise<Income[]> {
     if (!this.isInitialized) {
-      const q = query(collection(db, this.collectionName), orderBy('date', 'desc'));
+      const q = query(collection(db, this.collectionName));
       const querySnapshot = await getDocs(q);
-      this.incomes = querySnapshot.docs.map(doc => ({
-        ...doc.data() as Income,
-        id: doc.id
-      }));
+      this.incomes = querySnapshot.docs
+        .map(doc => ({
+          ...doc.data() as Income,
+          id: doc.id
+        }))
+        .sort((a, b) => b.date.localeCompare(a.date));
       this.isInitialized = true;
     }
     return this.incomes;
   }
 
   async getByDateRange(startDate: string, endDate: string): Promise<Income[]> {
-    const q = query(
-      collection(db, this.collectionName),
-      where('date', '>=', startDate),
-      where('date', '<=', endDate),
-      orderBy('date', 'desc')
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      ...doc.data() as Income,
-      id: doc.id
-    }));
+    const all = await this.getAll();
+    return all.filter(i => i.date >= startDate && i.date <= endDate);
   }
 
   private checkAdminPermission() {

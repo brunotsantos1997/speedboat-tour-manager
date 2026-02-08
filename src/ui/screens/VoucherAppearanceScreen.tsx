@@ -63,7 +63,7 @@ export const VoucherAppearanceScreen: React.FC = () => {
                     htmlFor="file-upload"
                     className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
                   >
-                    <span>Carregar um arquivo</span>
+                    <span>Fazer upload de um arquivo</span>
                     <input
                       id="file-upload"
                       name="file-upload"
