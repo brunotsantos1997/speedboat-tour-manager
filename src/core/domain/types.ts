@@ -160,6 +160,7 @@ export interface Expense {
   categoryName?: string; // Denormalized for easier display
   boatId?: string; // Optional: linked to a specific boat
   boatName?: string;
+  eventId?: string; // Optional: linked to a specific event
   status: 'PENDING' | 'PAID';
   paymentMethod?: PaymentMethod;
   timestamp: number;
