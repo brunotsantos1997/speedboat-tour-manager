@@ -30,6 +30,7 @@ class ExpenseCategoryRepositoryImpl implements IExpenseCategoryRepository {
   private unsubscribe: Unsubscribe | null = null;
   private isInitialized = false;
   private currentUser: any = null;
+  private listeners: ((data: ExpenseCategory[]) => void)[] = [];
 
   private constructor() {}
 
@@ -56,7 +57,23 @@ class ExpenseCategoryRepositoryImpl implements IExpenseCategoryRepository {
         id: doc.id
       }));
       this.isInitialized = true;
+      this.notifyListeners();
     });
+  }
+
+  private notifyListeners() {
+    const activeCategories = this.categories.filter(c => !c.isArchived);
+    this.listeners.forEach(listener => listener(activeCategories));
+  }
+
+  subscribe(listener: (data: ExpenseCategory[]) => void) {
+    this.listeners.push(listener);
+    if (this.isInitialized) {
+      listener(this.categories.filter(c => !c.isArchived));
+    }
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
   }
 
   dispose() {

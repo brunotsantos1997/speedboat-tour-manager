@@ -9,16 +9,20 @@ export const useBoardingLocationsViewModel = () => {
   const repository = boardingLocationRepository;
 
   useEffect(() => {
-    repository.getAll().then((data) => {
+    setIsLoading(true);
+    repository.getAll().then(() => setIsLoading(false));
+
+    const unsubscribe = repository.subscribe((data) => {
       setLocations(data);
       setIsLoading(false);
     });
+
+    return unsubscribe;
   }, [repository]);
 
   const addLocation = async (location: Omit<BoardingLocation, 'id'>) => {
     try {
-      const newLocation = await repository.add(location);
-      setLocations([...locations, newLocation]);
+      await repository.add(location);
       return { success: true };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Erro ao adicionar local.' };
@@ -27,10 +31,7 @@ export const useBoardingLocationsViewModel = () => {
 
   const updateLocation = async (location: BoardingLocation) => {
     try {
-      const updatedLocation = await repository.update(location);
-      setLocations(
-        locations.map((l) => (l.id === updatedLocation.id ? updatedLocation : l))
-      );
+      await repository.update(location);
       return { success: true };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Erro ao atualizar local.' };
@@ -54,7 +55,6 @@ export const useBoardingLocationsViewModel = () => {
     if (locationToDeleteId) {
       try {
         await repository.delete(locationToDeleteId);
-        setLocations(locations.filter((l) => l.id !== locationToDeleteId));
         closeConfirmDeleteModal();
         return { success: true };
       } catch (error) {

@@ -32,6 +32,7 @@ class IncomeRepositoryImpl implements IIncomeRepository {
   private unsubscribe: Unsubscribe | null = null;
   private isInitialized = false;
   private currentUser: any = null;
+  private listeners: ((data: Income[]) => void)[] = [];
 
   private constructor() {}
 
@@ -60,7 +61,22 @@ class IncomeRepositoryImpl implements IIncomeRepository {
         }))
         .sort((a, b) => b.date.localeCompare(a.date));
       this.isInitialized = true;
+      this.notifyListeners();
     });
+  }
+
+  private notifyListeners() {
+    this.listeners.forEach(listener => listener(this.incomes));
+  }
+
+  subscribe(listener: (data: Income[]) => void) {
+    this.listeners.push(listener);
+    if (this.isInitialized) {
+      listener(this.incomes);
+    }
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
   }
 
   dispose() {

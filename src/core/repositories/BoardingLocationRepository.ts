@@ -21,6 +21,7 @@ export class BoardingLocationRepository {
   private unsubscribe: Unsubscribe | null = null;
   private isInitialized = false;
   private currentUser: any = null;
+  private listeners: ((data: BoardingLocation[]) => void)[] = [];
 
   private constructor() {}
 
@@ -47,7 +48,23 @@ export class BoardingLocationRepository {
         id: doc.id
       }));
       this.isInitialized = true;
+      this.notifyListeners();
     });
+  }
+
+  private notifyListeners() {
+    const activeLocations = this.locations.filter(l => !l.isArchived);
+    this.listeners.forEach(listener => listener(activeLocations));
+  }
+
+  subscribe(listener: (data: BoardingLocation[]) => void) {
+    this.listeners.push(listener);
+    if (this.isInitialized) {
+      listener(this.locations.filter(l => !l.isArchived));
+    }
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
   }
 
   dispose() {

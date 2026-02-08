@@ -31,6 +31,7 @@ class ExpenseRepositoryImpl implements IExpenseRepository {
   private unsubscribe: Unsubscribe | null = null;
   private isInitialized = false;
   private currentUser: any = null;
+  private listeners: ((data: Expense[]) => void)[] = [];
 
   private constructor() {}
 
@@ -59,7 +60,22 @@ class ExpenseRepositoryImpl implements IExpenseRepository {
         }))
         .sort((a, b) => b.date.localeCompare(a.date));
       this.isInitialized = true;
+      this.notifyListeners();
     });
+  }
+
+  private notifyListeners() {
+    this.listeners.forEach(listener => listener(this.expenses));
+  }
+
+  subscribe(listener: (data: Expense[]) => void) {
+    this.listeners.push(listener);
+    if (this.isInitialized) {
+      listener(this.expenses);
+    }
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
   }
 
   dispose() {

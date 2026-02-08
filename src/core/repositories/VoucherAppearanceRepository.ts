@@ -15,6 +15,7 @@ export class VoucherAppearanceRepository {
   private data: VoucherAppearanceData | null = null;
   private unsubscribe: Unsubscribe | null = null;
   private currentUser: any = null;
+  private listeners: ((data: VoucherAppearanceData | null) => void)[] = [];
 
   private constructor() {}
 
@@ -38,8 +39,25 @@ export class VoucherAppearanceRepository {
     this.unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         this.data = { ...docSnap.data() as VoucherAppearanceData, id: docSnap.id };
+      } else {
+        this.data = null;
       }
+      this.notifyListeners();
     });
+  }
+
+  private notifyListeners() {
+    this.listeners.forEach(listener => listener(this.data));
+  }
+
+  subscribe(listener: (data: VoucherAppearanceData | null) => void) {
+    this.listeners.push(listener);
+    if (this.data) {
+      listener(this.data);
+    }
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
   }
 
   dispose() {
@@ -60,7 +78,20 @@ export class VoucherAppearanceRepository {
       this.data = { ...docSnap.data() as VoucherAppearanceData, id: docSnap.id };
       return this.data;
     }
-    return { id: this.docId, watermarkImage: null };
+
+    const defaultData = { id: this.docId, watermarkImage: null };
+
+    // Try to save default data to server
+    try {
+      const { id, ...dataToSave } = defaultData;
+      await setDoc(docRef, dataToSave);
+      this.data = defaultData;
+      this.notifyListeners();
+    } catch (e) {
+      console.warn("Could not save default voucher appearance data to server:", e);
+    }
+
+    return defaultData;
   }
 
   async update(updatedData: VoucherAppearanceData): Promise<VoucherAppearanceData> {

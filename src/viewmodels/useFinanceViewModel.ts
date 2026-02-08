@@ -1,5 +1,5 @@
 // src/viewmodels/useFinanceViewModel.ts
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { EventType, Expense, Payment, Income } from '../core/domain/types';
 import { eventRepository } from '../core/repositories/EventRepository';
 import { expenseRepository } from '../core/repositories/ExpenseRepository';
@@ -17,32 +17,31 @@ export const useFinanceViewModel = () => {
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));
 
-  const loadData = useCallback(async () => {
+  useEffect(() => {
     setLoading(true);
-    try {
-      // Trigger backfill for events missing financial data
-      await eventRepository.backfillFinancialData();
-
-      const [allEvents, allExpenses, allPayments, allIncomes] = await Promise.all([
+    // Trigger backfill for events missing financial data
+    eventRepository.backfillFinancialData().finally(() => {
+      // Also ensure initial load from repositories
+      Promise.all([
         eventRepository.getAll(),
         expenseRepository.getAll(),
         paymentRepository.getAll(),
         incomeRepository.getAll()
-      ]);
-      setEvents(allEvents);
-      setExpenses(allExpenses.filter((e: any) => !e.isArchived));
-      setPayments(allPayments);
-      setIncomes(allIncomes);
-    } catch (err) {
-      console.error('Failed to load financial data:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      ]).finally(() => setLoading(false));
+    });
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+    const unsubEvents = eventRepository.subscribe(setEvents);
+    const unsubExpenses = expenseRepository.subscribe((data) => setExpenses(data.filter(e => !e.isArchived)));
+    const unsubPayments = paymentRepository.subscribe(setPayments);
+    const unsubIncomes = incomeRepository.subscribe(setIncomes);
+
+    return () => {
+      unsubEvents();
+      unsubExpenses();
+      unsubPayments();
+      unsubIncomes();
+    };
+  }, []);
 
   const filteredData = useMemo(() => {
     const startStr = format(startDate, 'yyyy-MM-dd');
@@ -159,6 +158,6 @@ export const useFinanceViewModel = () => {
     stats,
     cashFlowData,
     dailyCashFlow,
-    refresh: loadData
+    refresh: () => {}
   };
 };

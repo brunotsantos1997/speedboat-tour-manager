@@ -30,6 +30,7 @@ class ProductRepositoryImpl implements IProductRepository {
   private unsubscribe: Unsubscribe | null = null;
   private isInitialized = false;
   private currentUser: any = null;
+  private listeners: ((data: Product[]) => void)[] = [];
 
   private constructor() {}
 
@@ -56,7 +57,23 @@ class ProductRepositoryImpl implements IProductRepository {
         id: doc.id
       }));
       this.isInitialized = true;
+      this.notifyListeners();
     });
+  }
+
+  private notifyListeners() {
+    const activeProducts = this.products.filter(p => !p.isArchived);
+    this.listeners.forEach(listener => listener(activeProducts));
+  }
+
+  subscribe(listener: (data: Product[]) => void) {
+    this.listeners.push(listener);
+    if (this.isInitialized) {
+      listener(this.products.filter(p => !p.isArchived));
+    }
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
   }
 
   dispose() {

@@ -11,19 +11,15 @@ export const useVoucherAppearanceViewModel = () => {
   const repository = VoucherAppearanceRepository.getInstance();
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
-        const data = await repository.get();
-        setAppearanceData(data || null);
-      } catch {
-        setError('Falha ao carregar aparência do voucher.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    setIsLoading(true);
+    repository.get().catch(() => setError('Falha ao carregar aparência do voucher.'));
 
-    loadData();
+    const unsubscribe = repository.subscribe((data) => {
+      setAppearanceData(data);
+      setIsLoading(false);
+    });
+
+    return unsubscribe;
   }, [repository]);
 
   const updateWatermark = useCallback(

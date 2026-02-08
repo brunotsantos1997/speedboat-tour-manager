@@ -8,7 +8,8 @@ import {
   onSnapshot,
   query,
   getDoc,
-  type Unsubscribe
+  type Unsubscribe,
+  where
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type { EventType } from '../domain/types';
@@ -33,6 +34,7 @@ class EventRepositoryImpl implements IEventRepository {
   private unsubscribe: Unsubscribe | null = null;
   private isInitialized = false;
   private currentUser: any = null;
+  private listeners: ((data: EventType[]) => void)[] = [];
 
   constructor() {}
 
@@ -52,6 +54,43 @@ class EventRepositoryImpl implements IEventRepository {
         id: doc.id
       }));
       this.isInitialized = true;
+      this.notifyListeners();
+    });
+  }
+
+  private notifyListeners() {
+    this.listeners.forEach(listener => listener(this.events));
+  }
+
+  subscribe(listener: (data: EventType[]) => void) {
+    this.listeners.push(listener);
+    if (this.isInitialized) {
+      listener(this.events);
+    }
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
+  }
+
+  subscribeToId(id: string, callback: (data: EventType | undefined) => void) {
+    const docRef = doc(db, this.collectionName, id);
+    return onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        callback({ ...docSnap.data() as EventType, id: docSnap.id });
+      } else {
+        callback(undefined);
+      }
+    });
+  }
+
+  subscribeToClientEvents(clientId: string, callback: (data: EventType[]) => void) {
+    const q = query(collection(db, this.collectionName), where('client.id', '==', clientId));
+    return onSnapshot(q, (snapshot) => {
+      const events = snapshot.docs.map(doc => ({
+        ...doc.data() as EventType,
+        id: doc.id
+      }));
+      callback(events);
     });
   }
 

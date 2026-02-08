@@ -22,41 +22,39 @@ export const useDashboardViewModel = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
 
-  const fetchEvents = useCallback(async () => {
+  useEffect(() => {
     setIsLoading(true);
-    try {
-      const allFetchedEvents = await eventRepository.getAll();
+    eventRepository.getAll()
+      .then(async (allFetchedEvents) => {
+        // Auto-cancel logic remains, but we can do it asynchronously and let onSnapshot handle the update
+        const now = Date.now();
+        const twentyFourHours = 24 * 60 * 60 * 1000;
 
-      // Auto-cancel expired pre-reservations (older than 24h)
-      const now = Date.now();
-      const twentyFourHours = 24 * 60 * 60 * 1000;
-      const updatedEvents = [...allFetchedEvents];
-
-      for (let i = 0; i < updatedEvents.length; i++) {
-        const event = updatedEvents[i];
-        if (event.status === 'PRE_SCHEDULED' && event.preScheduledAt && (now - event.preScheduledAt > twentyFourHours)) {
-          const cancelledEvent = { ...event, status: 'CANCELLED' as const, autoCancelled: true };
-          try {
-            await eventRepository.updateEvent(cancelledEvent);
-            updatedEvents[i] = cancelledEvent;
-          } catch (error) {
-            console.error(`Failed to auto-cancel event ${event.id}:`, error);
+        for (const event of allFetchedEvents) {
+          if (event.status === 'PRE_SCHEDULED' && event.preScheduledAt && (now - event.preScheduledAt > twentyFourHours)) {
+            const cancelledEvent = { ...event, status: 'CANCELLED' as const, autoCancelled: true };
+            try {
+              await eventRepository.updateEvent(cancelledEvent);
+            } catch (error) {
+              console.error(`Failed to auto-cancel event ${event.id}:`, error);
+            }
           }
         }
-      }
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        setError('Falha ao buscar passeios.');
+        console.error(err);
+        setIsLoading(false);
+      });
 
-      setAllEvents(updatedEvents);
-    } catch (err) {
-      setError('Falha ao buscar passeios.');
-      console.error(err);
-    } finally {
+    const unsubscribe = eventRepository.subscribe((events) => {
+      setAllEvents(events);
       setIsLoading(false);
-    }
-  }, []);
+    });
 
-  useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
+    return unsubscribe;
+  }, []);
 
   // --- Actions ---
   const initiatePayment = useCallback(async (eventId: string, type: 'DOWN_PAYMENT' | 'BALANCE' | 'FULL') => {
@@ -116,12 +114,6 @@ export const useDashboardViewModel = () => {
 
       await eventRepository.updateEvent(updatedEvent);
 
-      setAllEvents(prev =>
-        prev.map(event =>
-          event.id === eventId ? updatedEvent : event
-        )
-      );
-
       showToast('Pagamento registrado com sucesso!');
       setIsPaymentModalOpen(false);
       setActiveEventForPayment(null);
@@ -154,12 +146,6 @@ export const useDashboardViewModel = () => {
       }
 
       await eventRepository.updateEvent(updatedEvent);
-
-      setAllEvents(prev =>
-        prev.map(event =>
-          event.id === eventId ? updatedEvent : event
-        )
-      );
       showToast(toastMessage);
     } catch (error) {
       console.error('Failed to process notification:', error);
@@ -179,12 +165,6 @@ export const useDashboardViewModel = () => {
       };
 
       await eventRepository.updateEvent(updatedEvent);
-
-      setAllEvents(prev =>
-        prev.map(event =>
-          event.id === eventId ? updatedEvent : event
-        )
-      );
       showToast('Cancelamento revertido e reserva confirmada!');
     } catch (error: any) {
       console.error('Failed to revert cancellation:', error);
