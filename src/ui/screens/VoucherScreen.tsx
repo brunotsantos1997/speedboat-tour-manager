@@ -305,18 +305,49 @@ export const VoucherScreen: React.FC = () => {
                           <span className="font-medium">+ {formatCurrencyBRL(voucher.tax ?? 0)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between font-bold text-lg border-t border-gray-200 pt-2 mt-2"><span>Total</span> <span>{formatCurrencyBRL(total)}</span></div>
-                      <div className="flex justify-between font-bold text-lg text-blue-600 bg-blue-50 p-3 rounded-lg">
-                          <span>
-                            {voucher.remainingReservationFee < voucher.reservationFee && voucher.remainingReservationFee > 0
-                              ? "Sinal Pendente (Reserva)"
-                              : "Sinal (Reserva 30%)"}
-                          </span>
-                          <span>{formatCurrencyBRL(voucher.remainingReservationFee)}</span>
+                      <div className="flex justify-between font-bold text-lg border-t border-gray-200 pt-2 mt-2">
+                        <span>Total</span>
+                        <div className="flex items-center gap-2">
+                          {voucher.isFullyPaid && <span className="text-green-600 text-sm font-bold uppercase tracking-wider">Pago</span>}
+                          <span className={voucher.isFullyPaid ? "line-through opacity-50" : ""}>{formatCurrencyBRL(total)}</span>
+                        </div>
                       </div>
+
+                      {/* Signal (Down Payment) Logic */}
+                      {voucher.totalPaid > 0 ? (
+                        <div className="space-y-1">
+                          <div className="flex justify-between font-bold text-lg text-green-700 bg-green-50 p-3 rounded-lg border border-green-100">
+                              <span className="flex items-center gap-2">
+                                <span className="text-sm uppercase tracking-wider">Pago</span>
+                                <span>Sinal Antecipado</span>
+                              </span>
+                              <span className="line-through opacity-60">{formatCurrencyBRL(voucher.totalPaid)}</span>
+                          </div>
+
+                          {voucher.remainingReservationFee > 0 && (
+                            <div className="flex justify-between font-bold text-md text-blue-600 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                <span>Sinal Pendente (Reserva)</span>
+                                <span>{formatCurrencyBRL(voucher.remainingReservationFee)}</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex justify-between font-bold text-lg text-blue-600 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                            <span>Sinal (Reserva {companyData.reservationFeePercentage || 30}%)</span>
+                            <span>{formatCurrencyBRL(voucher.reservationFee)}</span>
+                        </div>
+                      )}
+
                        <div className="flex justify-between text-gray-600 pt-2 mt-2">
                           <span>Saldo a pagar no dia</span>
-                          <span className="font-bold">{formatCurrencyBRL(remainingBalance)}</span>
+                          <div className="flex items-center gap-2">
+                            {(voucher.status === 'COMPLETED' || voucher.status === 'ARCHIVED_COMPLETED') && voucher.remainingBalance <= 0 && (
+                                <span className="text-green-600 text-xs font-bold uppercase">Pago</span>
+                            )}
+                            <span className={`font-bold ${(voucher.status === 'COMPLETED' || voucher.status === 'ARCHIVED_COMPLETED') && voucher.remainingBalance <= 0 ? "line-through opacity-50" : ""}`}>
+                                {formatCurrencyBRL(remainingBalance)}
+                            </span>
+                          </div>
                       </div>
                   </div>
               </div>

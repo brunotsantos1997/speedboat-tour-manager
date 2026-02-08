@@ -1,6 +1,8 @@
 // src/core/repositories/CommissionRepository.ts
 import type { CommissionReportEntry } from '../domain/types';
 import { eventRepository } from './EventRepository';
+import { expenseRepository } from './ExpenseRepository';
+import { companyDataRepository } from './CompanyDataRepository';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type { User } from '../domain/User';
@@ -27,8 +29,13 @@ class CommissionRepository implements ICommissionRepository {
 
     const userMap = new Map<string, User>(allUsers.map(user => [user.id, user]));
 
+    // Fetch all expenses to check for payments
+    const allExpenses = await expenseRepository.getAll();
+
+    const confirmedStatuses = ['SCHEDULED', 'COMPLETED', 'ARCHIVED_COMPLETED'];
+
     const filteredEvents = allEvents.filter(event => {
-      if (event.status !== 'COMPLETED') {
+      if (!confirmedStatuses.includes(event.status)) {
         return false;
       }
       const eventDate = new Date(event.date + 'T00:00:00');
@@ -41,20 +48,40 @@ class CommissionRepository implements ICommissionRepository {
 
     const report: CommissionReportEntry[] = [];
 
+    const companyData = await companyDataRepository.get();
+    const useTotalForCommission = companyData?.commissionBasis === 'TOTAL_PRICE';
+
     for (const event of filteredEvents) {
       if (event.createdByUserId) {
         const user = userMap.get(event.createdByUserId);
         if (user && user.commissionPercentage) {
-          const commissionValue = event.total * (user.commissionPercentage / 100);
+          // Commission calculation base depends on company configuration
+          const baseValue = useTotalForCommission ? event.total : (event.rentalRevenue || 0);
+          const commissionValue = baseValue * (user.commissionPercentage / 100);
+
+          // Check if there's an expense that corresponds to this commission
+          // We look for a specific marker in the description or a boat link if applicable
+          // For now, let's use the description convention: "Comissão: [UserName] - [EventDate] - [ClientName]"
+          // or we could use eventId if we added it to expense, but let's stick to description for now
+          // as it's more human-readable in the cash book.
+          const commissionExpense = allExpenses.find(exp =>
+            !exp.isArchived &&
+            exp.description.includes(`Comissão:`) &&
+            exp.description.includes(event.id)
+          );
+
           report.push({
             userId: user.id,
             userName: user.name,
             eventId: event.id,
             eventDate: event.date,
             eventTotalPrice: event.total,
+            rentalRevenue: baseValue,
             commissionPercentage: user.commissionPercentage,
             commissionValue,
             clientName: event.client.name,
+            status: commissionExpense ? 'PAID' : 'PENDING',
+            expenseId: commissionExpense?.id
           });
         }
       }

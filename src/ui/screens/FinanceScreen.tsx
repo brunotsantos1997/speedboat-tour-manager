@@ -2,8 +2,9 @@
 import React from 'react';
 import { useFinanceViewModel } from '../../viewmodels/useFinanceViewModel';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
-import { DollarSign, TrendingDown, TrendingUp, BarChart3, Calendar, PlusCircle, Settings, X, Trash2, ArrowUpCircle, ArrowDownCircle, History } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { format } from 'date-fns';
+import { DollarSign, TrendingDown, TrendingUp, BarChart3, Calendar, PlusCircle, Settings, X, History, BookOpen } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { MoneyInput } from '../components/MoneyInput';
 import { incomeRepository } from '../../core/repositories/IncomeRepository';
 import { useToastContext } from '../contexts/ToastContext';
@@ -24,7 +25,8 @@ const StatCard: React.FC<{ title: string; value: string; subValue?: string; icon
 );
 
 export const FinanceScreen: React.FC = () => {
-  const { loading, stats, cashFlowData, dailyCashFlow, cashBook, deleteEntry, startDate, setStartDate, endDate, setEndDate, refresh } = useFinanceViewModel();
+  const { loading, stats, cashFlowData, dailyCashFlow, startDate, setStartDate, endDate, setEndDate, refresh } = useFinanceViewModel();
+  const navigate = useNavigate();
   const { showToast } = useToastContext();
   const [isIncomeModalOpen, setIsIncomeModalOpen] = React.useState(false);
   const [incomeAmount, setIncomeAmount] = React.useState(0);
@@ -46,7 +48,7 @@ export const FinanceScreen: React.FC = () => {
         setIncomeAmount(0);
         setIncomeDesc('');
         refresh();
-    } catch (e) {
+    } catch {
         showToast('Erro ao salvar receita.');
     }
   };
@@ -86,20 +88,36 @@ export const FinanceScreen: React.FC = () => {
         </div>
         <input
           type="date"
-          value={startDate.toISOString().split('T')[0]}
-          onChange={(e) => setStartDate(new Date(e.target.value))}
+          value={format(startDate, 'yyyy-MM-dd')}
+          onChange={(e) => {
+              const [y, m, d] = e.target.value.split('-').map(Number);
+              setStartDate(new Date(y, m - 1, d));
+          }}
           className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500"
         />
         <span className="text-gray-400">até</span>
         <input
           type="date"
-          value={endDate.toISOString().split('T')[0]}
-          onChange={(e) => setEndDate(new Date(e.target.value))}
+          value={format(endDate, 'yyyy-MM-dd')}
+          onChange={(e) => {
+              const [y, m, d] = e.target.value.split('-').map(Number);
+              setEndDate(new Date(y, m - 1, d));
+          }}
           className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
       {/* Overview Stats */}
+      <div className="flex justify-end mb-4">
+          <button
+            onClick={() => navigate('/cash-book')}
+            className="flex items-center gap-2 bg-gray-800 text-white px-6 py-3 rounded-xl hover:bg-black transition-all shadow-md font-bold"
+          >
+            <BookOpen size={20} />
+            <span>Abrir Livro Caixa Detalhado</span>
+          </button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Receita Total"
@@ -190,15 +208,16 @@ export const FinanceScreen: React.FC = () => {
             <p className="text-xs text-gray-500 mb-6 italic">Mostra o faturamento projetado vs o que já foi recebido</p>
 
             <div className="flex items-end justify-between h-48 gap-1 pt-4">
-              {dailyCashFlow.map((data, index) => {
+              {(() => {
                   const max = Math.max(...dailyCashFlow.map(d => Math.max(d.projected, d.realized, d.expenses)), 100);
-                  const projHeight = (data.projected / max) * 100;
-                  const realHeight = (data.realized / max) * 100;
-                  const expHeight = (data.expenses / max) * 100;
+                  return dailyCashFlow.map((data, index) => {
+                      const projHeight = (data.projected / max) * 100;
+                      const realHeight = (data.realized / max) * 100;
+                      const expHeight = (data.expenses / max) * 100;
 
-                  return (
-                      <div key={index} className="flex-1 flex flex-col items-center gap-1 group">
-                          <div className="w-full flex items-end justify-center gap-[1px] h-full relative">
+                      return (
+                          <div key={index} className="flex-1 h-full flex flex-col items-center gap-1 group">
+                              <div className="w-full flex items-end justify-center gap-[1px] h-full relative">
                               <div
                                   className="w-[3px] sm:w-[6px] bg-blue-300 rounded-t-[1px]"
                                   style={{ height: `${projHeight}%` }}
@@ -215,12 +234,13 @@ export const FinanceScreen: React.FC = () => {
                                   title={`Despesa: ${formatCurrencyBRL(data.expenses)}`}
                               ></div>
                           </div>
-                          {dailyCashFlow.length <= 15 && (
-                            <span className="text-[8px] font-medium text-gray-400">{data.day}</span>
-                          )}
-                      </div>
-                  )
-              })}
+                              {dailyCashFlow.length <= 15 && (
+                                <span className="text-[8px] font-medium text-gray-400">{data.day}</span>
+                              )}
+                          </div>
+                      );
+                  });
+              })()}
             </div>
             <div className="flex justify-center flex-wrap gap-4 mt-6">
                 <div className="flex items-center gap-1.5">
@@ -244,15 +264,16 @@ export const FinanceScreen: React.FC = () => {
                 Fluxo Mensal (Últimos 6 meses)
             </h2>
             <div className="flex items-end justify-between h-48 gap-4 pt-4 px-2">
-              {cashFlowData.map((data, index) => {
+              {(() => {
                   const max = Math.max(...cashFlowData.map(d => Math.max(d.projected, d.realized, d.expenses)), 100);
-                  const projHeight = (data.projected / max) * 100;
-                  const realHeight = (data.realized / max) * 100;
-                  const expHeight = (data.expenses / max) * 100;
+                  return cashFlowData.map((data, index) => {
+                      const projHeight = (data.projected / max) * 100;
+                      const realHeight = (data.realized / max) * 100;
+                      const expHeight = (data.expenses / max) * 100;
 
-                  return (
-                      <div key={index} className="flex-1 flex flex-col items-center gap-2">
-                          <div className="w-full flex items-end justify-center gap-1 h-full">
+                      return (
+                          <div key={index} className="flex-1 h-full flex flex-col items-center gap-2">
+                              <div className="w-full flex items-end justify-center gap-1 h-full">
                               <div
                                   className="w-3 sm:w-6 bg-blue-300 rounded-t-sm"
                                   style={{ height: `${projHeight}%` }}
@@ -269,10 +290,11 @@ export const FinanceScreen: React.FC = () => {
                                   title={`Despesa: ${formatCurrencyBRL(data.expenses)}`}
                               ></div>
                           </div>
-                          <span className="text-xs font-medium text-gray-500">{data.month}</span>
-                      </div>
-                  )
-              })}
+                              <span className="text-xs font-medium text-gray-500">{data.month}</span>
+                          </div>
+                      );
+                  });
+              })()}
             </div>
             <div className="flex justify-center flex-wrap gap-6 mt-8 border-t pt-4">
                 <div className="flex items-center gap-2">
@@ -292,68 +314,6 @@ export const FinanceScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Cash Book (Livro Caixa) */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b bg-gray-50">
-            <h2 className="text-xl font-bold text-gray-900">Livro Caixa</h2>
-            <p className="text-sm text-gray-500">Histórico detalhado de todas as entradas e saídas no período selecionado</p>
-        </div>
-        <div className="overflow-x-auto">
-            <table className="w-full text-left">
-                <thead>
-                    <tr className="bg-gray-100 text-gray-600 text-sm uppercase tracking-wider font-semibold">
-                        <th className="px-6 py-4">Data</th>
-                        <th className="px-6 py-4">Descrição</th>
-                        <th className="px-6 py-4">Tipo</th>
-                        <th className="px-6 py-4 text-right">Valor</th>
-                        <th className="px-6 py-4 text-center">Ações</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                    {cashBook.length > 0 ? cashBook.map((entry) => (
-                        <tr key={entry.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                                {new Date(entry.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
-                            </td>
-                            <td className="px-6 py-4">
-                                <p className="font-medium text-gray-800">{entry.description}</p>
-                                <p className="text-xs text-gray-400 capitalize">{entry.type.toLowerCase()}</p>
-                            </td>
-                            <td className="px-6 py-4">
-                                {entry.type === 'EXPENSE' ? (
-                                    <span className="inline-flex items-center gap-1 text-red-600 font-medium text-sm">
-                                        <ArrowDownCircle size={14} /> Saída
-                                    </span>
-                                ) : (
-                                    <span className="inline-flex items-center gap-1 text-green-600 font-medium text-sm">
-                                        <ArrowUpCircle size={14} /> Entrada
-                                    </span>
-                                )}
-                            </td>
-                            <td className={`px-6 py-4 text-right font-bold ${entry.type === 'EXPENSE' ? 'text-red-600' : 'text-green-600'}`}>
-                                {entry.type === 'EXPENSE' ? '-' : '+'} {formatCurrencyBRL(entry.amount)}
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                                <button
-                                    onClick={() => deleteEntry(entry.id, entry.type)}
-                                    className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                                    title="Excluir"
-                                >
-                                    <Trash2 size={18} />
-                                </button>
-                            </td>
-                        </tr>
-                    )) : (
-                        <tr>
-                            <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
-                                Nenhum lançamento encontrado no período.
-                            </td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
-        </div>
-      </div>
 
       {/* Add Income Modal */}
       {isIncomeModalOpen && (

@@ -237,6 +237,10 @@ export const CreateEventScreen: React.FC = () => {
   const navigate = useNavigate();
   const [isTourTypeModalOpen, setIsTourTypeModalOpen] = useState(false);
 
+  if (vm.isLoading) {
+    return <div className="p-6">Carregando dados do passeio...</div>;
+  }
+
   const isProductSelected = (product: Product) => vm.selectedProducts.some(p => p.id === product.id);
 
   const bookedDays = vm.scheduledEvents.map(event => new Date(event.date));
