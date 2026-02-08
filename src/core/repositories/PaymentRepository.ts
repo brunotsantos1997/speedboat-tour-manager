@@ -8,8 +8,6 @@ import {
   onSnapshot,
   query,
   type Unsubscribe,
-  where,
-  orderBy,
   deleteDoc
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -52,12 +50,14 @@ class PaymentRepositoryImpl implements IPaymentRepository {
   }
 
   private initListener() {
-    const q = query(collection(db, this.collectionName), orderBy('timestamp', 'desc'));
+    const q = query(collection(db, this.collectionName));
     this.unsubscribe = onSnapshot(q, (snapshot) => {
-      this.payments = snapshot.docs.map(doc => ({
-        ...doc.data() as Payment,
-        id: doc.id
-      }));
+      this.payments = snapshot.docs
+        .map(doc => ({
+          ...doc.data() as Payment,
+          id: doc.id
+        }))
+        .sort((a, b) => b.timestamp - a.timestamp);
       this.isInitialized = true;
     });
   }
@@ -74,42 +74,31 @@ class PaymentRepositoryImpl implements IPaymentRepository {
 
   async getAll(): Promise<Payment[]> {
     if (!this.isInitialized) {
-      const q = query(collection(db, this.collectionName), orderBy('timestamp', 'desc'));
+      const q = query(collection(db, this.collectionName));
       const querySnapshot = await getDocs(q);
-      this.payments = querySnapshot.docs.map(doc => ({
-        ...doc.data() as Payment,
-        id: doc.id
-      }));
+      this.payments = querySnapshot.docs
+        .map(doc => ({
+          ...doc.data() as Payment,
+          id: doc.id
+        }))
+        .sort((a, b) => b.timestamp - a.timestamp);
       this.isInitialized = true;
     }
     return this.payments;
   }
 
   async getByEventId(eventId: string): Promise<Payment[]> {
-    const q = query(
-      collection(db, this.collectionName),
-      where('eventId', '==', eventId),
-      orderBy('timestamp', 'asc')
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      ...doc.data() as Payment,
-      id: doc.id
-    }));
+    const all = await this.getAll();
+    return all
+      .filter(p => p.eventId === eventId)
+      .sort((a, b) => a.timestamp - b.timestamp);
   }
 
   async getByDateRange(startDate: string, endDate: string): Promise<Payment[]> {
-    const q = query(
-      collection(db, this.collectionName),
-      where('date', '>=', startDate),
-      where('date', '<=', endDate),
-      orderBy('date', 'asc')
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      ...doc.data() as Payment,
-      id: doc.id
-    }));
+    const all = await this.getAll();
+    return all
+      .filter(p => p.date >= startDate && p.date <= endDate)
+      .sort((a, b) => a.date.localeCompare(b.date));
   }
 
   async add(paymentData: Omit<Payment, 'id'>): Promise<Payment> {

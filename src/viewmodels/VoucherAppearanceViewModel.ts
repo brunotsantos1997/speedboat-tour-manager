@@ -17,7 +17,7 @@ export const useVoucherAppearanceViewModel = () => {
         const data = await repository.get();
         setAppearanceData(data || null);
       } catch {
-        setError('Failed to load voucher appearance data.');
+        setError('Falha ao carregar aparência do voucher.');
       } finally {
         setIsLoading(false);
       }
@@ -41,12 +41,12 @@ export const useVoucherAppearanceViewModel = () => {
             setAppearanceData(updatedData);
             resolve(base64Image);
           } catch (e) {
-            setError('Failed to update watermark.');
+            setError('Falha ao atualizar marca d\'água.');
             reject(e);
           }
         };
         reader.onerror = (error) => {
-          setError('Failed to read file.');
+          setError('Falha ao ler arquivo.');
           reject(error);
         };
       });

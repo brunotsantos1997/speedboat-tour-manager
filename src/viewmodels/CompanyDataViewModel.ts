@@ -17,7 +17,7 @@ export const useCompanyDataViewModel = () => {
         const data = await repository.get();
         setCompanyData(data || null);
       } catch {
-        setError('Failed to load company data.');
+        setError('Falha ao carregar dados da empresa.');
       } finally {
         setIsLoading(false);
       }
@@ -36,7 +36,7 @@ export const useCompanyDataViewModel = () => {
         setCompanyData(updatedData);
         return updatedData;
       } catch (e) {
-        setError('Failed to update company data.');
+        setError('Falha ao atualizar dados da empresa.');
         throw e;
       }
     },

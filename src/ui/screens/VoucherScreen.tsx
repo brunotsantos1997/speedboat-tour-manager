@@ -14,6 +14,7 @@ import {
   Package,
   MapPin,
   ExternalLink,
+  Tag,
 } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 
@@ -161,6 +162,7 @@ export const VoucherScreen: React.FC = () => {
                       <InfoItem icon={CalendarDays} label="Data" value={new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} />
                       <InfoItem icon={Clock} label="Horário" value={`${startTime} - ${endTime}`} />
                       <InfoItem icon={Users} label="Nº de Passageiros" value={`${passengerCount} pessoas`} />
+                      <InfoItem icon={Tag} label="Tipo de Passeio" value={voucher.tourType?.name || 'Passeio'} />
                       <InfoItem icon={Anchor} label="Lancha" value={boat.name} />
                       <InfoItem
                         icon={MapPin}

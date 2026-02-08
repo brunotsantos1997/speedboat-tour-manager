@@ -107,6 +107,10 @@ export const useVoucherViewModel = () => {
           durationHours
         });
 
+        if (eventData.client?.name) {
+          document.title = `Voucher - ${eventData.client.name}`;
+        }
+
       } catch (err) {
         setError('Falha ao buscar os detalhes do voucher.');
         console.error(err);

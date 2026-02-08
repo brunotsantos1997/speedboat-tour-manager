@@ -17,7 +17,7 @@ export function ResetPasswordSecretScreen() {
     e.preventDefault();
     setError(null);
     if (!email) {
-      setError('Email is missing.');
+      setError('E-mail ausente.');
       return;
     }
 
@@ -26,10 +26,10 @@ export function ResetPasswordSecretScreen() {
       if (user) {
         navigate(`/set-new-password?userId=${user.id}`);
       } else {
-        setError('Verification failed.');
+        setError('Falha na verificação.');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to verify the answer.');
+      setError(err instanceof Error ? err.message : 'Falha ao verificar a resposta.');
     }
   };
 

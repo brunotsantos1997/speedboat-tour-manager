@@ -4,6 +4,7 @@ import { useCommissionReportViewModel } from '../../viewmodels/useCommissionRepo
 import { DayPicker } from 'react-day-picker';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 import 'react-day-picker/dist/style.css';
+import { ptBR } from 'date-fns/locale';
 
 export const CommissionReportScreen: React.FC = () => {
   const {
@@ -50,6 +51,7 @@ export const CommissionReportScreen: React.FC = () => {
               mode="single"
               selected={startDate}
               onSelect={(day: Date | undefined) => day && setStartDate(day)}
+              locale={ptBR}
               className="bg-white p-2 border rounded-md shadow-sm"
             />
           </div>
@@ -60,6 +62,7 @@ export const CommissionReportScreen: React.FC = () => {
               mode="single"
               selected={endDate}
               onSelect={(day: Date | undefined) => day && setEndDate(day)}
+              locale={ptBR}
               className="bg-white p-2 border rounded-md shadow-sm"
             />
           </div>

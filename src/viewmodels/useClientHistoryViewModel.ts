@@ -184,58 +184,6 @@ export const useClientHistoryViewModel = () => {
     }
   }, [clientEvents, selectedClient, selectClient]);
 
-  const confirmLegacyPayment = useCallback(async (eventId: string) => {
-    const event = clientEvents.find(e => e.id === eventId);
-    if (!event) return;
-
-    try {
-      // Check for existing payments to avoid duplicates
-      const existingPayments = await paymentRepository.getByEventId(eventId);
-      if (existingPayments.length > 0) {
-        throw new Error('Este evento já possui registros de pagamento.');
-      }
-
-      const reservationFee = event.total * 0.3;
-      const balance = event.total - reservationFee;
-
-      // 1. Record Down Payment
-      await paymentRepository.add({
-        eventId,
-        amount: reservationFee,
-        method: 'OTHER',
-        type: 'DOWN_PAYMENT',
-        date: event.date, // Use event date for legacy backfill
-        timestamp: Date.now() - 1000
-      });
-
-      // 2. Record Balance
-      await paymentRepository.add({
-        eventId,
-        amount: balance,
-        method: 'OTHER',
-        type: 'BALANCE',
-        date: event.date,
-        timestamp: Date.now()
-      });
-
-      // 3. Update Event
-      const updatedEvent: EventType = {
-        ...event,
-        status: (event.status === 'PRE_SCHEDULED' ? 'SCHEDULED' : event.status) as any,
-        paymentStatus: 'CONFIRMED'
-      };
-
-      await eventRepository.updateEvent(updatedEvent);
-
-      if (selectedClient) {
-        await selectClient(selectedClient);
-      }
-    } catch (error) {
-      console.error('Failed to confirm legacy payment:', error);
-      throw error;
-    }
-  }, [clientEvents, selectedClient, selectClient]);
-
   // --- Client Edit Handlers ---
   const openEditModal = () => {
     if (!selectedClient) return;
@@ -305,7 +253,6 @@ export const useClientHistoryViewModel = () => {
     defaultPaymentAmount,
     initiatePayment,
     confirmPaymentRecord,
-    revertCancellation,
-    confirmLegacyPayment
+    revertCancellation
   };
 };

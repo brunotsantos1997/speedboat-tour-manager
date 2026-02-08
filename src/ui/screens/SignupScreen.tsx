@@ -23,7 +23,7 @@ export function SignupScreen() {
         navigate('/'); // Navigate to dashboard for the first (approved) user
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+      setError(err instanceof Error ? err.message : 'Ocorreu um erro inesperado.');
     }
   };
 
@@ -47,7 +47,7 @@ export function SignupScreen() {
           </div>
           <div>
             <label htmlFor="email" className="text-sm font-medium text-gray-700">
-              Email
+              E-mail
             </label>
             <input
               id="email"

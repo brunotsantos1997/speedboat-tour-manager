@@ -98,8 +98,7 @@ const EventCard: React.FC<{
   onEdit: (id: string) => void;
   onConfirmPayment: (id: string, type: 'DOWN_PAYMENT' | 'BALANCE' | 'FULL') => void;
   onRevert?: (id: string) => void;
-  onConfirmLegacyPayment?: (id: string) => void;
-}> = ({ eventType, onCancel, onEdit, onConfirmPayment, onRevert, onConfirmLegacyPayment }) => {
+}> = ({ eventType, onCancel, onEdit, onConfirmPayment, onRevert }) => {
 
   const shareVoucher = (eventId: string) => {
     const url = `${window.location.origin}/voucher/${eventId}`;
@@ -123,6 +122,10 @@ const EventCard: React.FC<{
       )}
       <div className="flex justify-between items-start">
         <div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: eventType.tourType?.color || '#cbd5e1' }}></div>
+            <span className="text-sm font-bold text-gray-600 uppercase tracking-tight">{eventType.tourType?.name || 'Passeio'}</span>
+          </div>
           <p className="font-bold text-lg text-gray-800">{eventType.boat.name}</p>
           <p className="flex items-center text-gray-600 mt-1">
             <Calendar size={16} className="mr-2" />
@@ -148,12 +151,6 @@ const EventCard: React.FC<{
                     <button onClick={() => onConfirmPayment(eventType.id, eventType.status === 'PRE_SCHEDULED' ? 'DOWN_PAYMENT' : 'BALANCE')} className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 flex items-center">
                         <DollarSign size={14} className="mr-1" />
                         {eventType.status === 'PRE_SCHEDULED' ? 'Confirmar Reserva' : 'Confirmar Pagamento'}
-                    </button>
-                )}
-
-                {onConfirmLegacyPayment && (
-                    <button onClick={() => onConfirmLegacyPayment(eventType.id)} className="px-3 py-1 text-sm bg-orange-600 text-white rounded hover:bg-orange-700 flex items-center">
-                        <DollarSign size={14} className="mr-1" /> Confirmar Total (Livro Caixa)
                     </button>
                 )}
             </div>
@@ -240,11 +237,6 @@ export const ClientHistoryScreen: React.FC = () => {
                                           onEdit={handleEditEvent}
                                           onConfirmPayment={vm.initiatePayment}
                                           onRevert={vm.revertCancellation}
-                                          onConfirmLegacyPayment={(id) => {
-                                            if (window.confirm('Confirmar o pagamento total (sinal + saldo) para este evento? Isso gerará dois registros automáticos no livro caixa (30% e 70%).')) {
-                                                vm.confirmLegacyPayment(id).then(() => showToast('Pagamento total confirmado!'));
-                                            }
-                                          }}
                                        />
                                     ))
                                 ) : <p>Nenhum evento encontrado para este cliente.</p>}

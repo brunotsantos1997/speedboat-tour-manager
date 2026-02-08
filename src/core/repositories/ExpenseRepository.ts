@@ -8,9 +8,7 @@ import {
   getDoc,
   onSnapshot,
   query,
-  type Unsubscribe,
-  where,
-  orderBy
+  type Unsubscribe
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type { Expense } from '../domain/types';
@@ -52,12 +50,14 @@ class ExpenseRepositoryImpl implements IExpenseRepository {
   }
 
   private initListener() {
-    const q = query(collection(db, this.collectionName), orderBy('date', 'desc'));
+    const q = query(collection(db, this.collectionName));
     this.unsubscribe = onSnapshot(q, (snapshot) => {
-      this.expenses = snapshot.docs.map(doc => ({
-        ...doc.data() as Expense,
-        id: doc.id
-      }));
+      this.expenses = snapshot.docs
+        .map(doc => ({
+          ...doc.data() as Expense,
+          id: doc.id
+        }))
+        .sort((a, b) => b.date.localeCompare(a.date));
       this.isInitialized = true;
     });
   }
@@ -74,29 +74,22 @@ class ExpenseRepositoryImpl implements IExpenseRepository {
 
   async getAll(): Promise<Expense[]> {
     if (!this.isInitialized) {
-      const q = query(collection(db, this.collectionName), orderBy('date', 'desc'));
+      const q = query(collection(db, this.collectionName));
       const querySnapshot = await getDocs(q);
-      this.expenses = querySnapshot.docs.map(doc => ({
-        ...doc.data() as Expense,
-        id: doc.id
-      }));
+      this.expenses = querySnapshot.docs
+        .map(doc => ({
+          ...doc.data() as Expense,
+          id: doc.id
+        }))
+        .sort((a, b) => b.date.localeCompare(a.date));
       this.isInitialized = true;
     }
     return this.expenses;
   }
 
   async getByDateRange(startDate: string, endDate: string): Promise<Expense[]> {
-    const q = query(
-      collection(db, this.collectionName),
-      where('date', '>=', startDate),
-      where('date', '<=', endDate),
-      orderBy('date', 'desc')
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      ...doc.data() as Expense,
-      id: doc.id
-    }));
+    const all = await this.getAll();
+    return all.filter(e => e.date >= startDate && e.date <= endDate);
   }
 
   private checkAdminPermission() {

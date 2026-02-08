@@ -47,7 +47,7 @@ export const useDashboardViewModel = () => {
 
       setAllEvents(updatedEvents);
     } catch (err) {
-      setError('Failed to fetch events.');
+      setError('Falha ao buscar passeios.');
       console.error(err);
     } finally {
       setIsLoading(false);

@@ -6,6 +6,7 @@ import { expenseRepository } from '../core/repositories/ExpenseRepository';
 import { incomeRepository } from '../core/repositories/IncomeRepository';
 import { paymentRepository } from '../core/repositories/PaymentRepository';
 import { startOfMonth, endOfMonth, format, subMonths, eachDayOfInterval } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 export const useFinanceViewModel = () => {
   const [events, setEvents] = useState<EventType[]>([]);
@@ -113,7 +114,7 @@ export const useFinanceViewModel = () => {
       const realizedRevenue = monthPayments.reduce((acc, p) => acc + p.amount, 0) + monthIncomes.reduce((acc, i) => acc + i.amount, 0);
 
       data.push({
-        month: format(monthDate, 'MMM', { locale: undefined }),
+        month: format(monthDate, 'MMM', { locale: ptBR }),
         projected: projectedRevenue,
         realized: realizedRevenue,
         expenses: monthExpenses.reduce((acc, e) => acc + e.amount, 0),
