@@ -1,7 +1,7 @@
 // src/ui/components/Layout.tsx
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Menu, PlusCircle, Settings, Users, LayoutDashboard, Palette, UserCog, TrendingUp, LogOut } from 'lucide-react';
+import { Menu, PlusCircle, Settings, Users, LayoutDashboard, Palette, UserCog, TrendingUp, LogOut, Wallet } from 'lucide-react';
 import { useCompanyDataViewModel } from '../../viewmodels/CompanyDataViewModel';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -64,7 +64,7 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
           </NavLink>
 
           {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN') && (
-            <NavLink to="/admin/users" className={navLinkClass + ' justify-between'} onClick={onClose}>
+            <NavLink to="/admin/users" className={(props) => navLinkClass(props) + ' justify-between'} onClick={onClose}>
               <div className="flex items-center">
                 <UserCog className="mr-3" />
                 <span>Gerenciar Usuários</span>
@@ -74,6 +74,13 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
                   {pendingUsersCount}
                 </span>
               )}
+            </NavLink>
+          )}
+
+          {(currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN') && (
+            <NavLink to="/finance" className={navLinkClass} onClick={onClose}>
+              <Wallet className="mr-3" />
+              <span>Financeiro</span>
             </NavLink>
           )}
 
@@ -106,6 +113,9 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
               </NavLink>
               <NavLink to="/boarding-locations" className={navLinkClass} onClick={onClose}>
                 Locais de Embarque
+              </NavLink>
+              <NavLink to="/tour-types" className={navLinkClass} onClick={onClose}>
+                Tipos de Passeio
               </NavLink>
               {(currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN') && (
                 <>
@@ -173,6 +183,7 @@ export const Layout: React.FC<{ children?: React.ReactNode }> = ({ children }) =
   useEffect(() => {
     if (companyData) {
       setAppName(companyData.appName);
+      document.title = companyData.appName;
     }
   }, [companyData]);
 

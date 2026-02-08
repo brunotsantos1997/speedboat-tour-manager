@@ -4,10 +4,12 @@ import { useDashboardViewModel } from '../../viewmodels/useDashboardViewModel';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
-import { DollarSign, Hash, PlusCircle, Search, Clock, AlertTriangle, Anchor, CheckCircle, Bell, Ban } from 'lucide-react';
+import { DollarSign, Hash, PlusCircle, Search, Clock, AlertTriangle, Anchor, CheckCircle, Bell, Ban, Wallet } from 'lucide-react';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
-import type { EventType } from '../../core/domain/types';
+import { ptBR } from 'date-fns/locale';
+import type { EventType, PaymentType } from '../../core/domain/types';
+import { PaymentModal } from '../components/PaymentModal';
 
 // --- Sub-components for the Dashboard ---
 
@@ -30,7 +32,7 @@ const QuickAccessButton: React.FC<{ to: string; title: string; icon: React.React
   </Link>
 );
 
-const EventListItem: React.FC<{ event: EventType; onConfirmPayment: (id: string) => void; isSeller?: boolean; }> = ({ event, onConfirmPayment, isSeller }) => {
+const EventListItem: React.FC<{ event: EventType; onConfirmPayment: (id: string, type: PaymentType) => void; isSeller?: boolean; }> = ({ event, onConfirmPayment, isSeller }) => {
   // Parse date string as local to avoid timezone issues.
   const eventDate = new Date(`${event.date}T00:00`);
 
@@ -50,19 +52,27 @@ const EventListItem: React.FC<{ event: EventType; onConfirmPayment: (id: string)
           <Link to={`/clients?clientId=${event.client.id}`} className="font-semibold text-blue-600 hover:underline">{event.client.name}</Link>
           <span className="font-normal text-sm text-gray-600">{capitalizedDate}</span>
         </div>
-        <div className="flex items-center text-sm text-gray-500 mt-1">
-          <Anchor size={14} className="mr-2" /> {event.boat.name}
-          <Clock size={14} className="ml-4 mr-2" /> {event.startTime}
+        <div className="flex flex-wrap items-center text-sm text-gray-500 mt-1 gap-y-1">
+          <div className="flex items-center mr-4">
+            <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: event.tourType?.color || '#cbd5e1' }}></div>
+            <span className="font-medium text-gray-700">{event.tourType?.name || 'Passeio'}</span>
+          </div>
+          <div className="flex items-center mr-4">
+            <Anchor size={14} className="mr-2" /> {event.boat.name}
+          </div>
+          <div className="flex items-center">
+            <Clock size={14} className="mr-2" /> {event.startTime} - {event.endTime}
+          </div>
         </div>
       </div>
       <div className="flex items-center">
         {event.paymentStatus === 'PENDING' && !isSeller && (
           <button
-            onClick={() => onConfirmPayment(event.id)}
+            onClick={() => onConfirmPayment(event.id, event.status === 'PRE_SCHEDULED' ? 'DOWN_PAYMENT' : 'BALANCE')}
             className="bg-green-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-600 transition-colors flex items-center"
           >
-            <CheckCircle size={14} className="mr-1"/>
-            Confirmar
+            <Wallet size={14} className="mr-1"/>
+            {event.status === 'PRE_SCHEDULED' ? 'Confirmar Reserva' : 'Confirmar Pagamento'}
           </button>
         )}
       </div>
@@ -85,12 +95,19 @@ export const DashboardScreen: React.FC = () => {
     calendarEvents,
     selectedDate,
     setSelectedDate,
-    confirmPayment,
-    processNotification
+    isPaymentModalOpen,
+    setIsPaymentModalOpen,
+    activeEventForPayment,
+    paymentType,
+    defaultPaymentAmount,
+    initiatePayment,
+    confirmPaymentRecord,
+    processNotification,
+    revertCancellation
   } = useDashboardViewModel();
 
   // A new component for notifications
-  const NotificationCard: React.FC<{ event: EventType; onAcknowledge: (id: string) => void; }> = ({ event, onAcknowledge }) => {
+  const NotificationCard: React.FC<{ event: EventType; onAcknowledge: (id: string) => void; onPayment: (id: string, type: PaymentType) => void; onRevert: (id: string) => void; }> = ({ event, onAcknowledge, onPayment, onRevert }) => {
     const styleMap = {
       CANCELLED: {
         container: 'bg-red-50 border-l-4 border-red-500',
@@ -103,9 +120,9 @@ export const DashboardScreen: React.FC = () => {
       COMPLETED: {
         container: 'bg-green-50 border-l-4 border-green-500',
         iconContainer: 'text-green-700',
-        button: 'bg-gray-500 hover:bg-gray-600',
+        button: 'bg-green-600 hover:bg-green-700',
         icon: CheckCircle,
-        actionText: 'Arquivar',
+        actionText: event.paymentStatus === 'PENDING' ? 'Pagar e Arquivar' : 'Arquivar',
         message: `O passeio de ${event.client.name} foi concluído.`
       },
       PENDING_REFUND: {
@@ -130,12 +147,28 @@ export const DashboardScreen: React.FC = () => {
           </div>
           <p className="text-sm text-gray-600 ml-7">{new Date(event.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} - {event.boat.name}</p>
         </div>
-        <button
-          onClick={() => onAcknowledge(event.id)}
-          className={`${button} text-white px-3 py-1 rounded-lg text-sm transition-colors`}
-        >
-          {actionText}
-        </button>
+        <div className="flex gap-2">
+            {status === 'CANCELLED' && event.autoCancelled && (
+                <button
+                    onClick={() => onRevert(event.id)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+                >
+                    Reverter
+                </button>
+            )}
+            <button
+                onClick={() => {
+                    if (status === 'COMPLETED' && event.paymentStatus === 'PENDING') {
+                        onPayment(event.id, 'BALANCE');
+                    } else {
+                        onAcknowledge(event.id);
+                    }
+                }}
+                className={`${button} text-white px-3 py-1 rounded-lg text-sm transition-colors`}
+            >
+                {actionText}
+            </button>
+        </div>
       </div>
     );
   };
@@ -177,7 +210,13 @@ export const DashboardScreen: React.FC = () => {
               </div>
               <div className="space-y-2 p-2">
                 {notificationEvents.map(event =>
-                  <NotificationCard key={event.id} event={event} onAcknowledge={processNotification} />
+                  <NotificationCard
+                    key={event.id}
+                    event={event}
+                    onAcknowledge={processNotification}
+                    onPayment={initiatePayment}
+                    onRevert={revertCancellation}
+                  />
                 )}
               </div>
             </div>
@@ -189,7 +228,7 @@ export const DashboardScreen: React.FC = () => {
             <h2 className="text-xl font-semibold mb-3 flex items-center"><AlertTriangle className="mr-2 text-yellow-500"/> Pagamentos Pendentes</h2>
             <div className="space-y-3 max-h-60 overflow-y-auto">
               {pendingPayments.length > 0
-                ? pendingPayments.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={confirmPayment} isSeller={isSeller} />)
+                ? pendingPayments.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={initiatePayment} isSeller={isSeller} />)
                 : <p className="text-gray-500">Nenhum pagamento pendente.</p>
               }
             </div>
@@ -200,7 +239,7 @@ export const DashboardScreen: React.FC = () => {
             <h2 className="text-xl font-semibold mb-3 flex items-center"><Clock className="mr-2 text-purple-500"/> Passeios da Semana</h2>
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {eventsThisWeek.length > 0
-                ? eventsThisWeek.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={confirmPayment} isSeller={isSeller} />)
+                ? eventsThisWeek.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={initiatePayment} isSeller={isSeller} />)
                 : <p className="text-gray-500">Nenhum passeio agendado para esta semana.</p>
               }
             </div>
@@ -213,7 +252,7 @@ export const DashboardScreen: React.FC = () => {
             </h2>
             <div className="space-y-3">
               {eventsForSelectedDate.length > 0
-                ? eventsForSelectedDate.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={confirmPayment} isSeller={isSeller} />)
+                ? eventsForSelectedDate.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={initiatePayment} isSeller={isSeller} />)
                 : <p className="text-gray-500">Nenhum passeio agendado para a data selecionada.</p>
               }
             </div>
@@ -232,6 +271,7 @@ export const DashboardScreen: React.FC = () => {
                 setSelectedDate(date);
               }
             }}
+            locale={ptBR}
             modifiers={{ booked: calendarEvents }}
             modifiersStyles={{ booked: { color: 'red', fontWeight: 'bold' } }}
             className="w-full"
@@ -239,6 +279,17 @@ export const DashboardScreen: React.FC = () => {
         </div>
 
       </div>
+
+      {isPaymentModalOpen && activeEventForPayment && (
+        <PaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          onConfirm={confirmPaymentRecord}
+          title={paymentType === 'DOWN_PAYMENT' ? 'Confirmar Reserva (Sinal)' : 'Registrar Pagamento de Saldo'}
+          defaultAmount={defaultPaymentAmount}
+          type={paymentType}
+        />
+      )}
     </div>
   );
 };

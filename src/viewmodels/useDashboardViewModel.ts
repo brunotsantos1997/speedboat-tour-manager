@@ -2,7 +2,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { EventType } from '../core/domain/types';
 import { eventRepository } from '../core/repositories/EventRepository';
-import { startOfDay, isWithinInterval, addDays, startOfWeek, endOfWeek, getMonth, isSameDay } from 'date-fns';
+import { paymentRepository } from '../core/repositories/PaymentRepository';
+import { startOfDay, isWithinInterval, startOfWeek, endOfWeek, getMonth, isSameDay, format } from 'date-fns';
 import { useToastContext } from '../ui/contexts/ToastContext';
 
 // Helper to parse date string as local time to avoid timezone issues.
@@ -14,57 +15,114 @@ export const useDashboardViewModel = () => {
   const [allEvents, setAllEvents] = useState<EventType[]>([]);
   const { showToast } = useToastContext();
   const [isLoading, setIsLoading] = useState(true);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [activeEventForPayment, setActiveEventForPayment] = useState<EventType | null>(null);
+  const [paymentType, setPaymentType] = useState<'DOWN_PAYMENT' | 'BALANCE' | 'FULL'>('DOWN_PAYMENT');
+  const [defaultPaymentAmount, setDefaultPaymentAmount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
 
-  const fetchEvents = useCallback(async () => {
+  useEffect(() => {
     setIsLoading(true);
-    try {
-      // In a real app, this would be a single API call.
-      const datePromises = Array.from({ length: 60 }, (_, i) => {
-        const date = addDays(new Date(), i);
-        const dateString = date.toISOString().split('T')[0];
-        return eventRepository.getEventsByDate(dateString);
+    eventRepository.getAll()
+      .then(async (allFetchedEvents) => {
+        // Auto-cancel logic remains, but we can do it asynchronously and let onSnapshot handle the update
+        const now = Date.now();
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+
+        for (const event of allFetchedEvents) {
+          if (event.status === 'PRE_SCHEDULED' && event.preScheduledAt && (now - event.preScheduledAt > twentyFourHours)) {
+            const cancelledEvent = { ...event, status: 'CANCELLED' as const, autoCancelled: true };
+            try {
+              await eventRepository.updateEvent(cancelledEvent);
+            } catch (error) {
+              console.error(`Failed to auto-cancel event ${event.id}:`, error);
+            }
+          }
+        }
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        setError('Falha ao buscar passeios.');
+        console.error(err);
+        setIsLoading(false);
       });
-      const eventsPerDay = await Promise.all(datePromises);
-      setAllEvents(eventsPerDay.flat());
-    } catch (err) {
-      setError('Failed to fetch events.');
-      console.error(err);
-    } finally {
+
+    const unsubscribe = eventRepository.subscribe((events) => {
+      setAllEvents(events);
       setIsLoading(false);
-    }
+    });
+
+    return unsubscribe;
   }, []);
 
-  useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
-
   // --- Actions ---
-  const confirmPayment = useCallback(async (eventId: string) => {
+  const initiatePayment = useCallback(async (eventId: string, type: 'DOWN_PAYMENT' | 'BALANCE' | 'FULL') => {
+    const event = allEvents.find(e => e.id === eventId);
+    if (event) {
+      const payments = await paymentRepository.getByEventId(eventId);
+      const totalPaid = payments.reduce((acc, p) => acc + p.amount, 0);
+
+      let suggested = 0;
+      if (type === 'DOWN_PAYMENT') {
+        suggested = Math.max(0, (event.total * 0.3) - totalPaid);
+      } else {
+        suggested = Math.max(0, event.total - totalPaid);
+      }
+
+      setActiveEventForPayment(event);
+      setPaymentType(type);
+      setDefaultPaymentAmount(suggested);
+      setIsPaymentModalOpen(true);
+    }
+  }, [allEvents]);
+
+  const confirmPaymentRecord = useCallback(async (amount: number, method: any, type: any) => {
+    if (!activeEventForPayment) return;
+
     try {
-      const eventToUpdate = allEvents.find(e => e.id === eventId);
-      if (!eventToUpdate) return;
+      const eventId = activeEventForPayment.id;
 
-      const updatedEvent = { ...eventToUpdate, paymentStatus: 'CONFIRMED' as const };
+      // Record the payment
+      await paymentRepository.add({
+        eventId,
+        amount,
+        method,
+        type,
+        date: format(new Date(), 'yyyy-MM-dd'),
+        timestamp: Date.now()
+      });
 
-      if (updatedEvent.status === 'PRE_SCHEDULED') {
+      // Update event status/paymentStatus if necessary
+      let updatedEvent = { ...activeEventForPayment };
+
+      // Calculate total paid including the new payment
+      const payments = await paymentRepository.getByEventId(eventId);
+      const totalPaid = payments.reduce((acc, p) => acc + p.amount, 0);
+
+      // Logic: If any amount is paid, confirm the reservation
+      if (totalPaid > 0 && updatedEvent.status === 'PRE_SCHEDULED') {
         updatedEvent.status = 'SCHEDULED';
+      }
+
+      // Check if fully paid
+      if (totalPaid >= updatedEvent.total) {
+        updatedEvent.paymentStatus = 'CONFIRMED';
+      } else {
+        updatedEvent.paymentStatus = 'PENDING';
       }
 
       await eventRepository.updateEvent(updatedEvent);
 
-      setAllEvents(prev =>
-        prev.map(event =>
-          event.id === eventId ? updatedEvent : event
-        )
-      );
-      showToast('Pagamento confirmado com sucesso!');
+      showToast('Pagamento registrado com sucesso!');
+      setIsPaymentModalOpen(false);
+      setActiveEventForPayment(null);
     } catch (error) {
-      console.error('Failed to confirm payment:', error);
-      showToast('Erro ao confirmar o pagamento.');
+      console.error('Failed to record payment:', error);
+      showToast('Erro ao registrar o pagamento.');
+      throw error;
     }
-  }, [allEvents, showToast]);
+  }, [activeEventForPayment, showToast]);
 
   const processNotification = useCallback(async (eventId: string) => {
     try {
@@ -88,16 +146,29 @@ export const useDashboardViewModel = () => {
       }
 
       await eventRepository.updateEvent(updatedEvent);
-
-      setAllEvents(prev =>
-        prev.map(event =>
-          event.id === eventId ? updatedEvent : event
-        )
-      );
       showToast(toastMessage);
     } catch (error) {
       console.error('Failed to process notification:', error);
       showToast('Erro ao processar a notificação.');
+    }
+  }, [allEvents, showToast]);
+
+  const revertCancellation = useCallback(async (eventId: string) => {
+    try {
+      const eventToUpdate = allEvents.find(e => e.id === eventId);
+      if (!eventToUpdate) return;
+
+      const updatedEvent: EventType = {
+        ...eventToUpdate,
+        status: 'SCHEDULED',
+        autoCancelled: false
+      };
+
+      await eventRepository.updateEvent(updatedEvent);
+      showToast('Cancelamento revertido e reserva confirmada!');
+    } catch (error: any) {
+      console.error('Failed to revert cancellation:', error);
+      showToast(error.message || 'Erro ao reverter cancelamento.');
     }
   }, [allEvents, showToast]);
 
@@ -143,7 +214,7 @@ export const useDashboardViewModel = () => {
     const currentMonth = getMonth(today);
     const monthlyEvents = allEvents.filter(event =>
       getMonth(parseLocalDate(event.date)) === currentMonth &&
-      event.status === 'COMPLETED'
+      (event.status === 'SCHEDULED' || event.status === 'COMPLETED' || event.status === 'ARCHIVED_COMPLETED')
     );
 
     const totalRevenue = monthlyEvents.reduce((acc, event) => acc + event.total, 0);
@@ -168,7 +239,14 @@ export const useDashboardViewModel = () => {
     calendarEvents,
     selectedDate,
     setSelectedDate,
-    confirmPayment,
+    isPaymentModalOpen,
+    setIsPaymentModalOpen,
+    activeEventForPayment,
+    paymentType,
+    defaultPaymentAmount,
+    initiatePayment,
+    confirmPaymentRecord,
     processNotification,
+    revertCancellation,
   };
 };

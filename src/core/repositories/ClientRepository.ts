@@ -31,6 +31,7 @@ class ClientRepositoryImpl implements IClientRepository {
   private unsubscribe: Unsubscribe | null = null;
   private isInitialized = false;
   private currentUser: any = null;
+  private listeners: ((data: ClientProfile[]) => void)[] = [];
 
   constructor() {}
 
@@ -50,7 +51,22 @@ class ClientRepositoryImpl implements IClientRepository {
         id: doc.id
       }));
       this.isInitialized = true;
+      this.notifyListeners();
     });
+  }
+
+  private notifyListeners() {
+    this.listeners.forEach(listener => listener(this.clients));
+  }
+
+  subscribe(listener: (data: ClientProfile[]) => void) {
+    this.listeners.push(listener);
+    if (this.isInitialized) {
+      listener(this.clients);
+    }
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
   }
 
   dispose() {

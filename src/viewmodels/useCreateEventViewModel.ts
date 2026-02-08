@@ -6,11 +6,12 @@ import type { DayOfWeek, Product, Discount, SelectedProduct, ClientProfile, Boat
 import { clientRepository } from '../core/repositories/ClientRepository';
 import { productRepository } from '../core/repositories/ProductRepository';
 import { boatRepository } from '../core/repositories/BoatRepository';
+import { tourTypeRepository } from '../core/repositories/TourTypeRepository';
 import { eventRepository } from '../core/repositories/EventRepository';
 import { CompanyDataRepository } from '../core/repositories/CompanyDataRepository';
 import { format } from 'date-fns';
 import { timeToMinutes, minutesToTime } from '../core/utils/timeUtils';
-import type { BoardingLocation } from '../core/domain/types';
+import type { BoardingLocation, TourType } from '../core/domain/types';
 import { boardingLocationRepository } from '../core/repositories/BoardingLocationRepository';
 
 export const useCreateEventViewModel = () => {
@@ -25,7 +26,7 @@ export const useCreateEventViewModel = () => {
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('13:00');
   const [scheduledEvents, setScheduledEvents] = useState<EventType[]>([]);
-  const [isPreScheduled, setIsPreScheduled] = useState(false);
+  const [isPreScheduled, setIsPreScheduled] = useState(true);
 
   // Boat State
   const [availableBoats, setAvailableBoats] = useState<Boat[]>([]);
@@ -35,13 +36,18 @@ export const useCreateEventViewModel = () => {
   const [availableBoardingLocations, setAvailableBoardingLocations] = useState<BoardingLocation[]>([]);
   const [selectedBoardingLocation, setSelectedBoardingLocation] = useState<BoardingLocation | null>(null);
 
+  // Tour Type State
+  const [availableTourTypes, setAvailableTourTypes] = useState<TourType[]>([]);
+  const [selectedTourType, setSelectedTourType] = useState<TourType | null>(null);
+
   // Core State
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
-  const [discount, setDiscount] = useState<Discount>({ type: 'FIXED', value: 0 });
+  const [rentalDiscount, setRentalDiscount] = useState<Discount>({ type: 'FIXED', value: 0 });
   const [passengerCount, setPassengerCount] = useState(1);
   const [observations, setObservations] = useState('');
   const [tax, setTax] = useState(0);
+  const [taxDescription, setTaxDescription] = useState('');
 
   // Client Management State
   const [selectedClient, setSelectedClient] = useState<ClientProfile | null>(null);
@@ -56,75 +62,85 @@ export const useCreateEventViewModel = () => {
   const [newClientName, setNewClientName] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
 
+  // Loading state
+  const [isLoading, setIsLoading] = useState(true);
+
   // Company Data
   const [companyData, setCompanyData] = useState<CompanyData | null>(null);
 
-  // Effect to load event for editing
+  // Unified Data Loading
   useEffect(() => {
-    const loadEventForEditing = async () => {
-      if (editingEventId) {
-        const event = await eventRepository.getById(editingEventId);
-        if (event) {
-          setOriginalEvent(event);
-          const eventDate = new Date(event.date);
-          const userTimezoneOffset = eventDate.getTimezoneOffset() * 60000;
-
-          setSelectedDate(new Date(eventDate.getTime() + userTimezoneOffset));
-          setStartTime(event.startTime);
-          setEndTime(event.endTime);
-          setSelectedBoat(event.boat);
-          setSelectedProducts(event.products);
-          setDiscount(event.discount);
-          setPassengerCount(event.passengerCount);
-          setSelectedClient(event.client);
-          setClientSearchTerm(event.client.name);
-          setObservations(event.observations || '');
-          setIsPreScheduled(event.status === 'PRE_SCHEDULED');
-          setOriginalPaymentStatus(event.paymentStatus);
-          setTax(event.tax || 0);
+    const loadAllData = async () => {
+      setIsLoading(true);
+      try {
+        // Load event if editing
+        let initialEvent: EventType | null = null;
+        if (editingEventId) {
+          const event = await eventRepository.getById(editingEventId);
+          if (event) {
+            initialEvent = event;
+            setOriginalEvent(event);
+            setOriginalPaymentStatus(event.paymentStatus);
+          } else {
+            setEditingEventId(null);
+          }
         } else {
-          setEditingEventId(null);
+          setOriginalEvent(null);
         }
-      } else {
-        setOriginalEvent(null);
+
+        // Load reference data
+        const [products, boats, boardingLocations, tourTypes, companyDataResponse] = await Promise.all([
+          productRepository.getAll(),
+          boatRepository.getAll(),
+          boardingLocationRepository.getAll(),
+          tourTypeRepository.getAll(),
+          CompanyDataRepository.getInstance().get()
+        ]);
+
+        if (companyDataResponse) setCompanyData(companyDataResponse);
+        setAvailableProducts(products);
+        setAvailableBoats(boats);
+        setAvailableBoardingLocations(boardingLocations);
+        setAvailableTourTypes(tourTypes);
+
+        if (initialEvent) {
+          // Set state from event
+          const eventDate = new Date(initialEvent.date);
+          const userTimezoneOffset = eventDate.getTimezoneOffset() * 60000;
+          setSelectedDate(new Date(eventDate.getTime() + userTimezoneOffset));
+          setStartTime(initialEvent.startTime);
+          setEndTime(initialEvent.endTime);
+          setSelectedBoat(initialEvent.boat);
+          setSelectedTourType(initialEvent.tourType || null);
+          setSelectedProducts(initialEvent.products);
+          setRentalDiscount(initialEvent.rentalDiscount || { type: 'FIXED', value: 0 });
+          setPassengerCount(initialEvent.passengerCount);
+          setSelectedClient(initialEvent.client);
+          setClientSearchTerm(initialEvent.client.name);
+          setObservations(initialEvent.observations || '');
+          setIsPreScheduled(initialEvent.status === 'PRE_SCHEDULED');
+          setTax(initialEvent.tax || 0);
+          setTaxDescription(initialEvent.taxDescription || '');
+        } else {
+          // Set defaults for new event
+          if (boats.length > 0) setSelectedBoat(boats[0]);
+          if (boardingLocations.length > 0) setSelectedBoardingLocation(boardingLocations[0]);
+          if (tourTypes.length > 0) {
+            const defaultTourType = tourTypes.find(t => t.name.toLowerCase() === 'passeio') || tourTypes[0];
+            setSelectedTourType(defaultTourType);
+          }
+          const defaultCourtesies = products
+            .filter(p => p.isDefaultCourtesy)
+            .map(p => ({ ...p, isCourtesy: true }));
+          setSelectedProducts(defaultCourtesies);
+        }
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    loadEventForEditing();
+    loadAllData();
   }, [editingEventId]);
-
-  // Fetch initial data
-  useEffect(() => {
-    const loadInitialData = async () => {
-      const products = await productRepository.getAll();
-      const boats = await boatRepository.getAll();
-      const boardingLocations = await boardingLocationRepository.getAll();
-      const companyDataResponse = await CompanyDataRepository.getInstance().get();
-
-      if (companyDataResponse) {
-        setCompanyData(companyDataResponse);
-      }
-
-      setAvailableProducts(products);
-      setAvailableBoats(boats);
-      setAvailableBoardingLocations(boardingLocations);
-
-      if (boats.length > 0) {
-        setSelectedBoat(boats[0]);
-      }
-
-      if (boardingLocations.length > 0) {
-        setSelectedBoardingLocation(boardingLocations[0]);
-      }
-
-      const defaultCourtesies = products
-        .filter(p => p.isDefaultCourtesy)
-        .map(p => ({ ...p, isCourtesy: true }));
-      setSelectedProducts(defaultCourtesies);
-    };
-
-    loadInitialData();
-  }, []);
 
   // Fetch scheduled events when selected date changes
   useEffect(() => {
@@ -149,12 +165,19 @@ export const useCreateEventViewModel = () => {
     );
   }, []);
 
-  const updateDiscountType = useCallback((type: 'FIXED' | 'PERCENTAGE') => {
-    setDiscount(prev => ({ ...prev, type }));
+  const updateProductDiscount = useCallback((productId: string, discount: Discount) => {
+    setSelectedProducts(prev =>
+      prev.map(p => p.id === productId ? { ...p, discount } : p)
+    );
   }, []);
 
-  const updateDiscountValue = useCallback((value: number) => {
-    setDiscount(prev => ({ ...prev, value: isNaN(value) || value < 0 ? 0 : value }));
+  const updateDiscountType = useCallback((type: 'FIXED' | 'PERCENTAGE', category: 'rental') => {
+    if (category === 'rental') setRentalDiscount(prev => ({ ...prev, type }));
+  }, []);
+
+  const updateDiscountValue = useCallback((value: number, category: 'rental') => {
+    const val = isNaN(value) || value < 0 ? 0 : value;
+    if (category === 'rental') setRentalDiscount(prev => ({ ...prev, value: val }));
   }, []);
 
   const updatePassengerCount = useCallback((count: number) => {
@@ -168,17 +191,33 @@ export const useCreateEventViewModel = () => {
     setTax(isNaN(value) || value < 0 ? 0 : value);
   }, []);
 
-  const handleBoatSelection = (boatId: string) => {
+  const updateTaxDescription = useCallback((desc: string) => {
+    setTaxDescription(desc);
+  }, []);
+
+  const handleBoatSelection = useCallback((boatId: string) => {
     const boat = availableBoats.find(b => b.id === boatId);
     setSelectedBoat(boat || null);
-  };
+  }, [availableBoats]);
 
-  const handleBoardingLocationSelection = (locationId: string) => {
+  const handleBoardingLocationSelection = useCallback((locationId: string) => {
     const location = availableBoardingLocations.find(l => l.id === locationId);
     setSelectedBoardingLocation(location || null);
-  };
+  }, [availableBoardingLocations]);
 
-  const updateHourlyProductTime = (productId: string, time: string, type: 'start' | 'end') => {
+  const handleTourTypeSelection = useCallback((tourTypeId: string) => {
+    const tourType = availableTourTypes.find(t => t.id === tourTypeId);
+    setSelectedTourType(tourType || null);
+  }, [availableTourTypes]);
+
+  const handleSaveTourType = useCallback(async (name: string, color: string) => {
+    const newTourType = await tourTypeRepository.add({ name, color, isArchived: false });
+    const tourTypes = await tourTypeRepository.getAll();
+    setAvailableTourTypes(tourTypes);
+    setSelectedTourType(newTourType);
+  }, []);
+
+  const updateHourlyProductTime = useCallback((productId: string, time: string, type: 'start' | 'end') => {
     setSelectedProducts(prev =>
       prev.map(p => {
         if (p.id === productId && p.pricingType === 'HOURLY') {
@@ -191,7 +230,7 @@ export const useCreateEventViewModel = () => {
         return p;
       })
     );
-  };
+  }, []);
 
   const handleClientSearch = useCallback(async (term: string) => {
     setClientSearchTerm(term);
@@ -302,7 +341,7 @@ export const useCreateEventViewModel = () => {
     return cost;
   }, [startTime, endTime, selectedBoat]);
 
-  const subtotal = useMemo(() => {
+  const productsCost = useMemo(() => {
     return selectedProducts.reduce((acc, product) => {
       if (product.isCourtesy) {
         return acc;
@@ -327,22 +366,60 @@ export const useCreateEventViewModel = () => {
         default:
           return acc + (product.price || 0);
       }
-    }, 0) + boatRentalCost;
-  }, [selectedProducts, passengerCount, boatRentalCost]);
+    }, 0);
+  }, [selectedProducts, passengerCount]);
+
+  const subtotal = useMemo(() => productsCost + boatRentalCost, [productsCost, boatRentalCost]);
+
+  const rentalDiscountValue = useMemo(() => {
+    if (rentalDiscount.type === 'FIXED') return rentalDiscount.value;
+    return boatRentalCost * (rentalDiscount.value / 100);
+  }, [boatRentalCost, rentalDiscount]);
 
   const totalDiscount = useMemo(() => {
-    if (discount.type === 'FIXED') return discount.value;
-    return subtotal * (discount.value / 100);
-  }, [subtotal, discount]);
+    const productDiscountsTotal = selectedProducts.reduce((acc, p) => {
+      if (p.isCourtesy || !p.discount || p.discount.value <= 0) return acc;
+
+      let itemGross = 0;
+      if (p.pricingType === 'PER_PERSON') itemGross = (p.price || 0) * passengerCount;
+      else if (p.pricingType === 'HOURLY' && p.startTime && p.endTime && p.hourlyPrice) {
+           const duration = (timeToMinutes(p.endTime) - timeToMinutes(p.startTime)) / 60;
+           itemGross = duration > 0 ? duration * p.hourlyPrice : 0;
+      } else itemGross = p.price || 0;
+
+      if (p.discount.type === 'FIXED') return acc + p.discount.value;
+      return acc + (itemGross * (p.discount.value / 100));
+    }, 0);
+
+    return rentalDiscountValue + productDiscountsTotal;
+  }, [rentalDiscountValue, selectedProducts, passengerCount]);
 
   const total = useMemo(() => Math.max(0, subtotal - totalDiscount + tax), [subtotal, totalDiscount, tax]);
 
   const createEvent = useCallback(async () => {
-    if (!selectedDate || !selectedClient || !selectedBoat || !selectedBoardingLocation) {
+    if (!selectedDate || !selectedClient || !selectedBoat || !selectedBoardingLocation || !selectedTourType) {
       throw new Error('Campos obrigatórios ausentes.');
     }
 
+    const productDiscountsTotal = selectedProducts.reduce((acc, p) => {
+        if (p.isCourtesy || !p.discount || p.discount.value <= 0) return acc;
+
+        let itemGross = 0;
+        if (p.pricingType === 'PER_PERSON') itemGross = (p.price || 0) * passengerCount;
+        else if (p.pricingType === 'HOURLY' && p.startTime && p.endTime && p.hourlyPrice) {
+             const duration = (timeToMinutes(p.endTime) - timeToMinutes(p.startTime)) / 60;
+             itemGross = duration > 0 ? duration * p.hourlyPrice : 0;
+        } else itemGross = p.price || 0;
+
+        if (p.discount.type === 'FIXED') return acc + p.discount.value;
+        return acc + (itemGross * (p.discount.value / 100));
+    }, 0);
+
+    const productsRevenue = productsCost - productDiscountsTotal;
+    const rentalRevenue = boatRentalCost - rentalDiscountValue;
+
     const eventStatus = isPreScheduled ? 'PRE_SCHEDULED' : 'SCHEDULED';
+
     const eventData: any = {
       date: format(selectedDate, 'yyyy-MM-dd'),
       startTime: startTime,
@@ -351,18 +428,26 @@ export const useCreateEventViewModel = () => {
       paymentStatus: (editingEventId && originalPaymentStatus === 'CONFIRMED' ? 'CONFIRMED' : 'PENDING') as PaymentStatus,
       boat: selectedBoat,
       boardingLocation: selectedBoardingLocation,
+      tourType: selectedTourType,
       products: selectedProducts,
-      discount,
+      rentalDiscount,
+      // For editing legacy events, we want to clear the old discount fields upon saving
+      discount: { type: 'FIXED', value: 0 },
+      productsDiscount: { type: 'FIXED', value: 0 },
       client: selectedClient,
       passengerCount,
       subtotal,
       total,
       tax: tax || 0,
+      taxDescription,
       observations,
+      rentalRevenue,
+      productsRevenue,
     };
 
     if (isPreScheduled) {
-      eventData.preScheduledAt = Date.now();
+      // Use existing timestamp if editing, otherwise set now
+      eventData.preScheduledAt = originalEvent?.preScheduledAt || Date.now();
     }
 
     if (editingEventId) {
@@ -379,26 +464,32 @@ export const useCreateEventViewModel = () => {
       };
       await eventRepository.add(newEventData);
     }
+
     return selectedClient;
   }, [
     selectedDate,
     startTime,
     endTime,
     selectedBoat,
-    selectedProducts,
-    discount,
-    selectedClient,
-    passengerCount,
-    subtotal,
-    total,
-    editingEventId,
     selectedBoardingLocation,
+    selectedTourType,
+    selectedProducts,
+    rentalDiscount,
+    passengerCount,
+    boatRentalCost,
+    productsCost,
+    subtotal,
+    rentalDiscountValue,
+    total,
+    tax,
+    taxDescription,
     observations,
+    selectedClient,
+    editingEventId,
     isPreScheduled,
     currentUser,
     originalEvent,
     originalPaymentStatus,
-    tax
   ]);
 
   useEffect(() => {
@@ -433,7 +524,7 @@ export const useCreateEventViewModel = () => {
 
     // Initial filter by business hours (start time must be within business hours)
     // and must allow at least 30 min before closing.
-    let validSlots = allDaySlots.filter(slot => {
+    const validSlots = allDaySlots.filter(slot => {
       const min = timeToMinutes(slot);
       return min >= businessStartMin && min <= (businessEndMin - 30);
     });
@@ -530,6 +621,7 @@ export const useCreateEventViewModel = () => {
 
 
   return {
+    isLoading,
     editingEventId,
     selectedDate,
     startTime,
@@ -542,16 +634,20 @@ export const useCreateEventViewModel = () => {
     isBusinessClosed,
     availableBoardingLocations,
     selectedBoardingLocation,
+    availableTourTypes,
+    selectedTourType,
     availableProducts,
     selectedProducts,
-    discount,
+    rentalDiscount,
     passengerCount,
     boatRentalCost,
     subtotal,
     totalDiscount,
     total,
     tax,
+    taxDescription,
     observations,
+    setObservations,
     selectedClient,
     clientSearchTerm,
     clientSearchResults,
@@ -569,13 +665,17 @@ export const useCreateEventViewModel = () => {
     setIsPreScheduled,
     handleBoatSelection,
     handleBoardingLocationSelection,
+    handleTourTypeSelection,
+    handleSaveTourType,
     updateHourlyProductTime,
     toggleProduct,
     toggleCourtesy,
+    updateProductDiscount,
     updateDiscountType,
     updateDiscountValue,
     updatePassengerCount,
     updateTax,
+    updateTaxDescription,
     handleClientSearch,
     selectClient,
     clearClientSelection,

@@ -1,6 +1,6 @@
 // src/ui/screens/CreateEventScreen.tsx
-import React from 'react';
-import { Anchor, Utensils, Beer, User, Circle, HelpCircle, Users, Search, X, Package, Pencil, Trash2, AlertTriangle, Minus, Plus } from 'lucide-react';
+import React, { useState } from 'react';
+import { Anchor, Utensils, Beer, User, Circle, HelpCircle, Users, Search, X, Package, Pencil, Trash2, AlertTriangle, Minus, Plus, Tag } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import { useCreateEventViewModel } from '../../viewmodels/useCreateEventViewModel';
 import { useToastContext } from '../../ui/contexts/ToastContext';
@@ -80,6 +80,63 @@ const NumericInput: React.FC<{
           margin: 0;
         }
       `}</style>
+    </div>
+  );
+};
+
+
+const QuickTourTypeModal: React.FC<{
+  isOpen: boolean;
+  onSave: (name: string, color: string) => Promise<void>;
+  onClose: () => void;
+}> = ({ isOpen, onSave, onClose }) => {
+  const [name, setName] = useState('');
+  const [color, setColor] = useState('#3b82f6');
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+        <h2 className="text-xl font-bold mb-4">Novo Tipo de Passeio</h2>
+        <div className="space-y-4">
+          <input
+            type="text"
+            placeholder="Nome do Tipo"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          />
+          <div>
+             <label className="block text-sm font-medium text-gray-700 mb-1">Cor de Identificação</label>
+             <input
+               type="color"
+               value={color}
+               onChange={(e) => setColor(e.target.value)}
+               className="w-full h-12 p-1 border border-gray-300 rounded-lg cursor-pointer"
+             />
+          </div>
+        </div>
+        <div className="flex justify-end space-x-3 mt-6">
+          <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">
+            Cancelar
+          </button>
+          <button
+            onClick={async () => {
+              if (name) {
+                await onSave(name, color);
+                setName('');
+                setColor('#3b82f6');
+                onClose();
+              }
+            }}
+            disabled={!name}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            Salvar
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
@@ -178,6 +235,12 @@ export const CreateEventScreen: React.FC = () => {
   const vm = useCreateEventViewModel();
   const { showToast } = useToastContext();
   const navigate = useNavigate();
+  const [isTourTypeModalOpen, setIsTourTypeModalOpen] = useState(false);
+
+  if (vm.isLoading) {
+    return <div className="p-6">Carregando dados do passeio...</div>;
+  }
+
   const isProductSelected = (product: Product) => vm.selectedProducts.some(p => p.id === product.id);
 
   const bookedDays = vm.scheduledEvents.map(event => new Date(event.date));
@@ -264,6 +327,128 @@ export const CreateEventScreen: React.FC = () => {
               </div>
             </section>
 
+            {/* Section: Date, Time & Reservation Settings */}
+            <section className="bg-white p-4 rounded-lg shadow">
+              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Agendamento e Reserva</h2>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                <div className="flex justify-center lg:justify-start border rounded-lg p-2 bg-gray-50">
+                  <DayPicker
+                    mode="single"
+                    selected={vm.selectedDate}
+                    onSelect={vm.setSelectedDate}
+                    locale={ptBR}
+                    modifiers={{ booked: bookedDays }}
+                    modifiersStyles={{ booked: { color: 'red', fontWeight: 'bold' } }}
+                    className="rounded-md m-0"
+                  />
+                </div>
+                <div className="space-y-6">
+                  {/* Time Picker */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {vm.isBusinessClosed ? (
+                      <div className="col-span-2 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 rounded-md">
+                        <p className="font-bold">Fechado neste dia</p>
+                        <p className="text-sm">Por favor, selecione outra data.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Início</label>
+                          <CustomTimePicker
+                            value={vm.startTime}
+                            onChange={vm.setStartTime}
+                            disabled={vm.isBusinessClosed}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Término</label>
+                          <EndTimePicker
+                            value={vm.endTime}
+                            onChange={vm.setEndTime}
+                            options={vm.availableEndTimeSlots}
+                            disabled={vm.isBusinessClosed}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Boat Selection */}
+                  <div>
+                      <label htmlFor="boat-select" className="block text-sm font-medium text-gray-700 mb-1 font-semibold">Lancha</label>
+                      <select id="boat-select" value={vm.selectedBoat?.id || ''} onChange={(e) => vm.handleBoatSelection(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
+                          {vm.availableBoats.map(boat => (
+                              <option key={boat.id} value={boat.id}>{boat.name}</option>
+                          ))}
+                      </select>
+                  </div>
+
+                  {/* Boarding Location Selection */}
+                  <div>
+                      <label htmlFor="boarding-location-select" className="block text-sm font-medium text-gray-700 mb-1 font-semibold">Local de Embarque</label>
+                      <select id="boarding-location-select" value={vm.selectedBoardingLocation?.id || ''} onChange={(e) => vm.handleBoardingLocationSelection(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
+                          {vm.availableBoardingLocations.map(location => (
+                              <option key={location.id} value={location.id}>{location.name}</option>
+                          ))}
+                      </select>
+                  </div>
+
+                  {/* Tour Type Selection */}
+                  <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label htmlFor="tour-type-select" className="block text-sm font-medium text-gray-700 font-semibold flex items-center">
+                          <Tag size={16} className="mr-1 text-gray-500" />
+                          Tipo de Passeio
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setIsTourTypeModalOpen(true)}
+                          className="text-xs text-blue-600 hover:underline flex items-center"
+                        >
+                          <Plus size={12} className="mr-0.5" /> Novo Tipo
+                        </button>
+                      </div>
+                      <select
+                        id="tour-type-select"
+                        value={vm.selectedTourType?.id || ''}
+                        onChange={(e) => vm.handleTourTypeSelection(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
+                      >
+                          <option value="" disabled>Selecione um tipo...</option>
+                          {vm.availableTourTypes.map(type => (
+                              <option key={type.id} value={type.id}>{type.name}</option>
+                          ))}
+                      </select>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Section: Boat Discount (Immediately after settings) */}
+            <section className="bg-white p-4 rounded-lg shadow">
+              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Desconto no Aluguel</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center mt-2">
+                <div className="col-span-1 flex">
+                  <button onClick={() => vm.updateDiscountType('FIXED', 'rental')} className={`flex-grow px-2 py-2 text-sm rounded-l-md font-bold ${vm.rentalDiscount.type === 'FIXED' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>R$</button>
+                  <button onClick={() => vm.updateDiscountType('PERCENTAGE', 'rental')} className={`flex-grow px-2 py-2 text-sm rounded-r-md font-bold ${vm.rentalDiscount.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>%</button>
+                </div>
+                <div className="col-span-2">
+                  {vm.rentalDiscount.type === 'PERCENTAGE' ? (
+                    <NumericInput
+                      value={vm.rentalDiscount.value}
+                      onChange={(val) => vm.updateDiscountValue(val, 'rental')}
+                      min={0}
+                    />
+                  ) : (
+                    <MoneyInput
+                      value={vm.rentalDiscount.value}
+                      onChange={(val) => vm.updateDiscountValue(val, 'rental')}
+                    />
+                  )}
+                </div>
+              </div>
+            </section>
+
             {/* Section: Available Products */}
             <section>
               <h2 className="text-lg font-semibold mb-3">Produtos Disponíveis</h2>
@@ -286,33 +471,63 @@ export const CreateEventScreen: React.FC = () => {
               </div>
             </section>
 
-            {/* Selected Items & Discount */}
+            {/* Selected Items */}
             {vm.selectedProducts.length > 0 && (
               <section>
                 <h2 className="text-lg font-semibold mb-3">Itens Selecionados</h2>
                 <div className="bg-white p-4 rounded-lg shadow-sm divide-y divide-gray-200">
                   {vm.selectedProducts.map((product) => {
                     const selectedProd = vm.selectedProducts.find(p => p.id === product.id);
+                    const prodDiscount = selectedProd?.discount || { type: 'FIXED', value: 0 };
                     return (
-                      <div key={product.id} className="py-3">
+                      <div key={product.id} className="py-4 first:pt-0">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-semibold">{product.name}</p>
+                            <p className="font-semibold text-gray-900">{product.name}</p>
                             <p className={`text-sm ${product.isCourtesy ? 'line-through text-gray-400' : 'text-gray-600'}`}>
                               {product.pricingType === 'HOURLY'
                                 ? `${formatCurrencyBRL(product.hourlyPrice || 0)} / hora`
                                 : `${formatCurrencyBRL(product.price || 0)}`}
-                              {product.pricingType === 'PER_PERSON' && ` x ${vm.passengerCount} passageiros`}
+                              {product.pricingType === 'PER_PERSON' && ` x ${vm.passengerCount} pessoas`}
                             </p>
                           </div>
-                          <div className="flex items-center">
-                            <span className="text-sm mr-2">{product.isCourtesy ? 'Cortesia' : 'Marcar Cortesia'}</span>
-                            <label htmlFor={`courtesy-${product.id}`} className="relative inline-flex items-center cursor-pointer">
-                              <input type="checkbox" id={`courtesy-${product.id}`} className="sr-only peer" checked={product.isCourtesy} onChange={() => vm.toggleCourtesy(product.id)} />
-                              <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                            </label>
+                          <div className="flex items-center space-x-4">
+                            <div className="flex items-center">
+                              <span className="text-xs text-gray-500 mr-2 uppercase font-bold">{product.isCourtesy ? 'Cortesia' : 'Cortesia?'}</span>
+                              <label htmlFor={`courtesy-${product.id}`} className="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id={`courtesy-${product.id}`} className="sr-only peer" checked={product.isCourtesy} onChange={() => vm.toggleCourtesy(product.id)} />
+                                <div className="w-10 h-5 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                              </label>
+                            </div>
                           </div>
                         </div>
+
+                        {/* Per-Product Discount */}
+                        {!product.isCourtesy && (
+                          <div className="mt-3 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <label className="block text-xs font-bold text-gray-500 mb-2 uppercase">Desconto no Produto</label>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+                              <div className="col-span-1 flex">
+                                <button onClick={() => vm.updateProductDiscount(product.id, { ...prodDiscount, type: 'FIXED' })} className={`flex-grow px-2 py-1.5 text-xs rounded-l-md font-bold ${prodDiscount.type === 'FIXED' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>R$</button>
+                                <button onClick={() => vm.updateProductDiscount(product.id, { ...prodDiscount, type: 'PERCENTAGE' })} className={`flex-grow px-2 py-1.5 text-xs rounded-r-md font-bold ${prodDiscount.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>%</button>
+                              </div>
+                              <div className="col-span-2">
+                                {prodDiscount.type === 'PERCENTAGE' ? (
+                                  <NumericInput
+                                    value={prodDiscount.value}
+                                    onChange={(val) => vm.updateProductDiscount(product.id, { ...prodDiscount, value: val })}
+                                    min={0}
+                                  />
+                                ) : (
+                                  <MoneyInput
+                                    value={prodDiscount.value}
+                                    onChange={(val) => vm.updateProductDiscount(product.id, { ...prodDiscount, value: val })}
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         {product.pricingType === 'HOURLY' && (
                           <div className="grid grid-cols-2 gap-4 mt-3">
@@ -336,126 +551,65 @@ export const CreateEventScreen: React.FC = () => {
                     )
                   })}
                 </div>
-                <div className="mt-6">
-                  <h3 className="text-md font-semibold mb-2">Desconto</h3>
-                  <div className="grid grid-cols-3 gap-2 bg-white p-2 rounded-lg border">
-                    <div className="col-span-1 flex">
-                      <button onClick={() => vm.updateDiscountType('FIXED')} className={`w-full px-4 py-2 text-sm rounded-l-md ${vm.discount.type === 'FIXED' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>R$</button>
-                      <button onClick={() => vm.updateDiscountType('PERCENTAGE')} className={`w-full px-4 py-2 text-sm rounded-r-md ${vm.discount.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>%</button>
-                    </div>
-                    <div className="col-span-2">
-                      {vm.discount.type === 'PERCENTAGE' ? (
-                        <NumericInput
-                          value={vm.discount.value}
-                          onChange={vm.updateDiscountValue}
-                          min={0}
-                        />
-                      ) : (
-                        <MoneyInput
-                          value={vm.discount.value}
-                          onChange={vm.updateDiscountValue}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-6">
-                  <h3 className="text-md font-semibold mb-2">Taxa</h3>
-                  <MoneyInput
-                    value={vm.tax}
-                    onChange={vm.updateTax}
-                  />
-                </div>
               </section>
             )}
-          </div>
 
-          {/* Right Column: Scheduling */}
-          <aside className="lg:col-span-1 space-y-6">
+            {/* Section: Taxas */}
             <section className="bg-white p-4 rounded-lg shadow">
-              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Agendamento</h2>
-
-              {/* Pre-schedule Toggle */}
-              <div className="mb-4">
-                <label htmlFor="pre-schedule-toggle" className="flex items-center justify-between cursor-pointer">
-                  <span className="font-medium text-gray-700">Pré-reserva</span>
-                  <div className="relative inline-flex items-center">
-                    <input
-                      type="checkbox"
-                      id="pre-schedule-toggle"
-                      className="sr-only peer"
-                      checked={vm.isPreScheduled}
-                      onChange={(e) => vm.setIsPreScheduled(e.target.checked)}
-                    />
-                    <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
-                  </div>
-                </label>
-                <p className="text-xs text-gray-500 mt-1">
-                  A pré-reserva fica pendente por 24h. Se não for confirmada, a vaga é liberada.
-                </p>
-              </div>
-
-              {/* Calendar */}
-              <DayPicker
-                mode="single"
-                selected={vm.selectedDate}
-                onSelect={vm.setSelectedDate}
-                locale={ptBR}
-                modifiers={{ booked: bookedDays }}
-                modifiersStyles={{ booked: { color: 'red', fontWeight: 'bold' } }}
-                className="rounded-md"
-              />
-
-              {/* Time Pickers */}
-              <div className="grid grid-cols-2 gap-4 mt-4">
-                {vm.isBusinessClosed ? (
-                  <div className="col-span-2 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 rounded-md">
-                    <p className="font-bold">Fechado neste dia</p>
-                    <p className="text-sm">Por favor, selecione outra data para ver os horários disponíveis.</p>
-                  </div>
-                ) : (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Início</label>
-                      <CustomTimePicker
-                        value={vm.startTime}
-                        onChange={vm.setStartTime}
-                        disabled={vm.isBusinessClosed}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Término</label>
-                      <EndTimePicker
-                        value={vm.endTime}
-                        onChange={vm.setEndTime}
-                        options={vm.availableEndTimeSlots}
-                        disabled={vm.isBusinessClosed}
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Boat Selection */}
-              <div className="mt-4">
-                  <label htmlFor="boat-select" className="block text-sm font-medium text-gray-700 mb-1">Lancha</label>
-                  <select id="boat-select" value={vm.selectedBoat?.id || ''} onChange={(e) => vm.handleBoatSelection(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
-                      {vm.availableBoats.map(boat => (
-                          <option key={boat.id} value={boat.id}>{boat.name} (Cap: {boat.capacity})</option>
-                      ))}
-                  </select>
-              </div>
-
-              {/* Boarding Location Selection */}
-              <div className="mt-4">
-                  <label htmlFor="boarding-location-select" className="block text-sm font-medium text-gray-700 mb-1">Local de Embarque</label>
-                  <select id="boarding-location-select" value={vm.selectedBoardingLocation?.id || ''} onChange={(e) => vm.handleBoardingLocationSelection(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
-                      {vm.availableBoardingLocations.map(location => (
-                          <option key={location.id} value={location.id}>{location.name}</option>
-                      ))}
-                  </select>
+              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Taxas e Encargos</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 font-semibold">Valor da Taxa Adicional</label>
+                  <MoneyInput
+                      value={vm.tax}
+                      onChange={vm.updateTax}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 font-semibold">Descrição da Taxa</label>
+                  <input
+                    type="text"
+                    value={vm.taxDescription}
+                    onChange={(e) => vm.updateTaxDescription(e.target.value)}
+                    placeholder="Ex: Taxa de limpeza, rolha..."
+                    className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
             </section>
+
+            {/* Section: Description */}
+            <section className="bg-white p-4 rounded-lg shadow">
+              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Descrição / Observações</h2>
+              <textarea
+                value={vm.observations}
+                onChange={(e) => vm.setObservations(e.target.value)}
+                placeholder="Adicione informações adicionais sobre o passeio..."
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 h-32"
+              />
+            </section>
+
+          </div>
+
+          {/* Right Column: Empty or Summary could go here, but user wanted it grouped on the left */}
+          <aside className="lg:col-span-1 space-y-6 hidden lg:block">
+             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm sticky top-4">
+                <h3 className="font-bold text-gray-400 uppercase text-xs tracking-widest mb-4">Dicas de Uso</h3>
+                <ul className="space-y-3 text-sm text-gray-600">
+                   <li className="flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></div>
+                      Agrupe o agendamento para facilitar a visualização da agenda.
+                   </li>
+                   <li className="flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></div>
+                      Cada produto agora possui seu próprio campo de desconto.
+                   </li>
+                   <li className="flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></div>
+                      A taxa adicional aceita descrição para aparecer no voucher.
+                   </li>
+                </ul>
+             </div>
           </aside>
         </div>
       </main>
@@ -478,7 +632,7 @@ export const CreateEventScreen: React.FC = () => {
             </div>
             {vm.tax > 0 && (
               <div className="flex justify-between items-center text-sm text-green-600">
-                <span>Taxa</span>
+                <span>{vm.taxDescription || 'Taxa Adicional'}</span>
                 <span className="font-medium">+ {formatCurrencyBRL(vm.tax)}</span>
               </div>
             )}
@@ -498,18 +652,24 @@ export const CreateEventScreen: React.FC = () => {
                 }
               }).catch((err) => {
                 if (err.message === 'Campos obrigatórios ausentes.') {
-                  showToast('Por favor, preencha todos os campos obrigatórios: Data, Cliente, Lancha e Local de Embarque.');
+                  showToast('Por favor, preencha todos os campos obrigatórios: Data, Cliente, Lancha, Local de Embarque e Tipo de Passeio.');
                 } else {
                   showToast('Ocorreu um erro ao salvar o passeio: ' + (err.message || 'Erro desconhecido'));
                 }
               });
             }}
-            className={`px-8 py-4 text-white rounded-lg text-lg font-bold shadow-lg transition-colors ${vm.isPreScheduled ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-600 hover:bg-green-700'}`}
+            className="px-8 py-4 text-white rounded-lg text-lg font-bold shadow-lg transition-colors bg-blue-600 hover:bg-blue-700"
           >
-            {vm.isPreScheduled ? 'Pré-agendar Passeio' : 'Agendar Passeio'}
+            {vm.editingEventId ? 'Atualizar Passeio' : 'Agendar Passeio'}
           </button>
         </div>
       </footer>
+
+      <QuickTourTypeModal
+        isOpen={isTourTypeModalOpen}
+        onSave={vm.handleSaveTourType}
+        onClose={() => setIsTourTypeModalOpen(false)}
+      />
 
       <NewClientModal
         isOpen={vm.isModalOpen}

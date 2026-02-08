@@ -1,5 +1,5 @@
 // src/viewmodels/useProductsViewModel.ts
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import type { Product } from '../core/domain/types';
 import { productRepository } from '../core/repositories/ProductRepository';
 
@@ -9,16 +9,17 @@ export const useProductsViewModel = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
 
-  const fetchProducts = useCallback(async () => {
-    setIsLoading(true);
-    const fetchedProducts = await productRepository.getAll();
-    setProducts(fetchedProducts);
-    setIsLoading(false);
-  }, []);
-
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    setIsLoading(true);
+    productRepository.getAll().then(() => setIsLoading(false));
+
+    const unsubscribe = productRepository.subscribe((data) => {
+      setProducts(data);
+      setIsLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
 
   const openNewProductModal = () => {
     setEditingProduct({
@@ -54,7 +55,6 @@ export const useProductsViewModel = () => {
       }
 
       closeModal();
-      await fetchProducts(); // Refresh the list
       return { success: true };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Erro ao salvar produto.' };
@@ -78,7 +78,6 @@ export const useProductsViewModel = () => {
     if (productToDeleteId) {
       try {
         await productRepository.remove(productToDeleteId);
-        await fetchProducts();
         closeConfirmDeleteModal();
         return { success: true };
       } catch (error) {

@@ -12,7 +12,7 @@ export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) 
   const location = useLocation();
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <div>Carregando...</div>;
   }
 
   if (!currentUser) {

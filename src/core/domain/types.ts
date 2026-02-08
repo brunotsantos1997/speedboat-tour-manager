@@ -15,6 +15,18 @@ export interface Product {
 }
 
 /**
+ * Represents a miscellaneous income (gain).
+ */
+export interface Income {
+  id: string;
+  date: string; // YYYY-MM-DD
+  amount: number;
+  description: string;
+  paymentMethod: PaymentMethod;
+  timestamp: number;
+}
+
+/**
  * Represents the discount applied to an event.
  */
 export interface Discount {
@@ -29,6 +41,7 @@ export interface SelectedProduct extends Product {
   isCourtesy: boolean;
   startTime?: string; // e.g., "15:00"
   endTime?: string;   // e.g., "19:00"
+  discount?: Discount;
 }
 
 /**
@@ -55,8 +68,33 @@ export interface BoardingLocation {
   isArchived?: boolean;
 }
 
+/**
+ * Represents a type of tour (e.g., Anniversary, Bachelor Party).
+ */
+export interface TourType {
+  id: string;
+  name: string;
+  color: string;
+  isArchived?: boolean;
+}
+
 export type EventStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'PRE_SCHEDULED' | 'PENDING_REFUND' | 'REFUNDED' | 'ARCHIVED_COMPLETED' | 'ARCHIVED_CANCELLED';
 export type PaymentStatus = 'PENDING' | 'CONFIRMED';
+export type PaymentMethod = 'PIX' | 'CARD_CREDIT' | 'CARD_DEBIT' | 'CASH' | 'TRANSFER' | 'OTHER';
+export type PaymentType = 'DOWN_PAYMENT' | 'BALANCE' | 'FULL';
+
+/**
+ * Represents a payment for an event.
+ */
+export interface Payment {
+  id: string;
+  eventId: string;
+  amount: number;
+  method: PaymentMethod;
+  type: PaymentType;
+  date: string; // YYYY-MM-DD
+  timestamp: number;
+}
 
 /**
  * Represents the main event being created.
@@ -71,16 +109,51 @@ export interface EventType {
   preScheduledAt?: number; // Timestamp for pre-booking expiration
   boat: Boat;
   boardingLocation: BoardingLocation;
+  tourType?: TourType;
   products: SelectedProduct[];
-  discount: Discount;
+  rentalDiscount?: Discount;
+  productsDiscount?: Discount; // Legacy
+  discount?: Discount; // Legacy
   client: ClientProfile;
   passengerCount: number;
   subtotal: number;
   total: number;
   tax?: number;
+  taxDescription?: string;
   observations?: string;
   isAcknowledged?: boolean; // For dashboard notifications
   createdByUserId?: string;
+  payments?: Payment[];
+  rentalRevenue?: number;
+  productsRevenue?: number;
+  autoCancelled?: boolean;
+}
+
+/**
+ * Represents a category for expenses.
+ */
+export interface ExpenseCategory {
+  id: string;
+  name: string;
+  isArchived?: boolean;
+}
+
+/**
+ * Represents an expense.
+ */
+export interface Expense {
+  id: string;
+  date: string; // YYYY-MM-DD
+  amount: number;
+  description: string;
+  categoryId: string;
+  categoryName?: string; // Denormalized for easier display
+  boatId?: string; // Optional: linked to a specific boat
+  boatName?: string;
+  status: 'PENDING' | 'PAID';
+  paymentMethod?: PaymentMethod;
+  timestamp: number;
+  isArchived?: boolean;
 }
 
 /**
@@ -129,6 +202,7 @@ export interface CompanyData {
   businessHours: BusinessHours;
   rentalHourlyRate?: number;
   rentalHalfHourRate?: number;
+  commissionBasis?: 'RENTAL_ONLY' | 'TOTAL_PRICE';
 }
 
 export interface VoucherTerms {
@@ -142,8 +216,11 @@ export interface CommissionReportEntry {
   eventId: string;
   eventDate: string;
   eventTotalPrice: number;
+  rentalRevenue: number;
   commissionPercentage: number;
   commissionValue: number;
   clientName: string;
+  status: 'PENDING' | 'PAID';
+  expenseId?: string;
 }
 

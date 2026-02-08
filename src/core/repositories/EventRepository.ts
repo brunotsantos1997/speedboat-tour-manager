@@ -8,7 +8,8 @@ import {
   onSnapshot,
   query,
   getDoc,
-  type Unsubscribe
+  type Unsubscribe,
+  where
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type { EventType } from '../domain/types';
@@ -21,6 +22,7 @@ export interface IEventRepository {
   add(event: Omit<EventType, 'id'>): Promise<EventType>;
   updateEvent(event: EventType): Promise<EventType>;
   getAll(): Promise<EventType[]>;
+  backfillFinancialData(): Promise<void>;
   dispose(): void;
   initialize(user?: any): void;
 }
@@ -31,6 +33,7 @@ class EventRepositoryImpl implements IEventRepository {
   private unsubscribe: Unsubscribe | null = null;
   private isInitialized = false;
   private currentUser: any = null;
+  private listeners: ((data: EventType[]) => void)[] = [];
 
   constructor() {}
 
@@ -50,6 +53,43 @@ class EventRepositoryImpl implements IEventRepository {
         id: doc.id
       }));
       this.isInitialized = true;
+      this.notifyListeners();
+    });
+  }
+
+  private notifyListeners() {
+    this.listeners.forEach(listener => listener(this.events));
+  }
+
+  subscribe(listener: (data: EventType[]) => void) {
+    this.listeners.push(listener);
+    if (this.isInitialized) {
+      listener(this.events);
+    }
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
+  }
+
+  subscribeToId(id: string, callback: (data: EventType | undefined) => void) {
+    const docRef = doc(db, this.collectionName, id);
+    return onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        callback({ ...docSnap.data() as EventType, id: docSnap.id });
+      } else {
+        callback(undefined);
+      }
+    });
+  }
+
+  subscribeToClientEvents(clientId: string, callback: (data: EventType[]) => void) {
+    const q = query(collection(db, this.collectionName), where('client.id', '==', clientId));
+    return onSnapshot(q, (snapshot) => {
+      const events = snapshot.docs.map(doc => ({
+        ...doc.data() as EventType,
+        id: doc.id
+      }));
+      callback(events);
     });
   }
 
@@ -153,7 +193,7 @@ class EventRepositoryImpl implements IEventRepository {
     if (!updatedEvent.id || !updatedEvent.boat?.id || !updatedEvent.client?.id) {
       throw new Error('Dados incompletos para atualização do passeio.');
     }
-    if (this.currentUser.role !== 'OWNER' && this.currentUser.role !== 'SUPER_ADMIN' && updatedEvent.createdByUserId !== this.currentUser.id) {
+    if (this.currentUser.role !== 'OWNER' && this.currentUser.role !== 'SUPER_ADMIN' && this.currentUser.role !== 'ADMIN' && updatedEvent.createdByUserId !== this.currentUser.id) {
       throw new Error('Você não tem permissão para alterar este evento.');
     }
     const allEvents = await this.getAll();
@@ -183,6 +223,63 @@ class EventRepositoryImpl implements IEventRepository {
     await updateDoc(docRef, data as any);
 
     return updatedEvent;
+  }
+
+  async backfillFinancialData(): Promise<void> {
+    const events = await this.getAll();
+    const confirmedEvents = events.filter(e =>
+      (e.status === 'SCHEDULED' || e.status === 'COMPLETED' || e.status === 'ARCHIVED_COMPLETED') &&
+      (e.rentalRevenue === undefined || e.productsRevenue === undefined)
+    );
+
+    if (confirmedEvents.length === 0) return;
+
+    for (const event of confirmedEvents) {
+      try {
+        const startMin = timeToMinutes(event.startTime);
+        const endMin = timeToMinutes(event.endTime);
+        const durationInMinutes = endMin - startMin;
+
+        let rentalRevenue = 0;
+        if (durationInMinutes > 0 && event.boat) {
+          const hours = Math.floor(durationInMinutes / 60);
+          const remainingMinutes = durationInMinutes % 60;
+          rentalRevenue = hours * (event.boat.pricePerHour || 0);
+          if (remainingMinutes >= 30) {
+            rentalRevenue += (event.boat.pricePerHalfHour || 0);
+          }
+        }
+
+        const productsGross = (event.products || []).reduce((acc, p) => {
+          if (p.isCourtesy) return acc;
+          if (p.pricingType === 'PER_PERSON') return acc + (p.price || 0) * event.passengerCount;
+          if (p.pricingType === 'HOURLY' && p.startTime && p.endTime && p.hourlyPrice) {
+            const d = (timeToMinutes(p.endTime) - timeToMinutes(p.startTime)) / 60;
+            return acc + (d > 0 ? d * p.hourlyPrice : 0);
+          }
+          return acc + (p.price || 0);
+        }, 0);
+
+        // Apply discount proportionally to keep consistency with event.total (which is NET)
+        const totalGross = rentalRevenue + productsGross;
+        let finalRentalRevenue = rentalRevenue;
+        let finalProductsRevenue = productsGross;
+
+        if (totalGross > 0 && event.total !== totalGross) {
+          const ratio = event.total / totalGross;
+          finalRentalRevenue = rentalRevenue * ratio;
+          finalProductsRevenue = productsGross * ratio;
+        }
+
+        await this.updateEvent({
+          ...event,
+          rentalRevenue: finalRentalRevenue,
+          productsRevenue: finalProductsRevenue
+        });
+      } catch (err) {
+        console.error(`Failed to backfill event ${event.id}:`, err);
+      }
+    }
   }
 }
 

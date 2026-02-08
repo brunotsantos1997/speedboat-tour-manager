@@ -3,7 +3,6 @@ import React from 'react';
 import {
   Anchor,
   User,
-  Phone,
   CalendarDays,
   Clock,
   Users,
@@ -15,6 +14,7 @@ import {
   Package,
   MapPin,
   ExternalLink,
+  Tag,
 } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 
@@ -42,10 +42,30 @@ const InfoItem: React.FC<{ icon: React.ElementType; label: string; value: React.
   </div>
 );
 
+const formatDuration = (hours: number) => {
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+
+  const parts = [];
+  if (h > 0) parts.push(`${h} ${h === 1 ? 'hora' : 'horas'}`);
+  if (m > 0) parts.push(`${m} ${m === 1 ? 'minuto' : 'minutos'}`);
+
+  return parts.length > 0 ? parts.join(' e ') : '0 minutos';
+};
+
 // --- Main Voucher Screen ---
 
 export const VoucherScreen: React.FC = () => {
   const { voucher, companyData, voucherTerms, watermark, isLoading, error, handleDownloadPdf } = useVoucherViewModel();
+
+  const boatRentalGross = React.useMemo(() => {
+    if (!voucher || !voucher.boat) return 0;
+    const hours = Math.floor(voucher.durationHours);
+    const mins = Math.round((voucher.durationHours - hours) * 60);
+    let cost = hours * (voucher.boat.pricePerHour || 0);
+    if (mins >= 30) cost += (voucher.boat.pricePerHalfHour || 0);
+    return cost;
+  }, [voucher]);
 
   if (isLoading) {
     return (
@@ -81,7 +101,6 @@ export const VoucherScreen: React.FC = () => {
     products,
     subtotal,
     total,
-    reservationFee,
     remainingBalance,
   } = voucher;
 
@@ -129,7 +148,12 @@ export const VoucherScreen: React.FC = () => {
                   <h3 className="font-bold text-lg mb-4 text-gray-700">Dados do Cliente</h3>
                   <div className="space-y-4">
                       <InfoItem icon={User} label="Nome" value={client.name} />
-                      <InfoItem icon={Phone} label="Telefone" value={client.phone} />
+                      {voucher.observations && (
+                        <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                           <p className="text-xs font-bold text-blue-600 uppercase mb-1">Descrição do Passeio</p>
+                           <p className="text-sm text-gray-700 whitespace-pre-wrap">{voucher.observations}</p>
+                        </div>
+                      )}
                   </div>
               </div>
               <div className="border-t md:border-t-0 md:border-l border-gray-200 pt-6 md:pt-0 md:pl-6">
@@ -138,7 +162,8 @@ export const VoucherScreen: React.FC = () => {
                       <InfoItem icon={CalendarDays} label="Data" value={new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} />
                       <InfoItem icon={Clock} label="Horário" value={`${startTime} - ${endTime}`} />
                       <InfoItem icon={Users} label="Nº de Passageiros" value={`${passengerCount} pessoas`} />
-                      <InfoItem icon={Anchor} label="Lancha" value={`${boat.name} (Cap: ${boat.capacity})`} />
+                      <InfoItem icon={Tag} label="Tipo de Passeio" value={voucher.tourType?.name || 'Passeio'} />
+                      <InfoItem icon={Anchor} label="Lancha" value={boat.name} />
                       <InfoItem
                         icon={MapPin}
                         label="Local de Embarque"
@@ -166,36 +191,76 @@ export const VoucherScreen: React.FC = () => {
             <section className="mb-8">
               <h3 className="font-bold text-lg mb-4 text-gray-700">Itens Inclusos no Pacote</h3>
               <div className="space-y-3">
-                {products.map((item) => (
-                  <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center">
-                      <DynamicIcon name={item.iconKey} className="w-6 h-6 mr-4 text-blue-600" />
-                      <div>
-                          <p className="font-semibold text-gray-800">
-                              {item.name}
-                              {item.isCourtesy && <span className="text-sm font-normal text-green-600 ml-2">(Cortesia)</span>}
-                          </p>
-                           {item.pricingType === 'HOURLY' && item.startTime && item.endTime && (
-                              <p className="text-xs text-gray-500">
-                                  Horário: {item.startTime} - {item.endTime}
-                              </p>
-                          )}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className={`font-semibold ${item.isCourtesy ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                        {item.pricingType === 'PER_PERSON' && !item.isCourtesy
-                          ? formatCurrencyBRL((item.price || 0) * passengerCount)
-                          : formatCurrencyBRL(item.price || 0)}
+                {/* Boat Package Duration */}
+                <div className="flex justify-between items-center p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                  <div className="flex items-center">
+                    <Anchor className="w-6 h-6 mr-4 text-blue-600" />
+                    <div>
+                      <p className="font-semibold text-gray-800">
+                        Pacote de {formatDuration(voucher.durationHours)} de passeio
                       </p>
-                      {item.pricingType === 'PER_PERSON' && (
-                        <p className="text-xs text-gray-500">
-                          {item.isCourtesy ? "" : `(${passengerCount}x ${formatCurrencyBRL(item.price || 0)})`}
-                        </p>
-                      )}
+                      <p className="text-xs text-gray-500">
+                        {boat.name}
+                      </p>
                     </div>
                   </div>
-                ))}
+                  <div className="text-right">
+                    <p className="font-semibold text-gray-800">
+                      {formatCurrencyBRL(boatRentalGross)}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      ({formatCurrencyBRL(boat.pricePerHour)}/h)
+                    </p>
+                  </div>
+                </div>
+
+                {products.map((item) => {
+                  const itemGross = item.pricingType === 'PER_PERSON'
+                    ? (item.price || 0) * passengerCount
+                    : (item.price || 0);
+
+                  let itemDiscountValue = 0;
+                  if (item.discount && item.discount.value > 0 && !item.isCourtesy) {
+                    if (item.discount.type === 'FIXED') itemDiscountValue = item.discount.value;
+                    else itemDiscountValue = itemGross * (item.discount.value / 100);
+                  }
+
+                  const itemNet = Math.max(0, itemGross - itemDiscountValue);
+
+                  return (
+                    <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <DynamicIcon name={item.iconKey} className="w-6 h-6 mr-4 text-blue-600" />
+                        <div>
+                            <p className="font-semibold text-gray-800">
+                                {item.name}
+                                {item.isCourtesy && <span className="text-sm font-normal text-green-600 ml-2">(Cortesia)</span>}
+                            </p>
+                            {item.pricingType === 'HOURLY' && item.startTime && item.endTime && (
+                                <p className="text-xs text-gray-500">
+                                    Horário: {item.startTime} - {item.endTime}
+                                </p>
+                            )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-semibold ${item.isCourtesy ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                          {item.isCourtesy ? formatCurrencyBRL(itemGross) : formatCurrencyBRL(itemNet)}
+                        </p>
+                        {item.pricingType === 'PER_PERSON' && !item.isCourtesy && (
+                          <p className="text-xs text-gray-500">
+                            ({passengerCount}x {formatCurrencyBRL(item.price || 0)})
+                          </p>
+                        )}
+                        {itemDiscountValue > 0 && !item.isCourtesy && (
+                          <p className="text-xs text-red-500">
+                            Desc: -{formatCurrencyBRL(itemDiscountValue)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </section>
 
@@ -204,20 +269,97 @@ export const VoucherScreen: React.FC = () => {
               <div className="w-full max-w-sm">
                   <div className="space-y-2 text-gray-700">
                       <div className="flex justify-between"><span>Subtotal</span> <span className="font-medium">{formatCurrencyBRL(subtotal)}</span></div>
-                      <div className="flex justify-between text-red-600"><span>Desconto</span> <span className="font-medium">- {formatCurrencyBRL(voucher.discount.type === 'FIXED' ? voucher.discount.value : subtotal * (voucher.discount.value / 100))}</span></div>
-                      {(voucher.tax ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Taxa</span> <span className="font-medium">+ {formatCurrencyBRL(voucher.tax ?? 0)}</span></div>}
-                      <div className="flex justify-between font-bold text-lg border-t border-gray-200 pt-2 mt-2"><span>Total</span> <span>{formatCurrencyBRL(total)}</span></div>
-                      <div className="flex justify-between font-bold text-lg text-blue-600 bg-blue-50 p-3 rounded-lg">
-                          <span>Sinal (Reserva 30%)</span>
-                          <span>{formatCurrencyBRL(reservationFee)}</span>
+                      {/* Granular Discounts Display */}
+                      {voucher.rentalDiscount && voucher.rentalDiscount.value > 0 && (
+                        <div className="flex justify-between text-red-600 text-sm italic">
+                          <span>Desconto Lancha</span>
+                          <span className="font-medium">- {formatCurrencyBRL(voucher.rentalDiscount.type === 'FIXED' ? voucher.rentalDiscount.value : (boat.pricePerHour * voucher.durationHours) * (voucher.rentalDiscount.value / 100))}</span>
+                        </div>
+                      )}
+                      {/* Per-Product Discounts Summary (Optional, but showing total discounts is good) */}
+                      {(() => {
+                        const productDiscountsTotal = products.reduce((acc, p) => {
+                          if (p.isCourtesy || !p.discount || p.discount.value <= 0) return acc;
+                          let itemGross = p.pricingType === 'PER_PERSON' ? (p.price || 0) * passengerCount : (p.price || 0);
+                          if (p.discount.type === 'FIXED') return acc + p.discount.value;
+                          return acc + (itemGross * (p.discount.value / 100));
+                        }, 0);
+
+                        if (productDiscountsTotal > 0) {
+                          return (
+                            <div className="flex justify-between text-red-600 text-sm italic">
+                              <span>Desconto nos Itens</span>
+                              <span className="font-medium">- {formatCurrencyBRL(productDiscountsTotal)}</span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+
+                      {(voucher.tax ?? 0) > 0 && (
+                        <div className="flex justify-between text-green-600">
+                          <span className="italic flex flex-col">
+                            <span>Taxa Adicional</span>
+                            {voucher.taxDescription && <span className="text-[10px] text-gray-500">Motivo: {voucher.taxDescription}</span>}
+                          </span>
+                          <span className="font-medium">+ {formatCurrencyBRL(voucher.tax ?? 0)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-bold text-lg border-t border-gray-200 pt-2 mt-2">
+                        <span>Total</span>
+                        <div className="flex items-center gap-2">
+                          {voucher.isFullyPaid && <span className="text-green-600 text-sm font-bold uppercase tracking-wider">Pago</span>}
+                          <span className={voucher.isFullyPaid ? "line-through opacity-50" : ""}>{formatCurrencyBRL(total)}</span>
+                        </div>
                       </div>
+
+                      {/* Signal (Down Payment) Logic */}
+                      {voucher.totalPaid > 0 ? (
+                        <div className="space-y-1">
+                          <div className="flex justify-between font-bold text-lg text-green-700 bg-green-50 p-3 rounded-lg border border-green-100">
+                              <span className="flex items-center gap-2">
+                                <span className="text-sm uppercase tracking-wider">Pago</span>
+                                <span>Sinal Antecipado</span>
+                              </span>
+                              <span className="line-through opacity-60">{formatCurrencyBRL(voucher.totalPaid)}</span>
+                          </div>
+
+                          {voucher.remainingReservationFee > 0 && (
+                            <div className="flex justify-between font-bold text-md text-blue-600 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                <span>Sinal Pendente (Reserva)</span>
+                                <span>{formatCurrencyBRL(voucher.remainingReservationFee)}</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex justify-between font-bold text-lg text-blue-600 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                            <span>Sinal (Reserva {companyData.reservationFeePercentage || 30}%)</span>
+                            <span>{formatCurrencyBRL(voucher.reservationFee)}</span>
+                        </div>
+                      )}
+
                        <div className="flex justify-between text-gray-600 pt-2 mt-2">
                           <span>Saldo a pagar no dia</span>
-                          <span className="font-bold">{formatCurrencyBRL(remainingBalance)}</span>
+                          <div className="flex items-center gap-2">
+                            {(voucher.status === 'COMPLETED' || voucher.status === 'ARCHIVED_COMPLETED') && voucher.remainingBalance <= 0 && (
+                                <span className="text-green-600 text-xs font-bold uppercase">Pago</span>
+                            )}
+                            <span className={`font-bold ${(voucher.status === 'COMPLETED' || voucher.status === 'ARCHIVED_COMPLETED') && voucher.remainingBalance <= 0 ? "line-through opacity-50" : ""}`}>
+                                {formatCurrencyBRL(remainingBalance)}
+                            </span>
+                          </div>
                       </div>
                   </div>
               </div>
             </section>
+
+            {/* Observations Section (Keep it but rename) */}
+            {voucher.observations && (
+              <section className="mb-8 p-4 bg-yellow-50 border border-yellow-100 rounded-lg">
+                <h3 className="font-bold text-lg mb-2 text-gray-700">Notas Adicionais</h3>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{voucher.observations}</p>
+              </section>
+            )}
 
             {/* Legal Clauses */}
             <section className="p-6 bg-gray-50 border border-gray-200 rounded-lg">

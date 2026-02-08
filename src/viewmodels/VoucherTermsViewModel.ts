@@ -17,7 +17,7 @@ export const useVoucherTermsViewModel = () => {
         const data = await repository.get();
         setVoucherTerms(data || null);
       } catch {
-        setError('Failed to load voucher terms.');
+        setError('Falha ao carregar termos do voucher.');
       } finally {
         setIsLoading(false);
       }
@@ -36,7 +36,7 @@ export const useVoucherTermsViewModel = () => {
         setVoucherTerms(updatedData);
         return updatedData;
       } catch (e) {
-        setError('Failed to update voucher terms.');
+        setError('Falha ao atualizar termos do voucher.');
         throw e;
       }
     },
