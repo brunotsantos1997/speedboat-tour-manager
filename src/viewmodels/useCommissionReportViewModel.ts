@@ -1,6 +1,7 @@
 // src/viewmodels/useCommissionReportViewModel.ts
 import { useState, useEffect, useCallback } from 'react';
 import { commissionRepository } from '../core/repositories/CommissionRepository';
+import { expenseRepository } from '../core/repositories/ExpenseRepository';
 import type { CommissionReportEntry } from '../core/domain/types';
 import type { User } from '../core/domain/User';
 import { useAuth } from '../contexts/AuthContext';
@@ -43,6 +44,26 @@ export const useCommissionReportViewModel = () => {
     fetchReport();
   }, [fetchReport]);
 
+  const payCommission = async (entry: CommissionReportEntry, paymentMethod: any) => {
+    try {
+      await expenseRepository.add({
+        description: `Comissão: ${entry.userName} - ${entry.clientName} (${entry.eventId})`,
+        amount: entry.commissionValue,
+        date: new Date().toISOString().split('T')[0],
+        categoryId: 'commission', // We can use a special category or 'comissão'
+        categoryName: 'Comissão',
+        status: 'PAID',
+        paymentMethod,
+        timestamp: Date.now(),
+        boatId: undefined, // Or link it to the event's boat
+      });
+      await fetchReport();
+    } catch (err) {
+      console.error('Failed to pay commission:', err);
+      throw err;
+    }
+  };
+
   useEffect(() => {
     const fetchUsers = async () => {
       if (currentUser && (currentUser.role === 'OWNER' || currentUser.role === 'ADMIN')) {
@@ -69,5 +90,7 @@ export const useCommissionReportViewModel = () => {
     setSelectedUserId,
     usersForFilter,
     currentUser,
+    payCommission,
+    refresh: fetchReport,
   };
 };

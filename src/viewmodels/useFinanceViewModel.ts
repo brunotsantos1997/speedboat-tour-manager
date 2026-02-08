@@ -5,6 +5,7 @@ import { eventRepository } from '../core/repositories/EventRepository';
 import { expenseRepository } from '../core/repositories/ExpenseRepository';
 import { incomeRepository } from '../core/repositories/IncomeRepository';
 import { paymentRepository } from '../core/repositories/PaymentRepository';
+import { timeToMinutes } from '../core/utils/timeUtils';
 import { startOfMonth, endOfMonth, format, subMonths, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -172,19 +173,90 @@ export const useFinanceViewModel = () => {
         type: 'EXPENSE' as const,
         timestamp: e.timestamp
       })),
-      ...payments.map(p => {
+      ...payments.flatMap(p => {
         const event = events.find(ev => ev.id === p.eventId);
-        return {
-          id: p.id,
-          date: p.date,
-          amount: p.amount,
-          description: event
-            ? `Pagamento: ${event.client.name} (${event.boat.name})`
-            : `Pagamento de Evento (${p.type})`,
-          type: 'PAYMENT' as const,
-          timestamp: p.timestamp,
-          eventId: p.eventId
-        };
+        if (!event) {
+          return [{
+            id: p.id,
+            date: p.date,
+            amount: p.amount,
+            description: `Pagamento de Evento (${p.type})`,
+            type: 'PAYMENT' as const,
+            timestamp: p.timestamp,
+            eventId: p.eventId
+          }];
+        }
+
+        // Proportional breakdown calculation
+        // totalGross should include boat + products + tax BEFORE discounts?
+        // Actually, user wants it discriminada, but the total paid is what matters.
+        // Let's use the NET values (after proportional discount) to keep it consistent with total.
+
+        const ratio = p.amount / event.total;
+        const entries = [];
+
+        // 1. Boat Rental
+        const boatAmount = (event.rentalRevenue || 0) * ratio;
+        if (boatAmount > 0) {
+          entries.push({
+            id: `${p.id}-boat`,
+            date: p.date,
+            amount: boatAmount,
+            description: `Passeio (${event.boat.name}): ${event.client.name}`,
+            type: 'PAYMENT' as const,
+            timestamp: p.timestamp,
+            eventId: p.eventId
+          });
+        }
+
+        // 2. Products (Discriminada)
+        event.products.forEach((prod, idx) => {
+          if (prod.isCourtesy) return;
+
+          // Calculate product's net contribution to the total
+          let prodGross = 0;
+          if (prod.pricingType === 'PER_PERSON') prodGross = (prod.price || 0) * event.passengerCount;
+          else if (prod.pricingType === 'HOURLY' && prod.startTime && prod.endTime && prod.hourlyPrice) {
+            const d = (timeToMinutes(prod.endTime) - timeToMinutes(prod.startTime)) / 60;
+            prodGross = d > 0 ? d * prod.hourlyPrice : 0;
+          } else prodGross = prod.price || 0;
+
+          // Apply product discount if exists
+          let prodNet = prodGross;
+          if (prod.discount) {
+            if (prod.discount.type === 'FIXED') prodNet -= prod.discount.value;
+            else prodNet -= (prodGross * (prod.discount.value / 100));
+          }
+
+          const prodAmount = prodNet * ratio;
+          if (prodAmount > 0) {
+            entries.push({
+              id: `${p.id}-prod-${prod.id}-${idx}`,
+              date: p.date,
+              amount: prodAmount,
+              description: `Produto (${prod.name}): ${event.client.name}`,
+              type: 'PAYMENT' as const,
+              timestamp: p.timestamp,
+              eventId: p.eventId
+            });
+          }
+        });
+
+        // 3. Taxas Adicionais
+        const taxAmount = (event.tax || 0) * ratio;
+        if (taxAmount > 0) {
+          entries.push({
+            id: `${p.id}-tax`,
+            date: p.date,
+            amount: taxAmount,
+            description: `Taxa (${event.taxDescription || 'Adicional'}): ${event.client.name}`,
+            type: 'PAYMENT' as const,
+            timestamp: p.timestamp,
+            eventId: p.eventId
+          });
+        }
+
+        return entries;
       })
     ].filter(item => item.date >= startStr && item.date <= endStr);
 
@@ -203,9 +275,11 @@ export const useFinanceViewModel = () => {
       } else if (type === 'EXPENSE') {
         await expenseRepository.remove(id);
       } else if (type === 'PAYMENT') {
-        const payment = payments.find(p => p.id === id);
+        // Handle composite IDs for granular payments
+        const originalId = id.split('-')[0];
+        const payment = payments.find(p => p.id === originalId);
         if (payment) {
-          await paymentRepository.remove(id);
+          await paymentRepository.remove(originalId);
 
           // Update event status
           const event = await eventRepository.getById(payment.eventId);

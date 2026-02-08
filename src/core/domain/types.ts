@@ -214,9 +214,12 @@ export interface CommissionReportEntry {
   eventId: string;
   eventDate: string;
   eventTotalPrice: number;
+  rentalRevenue: number;
   commissionPercentage: number;
   commissionValue: number;
   clientName: string;
+  status: 'PENDING' | 'PAID';
+  expenseId?: string;
 }
 
 export interface AuditLog {

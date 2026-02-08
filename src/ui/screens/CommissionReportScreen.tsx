@@ -1,10 +1,13 @@
 // src/ui/screens/CommissionReportScreen.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { useCommissionReportViewModel } from '../../viewmodels/useCommissionReportViewModel';
 import { DayPicker } from 'react-day-picker';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 import 'react-day-picker/dist/style.css';
 import { ptBR } from 'date-fns/locale';
+import { CheckCircle, Clock, DollarSign, X } from 'lucide-react';
+import type { CommissionReportEntry, PaymentMethod } from '../../core/domain/types';
+import { useToastContext } from '../contexts/ToastContext';
 
 export const CommissionReportScreen: React.FC = () => {
   const {
@@ -19,7 +22,30 @@ export const CommissionReportScreen: React.FC = () => {
     setSelectedUserId,
     usersForFilter,
     currentUser,
+    payCommission,
   } = useCommissionReportViewModel();
+  const { showToast } = useToastContext();
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<CommissionReportEntry | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
+
+  const handlePayClick = (entry: CommissionReportEntry) => {
+    setSelectedEntry(entry);
+    setIsModalOpen(true);
+  };
+
+  const confirmPayment = async () => {
+    if (!selectedEntry) return;
+    try {
+      await payCommission(selectedEntry, paymentMethod);
+      showToast('Pagamento de comissão registrado!');
+      setIsModalOpen(false);
+      setSelectedEntry(null);
+    } catch (e) {
+      showToast('Erro ao registrar pagamento.');
+    }
+  };
 
   if (loading) {
     return <p>Carregando relatório...</p>;
@@ -89,22 +115,46 @@ export const CommissionReportScreen: React.FC = () => {
               <tr>
                 <th className="p-3 text-left text-sm font-semibold text-gray-600">Usuário</th>
                 <th className="p-3 text-left text-sm font-semibold text-gray-600">Cliente</th>
-                <th className="p-3 text-left text-sm font-semibold text-gray-600">Data Evento</th>
-                <th className="p-3 text-left text-sm font-semibold text-gray-600">Valor Total</th>
-                <th className="p-3 text-left text-sm font-semibold text-gray-600">Comissão</th>
-                <th className="p-3 text-left text-sm font-semibold text-gray-600">Valor Comissão</th>
+                <th className="p-3 text-left text-sm font-semibold text-gray-600">Data</th>
+                <th className="p-3 text-left text-sm font-semibold text-gray-600 text-right">Valor Barco</th>
+                <th className="p-3 text-left text-sm font-semibold text-gray-600 text-center">Comissão</th>
+                <th className="p-3 text-left text-sm font-semibold text-gray-600 text-right">Valor</th>
+                <th className="p-3 text-left text-sm font-semibold text-gray-600 text-center">Status</th>
+                <th className="p-3 text-left text-sm font-semibold text-gray-600 text-center">Ações</th>
               </tr>
             </thead>
             <tbody>
               {reportData.length > 0 ? (
                 reportData.map(entry => (
                   <tr key={entry.eventId} className="border-b hover:bg-gray-50">
-                    <td className="p-3">{entry.userName}</td>
+                    <td className="p-3 font-medium">{entry.userName}</td>
                     <td className="p-3">{entry.clientName}</td>
-                    <td className="p-3">{new Date(entry.eventDate + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
-                    <td className="p-3">{formatCurrencyBRL(entry.eventTotalPrice)}</td>
-                    <td className="p-3">{entry.commissionPercentage}%</td>
-                    <td className="p-3">{formatCurrencyBRL(entry.commissionValue)}</td>
+                    <td className="p-3 whitespace-nowrap">{new Date(entry.eventDate + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                    <td className="p-3 text-right">{formatCurrencyBRL(entry.rentalRevenue)}</td>
+                    <td className="p-3 text-center">{entry.commissionPercentage}%</td>
+                    <td className="p-3 text-right font-bold text-green-600">{formatCurrencyBRL(entry.commissionValue)}</td>
+                    <td className="p-3 text-center">
+                      {entry.status === 'PAID' ? (
+                        <span className="inline-flex items-center gap-1 text-green-600 text-xs font-bold uppercase">
+                          <CheckCircle size={14} /> Pago
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-amber-500 text-xs font-bold uppercase">
+                          <Clock size={14} /> Pendente
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3 text-center">
+                      {entry.status === 'PENDING' && (
+                        <button
+                          onClick={() => handlePayClick(entry)}
+                          className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors shadow-sm"
+                          title="Pagar Comissão"
+                        >
+                          <DollarSign size={16} />
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))
               ) : (
@@ -115,14 +165,70 @@ export const CommissionReportScreen: React.FC = () => {
             </tbody>
             <tfoot className="bg-gray-100 font-bold">
               <tr>
-                <td colSpan={5} className="p-3 text-right">Total:</td>
-                <td className="p-3">
+                <td colSpan={5} className="p-3 text-right">Total Pendente:</td>
+                <td className="p-3 text-right text-amber-600">
+                  {formatCurrencyBRL(reportData.filter(e => e.status === 'PENDING').reduce((acc, entry) => acc + entry.commissionValue, 0))}
+                </td>
+                <td colSpan={2}></td>
+              </tr>
+              <tr className="border-t">
+                <td colSpan={5} className="p-3 text-right">Total Geral:</td>
+                <td className="p-3 text-right">
                   {formatCurrencyBRL(reportData.reduce((acc, entry) => acc + entry.commissionValue, 0))}
                 </td>
+                <td colSpan={2}></td>
               </tr>
             </tfoot>
           </table>
         </div>
+
+        {/* Payment Modal */}
+        {isModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
+                <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+                    <h2 className="font-bold text-gray-800 text-lg">Pagar Comissão</h2>
+                    <button onClick={() => setIsModalOpen(false)} className="text-gray-500 hover:text-gray-700">
+                        <X size={20} />
+                    </button>
+                </div>
+                <div className="p-6 space-y-4">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                        <p className="text-sm text-gray-600">Pagamento para:</p>
+                        <p className="text-lg font-bold text-gray-900">{selectedEntry?.userName}</p>
+                        <div className="flex justify-between mt-2 pt-2 border-t border-blue-100">
+                            <span className="text-sm text-gray-600">Valor:</span>
+                            <span className="text-lg font-bold text-blue-700">{formatCurrencyBRL(selectedEntry?.commissionValue || 0)}</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Forma de Pagamento</label>
+                        <select
+                            value={paymentMethod}
+                            onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                            className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        >
+                            <option value="PIX">PIX</option>
+                            <option value="CASH">Dinheiro</option>
+                            <option value="TRANSFER">Transferência</option>
+                            <option value="CARD_DEBIT">Cartão de Débito</option>
+                            <option value="OTHER">Outros</option>
+                        </select>
+                    </div>
+                </div>
+                <div className="p-4 bg-gray-50 flex gap-3">
+                    <button onClick={() => setIsModalOpen(false)} className="flex-1 py-2 text-gray-600 font-medium">Cancelar</button>
+                    <button
+                        onClick={confirmPayment}
+                        className="flex-1 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors shadow-md"
+                    >
+                        Confirmar Pagamento
+                    </button>
+                </div>
+            </div>
+          </div>
+        )}
       </div>
   );
 };
