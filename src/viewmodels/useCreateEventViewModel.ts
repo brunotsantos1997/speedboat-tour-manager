@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { timeToMinutes, minutesToTime } from '../core/utils/timeUtils';
 import type { BoardingLocation, TourType } from '../core/domain/types';
 import { boardingLocationRepository } from '../core/repositories/BoardingLocationRepository';
+import { sanitizeObject } from '../core/utils/objectUtils';
 
 export const useCreateEventViewModel = () => {
   const { currentUser } = useAuth();
@@ -156,9 +157,14 @@ export const useCreateEventViewModel = () => {
     setSelectedProducts(prev =>
       prev.some(p => p.id === product.id)
         ? prev.filter(p => p.id !== product.id)
-        : [...prev, { ...product, isCourtesy: false }]
+        : [...prev, {
+            ...product,
+            isCourtesy: false,
+            startTime: product.pricingType === 'HOURLY' ? startTime : undefined,
+            endTime: product.pricingType === 'HOURLY' ? endTime : undefined
+          }]
     );
-  }, []);
+  }, [startTime, endTime]);
 
   const toggleCourtesy = useCallback((productId: string) => {
     setSelectedProducts(prev =>
@@ -482,19 +488,6 @@ export const useCreateEventViewModel = () => {
       // Use existing timestamp if editing, otherwise set now
       eventData.preScheduledAt = originalEvent?.preScheduledAt || Date.now();
     }
-
-    // Sanitize object to remove undefined properties (Firestore requirement)
-    const sanitizeObject = (obj: any) => {
-      const sanitized = { ...obj };
-      Object.keys(sanitized).forEach(key => {
-        if (sanitized[key] === undefined) {
-          delete sanitized[key];
-        } else if (sanitized[key] !== null && typeof sanitized[key] === 'object' && !Array.isArray(sanitized[key])) {
-          sanitized[key] = sanitizeObject(sanitized[key]);
-        }
-      });
-      return sanitized;
-    };
 
     if (editingEventId) {
       const updatedEvent = sanitizeObject({
