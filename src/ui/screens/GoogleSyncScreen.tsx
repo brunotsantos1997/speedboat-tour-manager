@@ -14,7 +14,8 @@ export const GoogleSyncScreen: React.FC = () => {
     syncProgress,
     saveSettings,
     syncExistingEvents,
-    fetchCalendars
+    fetchCalendars,
+    linkGoogle
   } = useGoogleSyncViewModel();
 
   const [selectedCalendar, setSelectedCalendar] = useState(currentUser?.calendarSettings?.calendarId || '');
@@ -96,10 +97,27 @@ export const GoogleSyncScreen: React.FC = () => {
               ))}
             </select>
             {calendars.length === 0 && !isLoading && !error && (
-              <p className="mt-2 text-sm text-yellow-600 flex items-center">
-                <AlertCircle size={14} className="mr-1" />
-                Nenhum calendário encontrado. Verifique se concedeu as permissões necessárias.
-              </p>
+              <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                <p className="text-sm text-yellow-700 flex items-start mb-3">
+                  <AlertCircle size={18} className="mr-2 flex-shrink-0 mt-0.5" />
+                  <span>
+                    Nenhum calendário encontrado. Isso geralmente acontece se você não marcou as "caixinhas" de permissão do Google Calendar durante o login.
+                  </span>
+                </p>
+                <button
+                  onClick={async () => {
+                    try {
+                      await linkGoogle();
+                      await fetchCalendars();
+                    } catch (err: any) {
+                      console.error(err);
+                    }
+                  }}
+                  className="text-sm bg-yellow-600 text-white px-4 py-2 rounded font-semibold hover:bg-yellow-700 transition-colors"
+                >
+                  Atualizar Permissões do Google
+                </button>
+              </div>
             )}
           </section>
 

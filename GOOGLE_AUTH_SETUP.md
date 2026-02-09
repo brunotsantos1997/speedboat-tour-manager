@@ -22,9 +22,20 @@ Para que o login funcione corretamente, é necessário configurar a tela de cons
 3. No menu lateral, vá em **APIs e Serviços** > **Tela de consentimento OAuth**.
 4. Configure como **Externo** (se desejar que qualquer pessoa com conta Google possa se cadastrar).
 5. Preencha as informações obrigatórias (Nome do app, e-mail de suporte, e-mail de contato do desenvolvedor).
-6. Em **Domínios autorizados**, adicione o domínio onde o seu app está hospedado (ex: `seu-app.firebaseapp.com` ou seu domínio customizado).
+7. Na seção de **Escopos (Scopes)**, clique em **Adicionar ou remover escopos** e adicione manualmente:
+   - `https://www.googleapis.com/auth/calendar.events`
+   - `https://www.googleapis.com/auth/calendar.readonly`
+8. Em **Domínios autorizados**, adicione o domínio onde o seu app está hospedado (ex: `seu-app.firebaseapp.com` ou seu domínio customizado).
 
-## 3. Adicionar Domínios Autorizados no Firebase
+## 3. Ativar API do Google Calendar
+
+Para que a sincronização funcione, você deve ativar a API no console do Google Cloud:
+
+1. Vá para a [Biblioteca de APIs](https://console.cloud.google.com/apis/library).
+2. Procure por **Google Calendar API**.
+3. Clique em **Ativar**.
+
+## 4. Adicionar Domínios Autorizados no Firebase
 
 1. No Console do Firebase, em **Authentication** > **Settings** > **Authorized domains**.
 2. Certifique-se de que `localhost` e o domínio de produção do seu app estão na lista.
