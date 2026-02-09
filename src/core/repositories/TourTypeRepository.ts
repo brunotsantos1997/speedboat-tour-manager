@@ -87,24 +87,7 @@ export class TourTypeRepository {
       this.isInitialized = true;
     }
 
-    if (this.tourTypes.length === 0) {
-      await this.seed();
-    }
-
     return this.tourTypes.filter(t => !t.isArchived);
-  }
-
-  private async seed() {
-    const initialTypes: Omit<TourType, 'id'>[] = [
-      { name: 'Aniversário', color: '#FF69B4' },
-      { name: 'Despedida de Solteiro', color: '#4169E1' },
-      { name: 'Despedida de Solteira', color: '#DA70D6' },
-      { name: 'Passeio', color: '#32CD32' },
-    ];
-
-    for (const type of initialTypes) {
-      await this.add(type);
-    }
   }
 
   async add(tourType: Omit<TourType, 'id'>): Promise<TourType> {

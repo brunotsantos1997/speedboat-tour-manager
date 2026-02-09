@@ -117,6 +117,11 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
               <NavLink to="/tour-types" className={navLinkClass} onClick={onClose}>
                 Tipos de Passeio
               </NavLink>
+              {(currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
+                <NavLink to="/admin/commissions" className={navLinkClass} onClick={onClose}>
+                  Comissões
+                </NavLink>
+              )}
               {(currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN') && (
                 <>
                   <NavLink to="/voucher-terms" className={navLinkClass} onClick={onClose}>

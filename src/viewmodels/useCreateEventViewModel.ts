@@ -111,6 +111,7 @@ export const useCreateEventViewModel = () => {
           setStartTime(initialEvent.startTime);
           setEndTime(initialEvent.endTime);
           setSelectedBoat(initialEvent.boat);
+          setSelectedBoardingLocation(initialEvent.boardingLocation);
           setSelectedTourType(initialEvent.tourType || null);
           setSelectedProducts(initialEvent.products);
           setRentalDiscount(initialEvent.rentalDiscount || { type: 'FIXED', value: 0 });
@@ -418,6 +419,32 @@ export const useCreateEventViewModel = () => {
     const productsRevenue = productsCost - productDiscountsTotal;
     const rentalRevenue = boatRentalCost - rentalDiscountValue;
 
+    // Calculate Costs
+    let rentalCost = 0;
+    if (selectedBoat && startTime && endTime) {
+      const startMin = timeToMinutes(startTime);
+      const endMin = timeToMinutes(endTime);
+      const durationInMinutes = endMin - startMin;
+      if (durationInMinutes > 0) {
+        const hours = Math.floor(durationInMinutes / 60);
+        const remainingMinutes = durationInMinutes % 60;
+        rentalCost = hours * (selectedBoat.costPerHour || 0);
+        if (remainingMinutes >= 30) {
+          rentalCost += (selectedBoat.costPerHalfHour || 0);
+        }
+      }
+    }
+
+    const productsCostValue = selectedProducts.reduce((acc, p) => {
+      if (p.isCourtesy) return acc;
+      if (p.pricingType === 'PER_PERSON') return acc + (p.cost || 0) * passengerCount;
+      if (p.pricingType === 'HOURLY' && p.startTime && p.endTime && p.hourlyCost) {
+        const d = (timeToMinutes(p.endTime) - timeToMinutes(p.startTime)) / 60;
+        return acc + (d > 0 ? d * p.hourlyCost : 0);
+      }
+      return acc + (p.cost || 0);
+    }, 0);
+
     const eventStatus = isPreScheduled ? 'PRE_SCHEDULED' : 'SCHEDULED';
 
     const eventData: any = {
@@ -429,7 +456,7 @@ export const useCreateEventViewModel = () => {
       boat: selectedBoat,
       boardingLocation: selectedBoardingLocation,
       tourType: selectedTourType,
-      products: selectedProducts,
+      products: selectedProducts.map(p => ({ ...p, snapshotCost: p.cost })),
       rentalDiscount,
       // For editing legacy events, we want to clear the old discount fields upon saving
       discount: { type: 'FIXED', value: 0 },
@@ -443,6 +470,12 @@ export const useCreateEventViewModel = () => {
       observations,
       rentalRevenue,
       productsRevenue,
+      rentalGross: boatRentalCost,
+      productsGross: productsCost,
+      rentalCost,
+      productsCost: productsCostValue,
+      taxCost: originalEvent?.taxCost || 0,
+      additionalCosts: originalEvent?.additionalCosts || [],
     };
 
     if (isPreScheduled) {
@@ -450,18 +483,31 @@ export const useCreateEventViewModel = () => {
       eventData.preScheduledAt = originalEvent?.preScheduledAt || Date.now();
     }
 
+    // Sanitize object to remove undefined properties (Firestore requirement)
+    const sanitizeObject = (obj: any) => {
+      const sanitized = { ...obj };
+      Object.keys(sanitized).forEach(key => {
+        if (sanitized[key] === undefined) {
+          delete sanitized[key];
+        } else if (sanitized[key] !== null && typeof sanitized[key] === 'object' && !Array.isArray(sanitized[key])) {
+          sanitized[key] = sanitizeObject(sanitized[key]);
+        }
+      });
+      return sanitized;
+    };
+
     if (editingEventId) {
-      const updatedEvent = {
+      const updatedEvent = sanitizeObject({
         ...eventData,
         id: editingEventId,
         createdByUserId: originalEvent?.createdByUserId,
-      };
+      });
       await eventRepository.updateEvent(updatedEvent as EventType);
     } else {
-      const newEventData = {
+      const newEventData = sanitizeObject({
         ...eventData,
         createdByUserId: currentUser?.id,
-      };
+      });
       await eventRepository.add(newEventData);
     }
 

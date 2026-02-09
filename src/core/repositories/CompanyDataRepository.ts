@@ -2,7 +2,6 @@
 import { doc, getDoc, setDoc, onSnapshot, type Unsubscribe } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type { CompanyData, DayOfWeek } from '../domain/types';
-import { auditLogRepository } from './AuditLogRepository';
 
 export class CompanyDataRepository {
   private static instance: CompanyDataRepository;
@@ -115,15 +114,8 @@ export class CompanyDataRepository {
       commissionBasis: 'RENTAL_ONLY',
     };
 
-    // Try to save default data to server
-    try {
-      const { id, ...dataToSave } = defaultData;
-      await setDoc(docRef, dataToSave);
-      this.data = defaultData;
-      this.notifyListeners();
-    } catch (e) {
-      console.warn("Could not save default company data to server:", e);
-    }
+    this.data = defaultData;
+    this.notifyListeners();
 
     return defaultData;
   }

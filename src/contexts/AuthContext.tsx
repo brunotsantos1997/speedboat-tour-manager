@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import type { User, UserRole, UserStatus } from '../core/domain/User';
+import type { User, UserRole, UserStatus, UserCommissionSettings } from '../core/domain/User';
 import { auth, db } from '../lib/firebase';
 import {
   onAuthStateChanged,
@@ -48,7 +48,7 @@ interface AuthContextType {
   logout: () => void;
   updateUserStatus: (userId: string, status: UserStatus) => Promise<void>;
   updateUserRole: (userId: string, role: UserRole) => Promise<void>;
-  updateUserCommission: (userId: string, commission: number) => Promise<void>;
+  updateUserCommissionSettings: (userId: string, settings: UserCommissionSettings) => Promise<void>;
   getAllUsers: () => Promise<User[]>;
   updateProfile: (userId: string, data: { name?: string; email?: string; newPassword?: string, oldPassword?: string }) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<User | null>;
@@ -269,12 +269,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await updateDoc(profileRef, { role });
   };
 
-  const updateUserCommission = async (userId: string, commission: number): Promise<void> => {
+  const updateUserCommissionSettings = async (userId: string, settings: UserCommissionSettings): Promise<void> => {
     if (!currentUser || (currentUser.role === 'SELLER')) {
       throw new Error('Você não tem permissão para alterar comissões.');
-    }
-    if (commission < 0 || commission > 100) {
-      throw new Error('A porcentagem de comissão deve estar entre 0 e 100.');
     }
     const profileRef = doc(db, 'profiles', userId);
     const targetSnap = await getDoc(profileRef);
@@ -287,7 +284,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       throw new Error('Você não tem permissão para alterar a comissão de um Super Administrador.');
     }
 
-    await updateDoc(profileRef, { commissionPercentage: commission });
+    await updateDoc(profileRef, { commissionSettings: settings });
   };
 
   const requestPasswordReset = async (email: string): Promise<User | null> => {
@@ -388,7 +385,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     logout,
     updateUserStatus,
     updateUserRole,
-    updateUserCommission,
+    updateUserCommissionSettings,
     getAllUsers,
     updateProfile,
     requestPasswordReset,

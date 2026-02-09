@@ -32,15 +32,24 @@ const ProductModal: React.FC<{
           <input type="text" placeholder="Nome do Produto" value={product.name} onChange={(e) => onUpdate('name', e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
           <div className="grid grid-cols-2 gap-4">
             {product.pricingType === 'HOURLY' ? (
-              <MoneyInput value={product.hourlyPrice || 0} onChange={(val) => onUpdate('hourlyPrice', val)} placeholder="Preço por Hora" />
+              <>
+                <MoneyInput label="Preço por Hora (Venda)" value={product.hourlyPrice || 0} onChange={(val) => onUpdate('hourlyPrice', val)} />
+                <MoneyInput label="Custo por Hora (Operacional)" value={product.hourlyCost || 0} onChange={(val) => onUpdate('hourlyCost', val)} />
+              </>
             ) : (
-              <MoneyInput value={product.price || 0} onChange={(val) => onUpdate('price', val)} placeholder={product.pricingType === 'PER_PERSON' ? 'Preço por Pessoa' : 'Preço Fixo'} />
+              <>
+                <MoneyInput label={product.pricingType === 'PER_PERSON' ? 'Preço p/ Pessoa (Venda)' : 'Preço Fixo (Venda)'} value={product.price || 0} onChange={(val) => onUpdate('price', val)} />
+                <MoneyInput label={product.pricingType === 'PER_PERSON' ? 'Custo p/ Pessoa (Operacional)' : 'Custo Fixo (Operacional)'} value={product.cost || 0} onChange={(val) => onUpdate('cost', val)} />
+              </>
             )}
-            <select value={product.pricingType} onChange={(e) => onUpdate('pricingType', e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-              <option value="FIXED">Preço Fixo</option>
-              <option value="PER_PERSON">Por Pessoa</option>
-              <option value="HOURLY">Por Hora</option>
-            </select>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Cobrança</label>
+              <select value={product.pricingType} onChange={(e) => onUpdate('pricingType', e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                <option value="FIXED">Preço Fixo</option>
+                <option value="PER_PERSON">Por Pessoa</option>
+                <option value="HOURLY">Por Hora</option>
+              </select>
+            </div>
           </div>
           <IconPicker
             selectedIcon={product.iconKey as IconKey}

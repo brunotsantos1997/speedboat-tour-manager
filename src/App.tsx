@@ -16,6 +16,7 @@ import { LoginScreen } from './ui/screens/LoginScreen';
 import { SignupScreen } from './ui/screens/SignupScreen';
 import { PendingApprovalScreen } from './ui/screens/PendingApprovalScreen';
 import { UserManagementScreen } from './ui/screens/UserManagementScreen';
+import { UserCommissionsScreen } from './ui/screens/UserCommissionsScreen';
 import { CommissionReportScreen } from './ui/screens/CommissionReportScreen';
 import { FinanceScreen } from './ui/screens/FinanceScreen';
 import { CashBookScreen } from './ui/screens/CashBookScreen';
@@ -69,6 +70,7 @@ function App() {
             {/* Routes for ADMIN, SUPER_ADMIN and OWNER (User management) */}
             <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'OWNER']} />}>
               <Route path="admin/users" element={<UserManagementScreen />} />
+              <Route path="admin/commissions" element={<UserCommissionsScreen />} />
             </Route>
           </Route>
         </Route>

@@ -10,6 +10,8 @@ import 'react-day-picker/dist/style.css';
 import { ptBR } from 'date-fns/locale';
 import type { EventType, PaymentType } from '../../core/domain/types';
 import { PaymentModal } from '../components/PaymentModal';
+import { EventCostModal } from '../components/EventCostModal';
+import { useEventCostViewModel } from '../../viewmodels/useEventCostViewModel';
 
 // --- Sub-components for the Dashboard ---
 
@@ -32,7 +34,12 @@ const QuickAccessButton: React.FC<{ to: string; title: string; icon: React.React
   </Link>
 );
 
-const EventListItem: React.FC<{ event: EventType; onConfirmPayment: (id: string, type: PaymentType) => void; isSeller?: boolean; }> = ({ event, onConfirmPayment, isSeller }) => {
+const EventListItem: React.FC<{
+  event: EventType;
+  onConfirmPayment: (id: string, type: PaymentType) => void;
+  onOpenCosts: (event: EventType) => void;
+  isSeller?: boolean;
+}> = ({ event, onConfirmPayment, onOpenCosts, isSeller }) => {
   // Parse date string as local to avoid timezone issues.
   const eventDate = new Date(`${event.date}T00:00`);
 
@@ -65,7 +72,16 @@ const EventListItem: React.FC<{ event: EventType; onConfirmPayment: (id: string,
           </div>
         </div>
       </div>
-      <div className="flex items-center">
+      <div className="flex items-center gap-2">
+        {!isSeller && (
+          <button
+            onClick={() => onOpenCosts(event)}
+            className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
+            title="Adicionar Custos"
+          >
+            <DollarSign size={18} />
+          </button>
+        )}
         {event.paymentStatus === 'PENDING' && !isSeller && (
           <button
             onClick={() => onConfirmPayment(event.id, event.status === 'PRE_SCHEDULED' ? 'DOWN_PAYMENT' : 'BALANCE')}
@@ -105,6 +121,8 @@ export const DashboardScreen: React.FC = () => {
     processNotification,
     revertCancellation
   } = useDashboardViewModel();
+
+  const costVm = useEventCostViewModel();
 
   // A new component for notifications
   const NotificationCard: React.FC<{ event: EventType; onAcknowledge: (id: string) => void; onPayment: (id: string, type: PaymentType) => void; onRevert: (id: string) => void; }> = ({ event, onAcknowledge, onPayment, onRevert }) => {
@@ -228,7 +246,7 @@ export const DashboardScreen: React.FC = () => {
             <h2 className="text-xl font-semibold mb-3 flex items-center"><AlertTriangle className="mr-2 text-yellow-500"/> Pagamentos Pendentes</h2>
             <div className="space-y-3 max-h-60 overflow-y-auto">
               {pendingPayments.length > 0
-                ? pendingPayments.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={initiatePayment} isSeller={isSeller} />)
+                ? pendingPayments.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={initiatePayment} onOpenCosts={costVm.openModal} isSeller={isSeller} />)
                 : <p className="text-gray-500">Nenhum pagamento pendente.</p>
               }
             </div>
@@ -239,7 +257,7 @@ export const DashboardScreen: React.FC = () => {
             <h2 className="text-xl font-semibold mb-3 flex items-center"><Clock className="mr-2 text-purple-500"/> Passeios da Semana</h2>
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {eventsThisWeek.length > 0
-                ? eventsThisWeek.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={initiatePayment} isSeller={isSeller} />)
+                ? eventsThisWeek.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={initiatePayment} onOpenCosts={costVm.openModal} isSeller={isSeller} />)
                 : <p className="text-gray-500">Nenhum passeio agendado para esta semana.</p>
               }
             </div>
@@ -252,7 +270,7 @@ export const DashboardScreen: React.FC = () => {
             </h2>
             <div className="space-y-3">
               {eventsForSelectedDate.length > 0
-                ? eventsForSelectedDate.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={initiatePayment} isSeller={isSeller} />)
+                ? eventsForSelectedDate.map(event => <EventListItem key={event.id} event={event} onConfirmPayment={initiatePayment} onOpenCosts={costVm.openModal} isSeller={isSeller} />)
                 : <p className="text-gray-500">Nenhum passeio agendado para a data selecionada.</p>
               }
             </div>
@@ -288,6 +306,24 @@ export const DashboardScreen: React.FC = () => {
           title={paymentType === 'DOWN_PAYMENT' ? 'Confirmar Reserva (Sinal)' : 'Registrar Pagamento de Saldo'}
           defaultAmount={defaultPaymentAmount}
           type={paymentType}
+        />
+      )}
+
+      {costVm.isModalOpen && (
+        <EventCostModal
+          isOpen={costVm.isModalOpen}
+          onClose={costVm.closeModal}
+          onSave={costVm.saveCosts}
+          event={costVm.event}
+          rentalCost={costVm.rentalCost}
+          setRentalCost={costVm.setRentalCost}
+          products={costVm.products}
+          updateProductCost={costVm.updateProductCost}
+          additionalCosts={costVm.additionalCosts}
+          addAdditionalCost={costVm.addAdditionalCost}
+          updateAdditionalCost={costVm.updateAdditionalCost}
+          removeAdditionalCost={costVm.removeAdditionalCost}
+          isSaving={costVm.isSaving}
         />
       )}
     </div>
