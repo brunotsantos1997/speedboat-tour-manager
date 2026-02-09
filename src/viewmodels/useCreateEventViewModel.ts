@@ -111,6 +111,7 @@ export const useCreateEventViewModel = () => {
           setStartTime(initialEvent.startTime);
           setEndTime(initialEvent.endTime);
           setSelectedBoat(initialEvent.boat);
+          setSelectedBoardingLocation(initialEvent.boardingLocation);
           setSelectedTourType(initialEvent.tourType || null);
           setSelectedProducts(initialEvent.products);
           setRentalDiscount(initialEvent.rentalDiscount || { type: 'FIXED', value: 0 });
@@ -473,6 +474,8 @@ export const useCreateEventViewModel = () => {
       productsGross: productsCost,
       rentalCost,
       productsCost: productsCostValue,
+      taxCost: originalEvent?.taxCost || 0,
+      additionalCosts: originalEvent?.additionalCosts || [],
     };
 
     if (isPreScheduled) {
@@ -480,18 +483,31 @@ export const useCreateEventViewModel = () => {
       eventData.preScheduledAt = originalEvent?.preScheduledAt || Date.now();
     }
 
+    // Sanitize object to remove undefined properties (Firestore requirement)
+    const sanitizeObject = (obj: any) => {
+      const sanitized = { ...obj };
+      Object.keys(sanitized).forEach(key => {
+        if (sanitized[key] === undefined) {
+          delete sanitized[key];
+        } else if (sanitized[key] !== null && typeof sanitized[key] === 'object' && !Array.isArray(sanitized[key])) {
+          sanitized[key] = sanitizeObject(sanitized[key]);
+        }
+      });
+      return sanitized;
+    };
+
     if (editingEventId) {
-      const updatedEvent = {
+      const updatedEvent = sanitizeObject({
         ...eventData,
         id: editingEventId,
         createdByUserId: originalEvent?.createdByUserId,
-      };
+      });
       await eventRepository.updateEvent(updatedEvent as EventType);
     } else {
-      const newEventData = {
+      const newEventData = sanitizeObject({
         ...eventData,
         createdByUserId: currentUser?.id,
-      };
+      });
       await eventRepository.add(newEventData);
     }
 
