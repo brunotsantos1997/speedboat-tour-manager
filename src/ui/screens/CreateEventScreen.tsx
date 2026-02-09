@@ -651,6 +651,7 @@ export const CreateEventScreen: React.FC = () => {
                   navigate(`/clients?clientId=${client.id}`);
                 }
               }).catch((err) => {
+                console.error('Erro ao salvar evento:', err);
                 if (err.message === 'Campos obrigatórios ausentes.') {
                   showToast('Por favor, preencha todos os campos obrigatórios: Data, Cliente, Lancha, Local de Embarque e Tipo de Passeio.');
                 } else {
