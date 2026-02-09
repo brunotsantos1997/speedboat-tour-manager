@@ -71,7 +71,7 @@ export const useVoucherViewModel = () => {
 
       const displaySignal = Math.max(reservationFee, totalPaid);
       const remainingReservationFee = Math.max(0, reservationFee - totalPaid);
-      const remainingBalance = Math.max(0, currentEvent.total - totalPaid);
+      const remainingBalance = Math.max(0, currentEvent.total - displaySignal);
 
       const parseTime = (time: string) => {
         const [h, m] = time.split(':').map(Number);
