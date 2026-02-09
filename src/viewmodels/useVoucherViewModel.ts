@@ -7,7 +7,6 @@ import { CompanyDataRepository } from '../core/repositories/CompanyDataRepositor
 import { VoucherTermsRepository } from '../core/repositories/VoucherTermsRepository';
 import { VoucherAppearanceRepository } from '../core/repositories/VoucherAppearanceRepository';
 import { paymentRepository } from '../core/repositories/PaymentRepository';
-import html2pdf from 'html2pdf.js';
 
 interface VoucherDetails extends EventType {
   reservationFee: number;
@@ -71,7 +70,7 @@ export const useVoucherViewModel = () => {
 
       const displaySignal = Math.max(reservationFee, totalPaid);
       const remainingReservationFee = Math.max(0, reservationFee - totalPaid);
-      const remainingBalance = Math.max(0, currentEvent.total - totalPaid);
+      const remainingBalance = Math.max(0, currentEvent.total - displaySignal);
 
       const parseTime = (time: string) => {
         const [h, m] = time.split(':').map(Number);
@@ -113,23 +112,32 @@ export const useVoucherViewModel = () => {
     return () => unsubs.forEach(fn => fn());
   }, [eventId, companyData?.reservationFeePercentage]);
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     const element = document.getElementById('voucher-content');
     const button = document.getElementById('download-pdf-button');
     if (element && voucher) {
       if (button) button.style.display = 'none';
 
-      const opt = {
-        margin: 0.5,
-        filename: `voucher-${voucher.client.name.replace(/\s+/g, '-')}-${voucher.id}.pdf`,
-        image: { type: 'jpeg' as const, quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' as const }
-      };
+      try {
+        // Dynamic import to avoid loading the heavy PDF library until needed
+        // @ts-ignore - html2pdf might not have types in some environments
+        const html2pdf = (await import('html2pdf.js')).default;
 
-      html2pdf().from(element).set(opt).save().then(() => {
+        const opt = {
+          margin: 0.5,
+          filename: `voucher-${voucher.client.name.replace(/\s+/g, '-')}-${voucher.id}.pdf`,
+          image: { type: 'jpeg' as const, quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' as const }
+        };
+
+        await html2pdf().from(element).set(opt).save();
+      } catch (err) {
+        console.error('Erro ao gerar PDF:', err);
+        alert('Ocorreu um erro ao gerar o PDF. Por favor, tente novamente.');
+      } finally {
         if (button) button.style.display = 'flex';
-      });
+      }
     }
   };
 

@@ -85,15 +85,8 @@ export class VoucherTermsRepository {
       `.trim()
     };
 
-    // Try to save default data to server
-    try {
-      const { id, ...dataToSave } = defaultData;
-      await setDoc(docRef, dataToSave);
-      this.data = defaultData;
-      this.notifyListeners();
-    } catch (e) {
-      console.warn("Could not save default voucher terms data to server:", e);
-    }
+    this.data = defaultData;
+    this.notifyListeners();
 
     return defaultData;
   }

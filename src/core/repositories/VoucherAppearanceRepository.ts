@@ -80,15 +80,8 @@ export class VoucherAppearanceRepository {
 
     const defaultData = { id: this.docId, watermarkImage: null };
 
-    // Try to save default data to server
-    try {
-      const { id, ...dataToSave } = defaultData;
-      await setDoc(docRef, dataToSave);
-      this.data = defaultData;
-      this.notifyListeners();
-    } catch (e) {
-      console.warn("Could not save default voucher appearance data to server:", e);
-    }
+    this.data = defaultData;
+    this.notifyListeners();
 
     return defaultData;
   }

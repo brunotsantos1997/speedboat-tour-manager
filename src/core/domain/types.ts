@@ -7,7 +7,9 @@ export interface Product {
   id: string;
   name: string;
   price?: number; // Price for FIXED or PER_PERSON
+  cost?: number; // Cost for FIXED or PER_PERSON
   hourlyPrice?: number; // Price for HOURLY
+  hourlyCost?: number; // Cost for HOURLY
   pricingType: 'FIXED' | 'PER_PERSON' | 'HOURLY';
   iconKey: string;
   isDefaultCourtesy: boolean;
@@ -42,6 +44,7 @@ export interface SelectedProduct extends Product {
   startTime?: string; // e.g., "15:00"
   endTime?: string;   // e.g., "19:00"
   discount?: Discount;
+  snapshotCost?: number; // Cost captured at the time of the event
 }
 
 /**
@@ -53,7 +56,9 @@ export interface Boat {
   capacity: number;
   size: number; // in feet
   pricePerHour: number;
+  costPerHour?: number;
   pricePerHalfHour: number;
+  costPerHalfHour?: number;
   organizationTimeMinutes: number;
   isArchived?: boolean;
 }
@@ -82,6 +87,15 @@ export type EventStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'PRE_SCHEDUL
 export type PaymentStatus = 'PENDING' | 'CONFIRMED';
 export type PaymentMethod = 'PIX' | 'CARD_CREDIT' | 'CARD_DEBIT' | 'CASH' | 'TRANSFER' | 'OTHER';
 export type PaymentType = 'DOWN_PAYMENT' | 'BALANCE' | 'FULL';
+
+export type EventCostCategory = 'RENTAL' | 'PRODUCT' | 'TAX' | 'OTHER';
+
+export interface EventCostItem {
+  id: string;
+  name: string;
+  amount: number;
+  category: EventCostCategory;
+}
 
 /**
  * Represents a payment for an event.
@@ -126,6 +140,12 @@ export interface EventType {
   payments?: Payment[];
   rentalRevenue?: number;
   productsRevenue?: number;
+  rentalGross?: number;
+  productsGross?: number;
+  rentalCost?: number;
+  productsCost?: number;
+  taxCost?: number;
+  additionalCosts?: EventCostItem[];
   autoCancelled?: boolean;
 }
 
@@ -150,6 +170,7 @@ export interface Expense {
   categoryName?: string; // Denormalized for easier display
   boatId?: string; // Optional: linked to a specific boat
   boatName?: string;
+  eventId?: string; // Optional: linked to a specific event
   status: 'PENDING' | 'PAID';
   paymentMethod?: PaymentMethod;
   timestamp: number;

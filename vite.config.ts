@@ -42,11 +42,19 @@ export default defineConfig({
     include: ['uuid', '@tiptap/react', '@tiptap/starter-kit'],
   },
   build: {
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            return id.toString().split('node_modules/')[1].split('/')[0].toString();
+            if (id.includes('firebase')) return 'vendor-firebase';
+            if (id.includes('html2pdf') || id.includes('html2canvas') || id.includes('jspdf')) return 'vendor-pdf';
+            if (id.includes('prosemirror') || id.includes('tiptap')) return 'vendor-editor';
+            if (id.includes('lucide-react')) return 'vendor-icons';
+            if (id.includes('date-fns')) return 'vendor-date';
+
+            // Standard vendor chunk for other common libraries
+            return 'vendor';
           }
         }
       }

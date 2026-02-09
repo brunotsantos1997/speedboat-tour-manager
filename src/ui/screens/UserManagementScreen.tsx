@@ -5,10 +5,8 @@ import { Toast } from '../components/Toast';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { InformationModal } from '../components/InformationModal';
 
-type EditableUser = User & { commissionInput?: string };
-
 export function UserManagementScreen() {
-  const [users, setUsers] = useState<EditableUser[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -17,16 +15,15 @@ export function UserManagementScreen() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [modalAction, setModalAction] = useState<'reset' | 'approve' | null>(null);
   const [temporaryPassword, setTemporaryPassword] = useState<string | undefined>('');
-  const { getAllUsers, updateUserStatus, updateUserRole, updateUserCommission, currentUser, approvePasswordReset } = useAuth();
+  const { getAllUsers, updateUserStatus, updateUserRole, currentUser, approvePasswordReset } = useAuth();
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
       let allUsers = await getAllUsers();
-      const editableUsers = allUsers
-        .filter(user => user.id !== currentUser?.id)
-        .map(user => ({ ...user, commissionInput: (user.commissionPercentage ?? 0).toString() }));
-      setUsers(editableUsers);
+      const otherUsers = allUsers
+        .filter(user => user.id !== currentUser?.id);
+      setUsers(otherUsers);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao buscar usuários.');
     } finally {
@@ -65,31 +62,6 @@ export function UserManagementScreen() {
       fetchUsers();
     } catch (err) {
       setToastMessage(err instanceof Error ? err.message : 'Erro ao atualizar cargo.');
-    }
-  };
-
-  const handleCommissionInputChange = (userId: string, value: string) => {
-    setUsers(prev =>
-      prev.map(u => (u.id === userId ? { ...u, commissionInput: value } : u))
-    );
-  };
-
-  const handleCommissionSave = async (userId: string) => {
-    const user = users.find(u => u.id === userId);
-    if (!user || user.commissionInput === undefined) return;
-
-    const commissionValue = parseFloat(user.commissionInput);
-    if (isNaN(commissionValue) || commissionValue < 0 || commissionValue > 100) {
-      setToastMessage('Por favor, insira uma porcentagem de comissão válida (0-100).');
-      return;
-    }
-
-    try {
-      await updateUserCommission(userId, commissionValue);
-      setToastMessage('Comissão atualizada com sucesso!');
-      fetchUsers();
-    } catch (err) {
-      setToastMessage(err instanceof Error ? err.message : 'Falha ao atualizar comissão.');
     }
   };
 
@@ -164,7 +136,6 @@ export function UserManagementScreen() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">E-mail</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cargo</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Comissão (%)</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
             </tr>
           </thead>
@@ -190,27 +161,6 @@ export function UserManagementScreen() {
                     {(currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN') && <option value="SUPER_ADMIN">SUPER ADMIN</option>}
                     {user.role === 'OWNER' && <option value="OWNER">PROPRIETÁRIO</option>}
                   </select>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={user.commissionInput}
-                      onChange={(e) => handleCommissionInputChange(user.id, e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                      className="w-20 border border-gray-300 rounded-md p-1 outline-none focus:ring-2 focus:ring-blue-500"
-                      disabled={user.role === 'OWNER'}
-                    />
-                    <button
-                      onClick={() => handleCommissionSave(user.id)}
-                      className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
-                      disabled={user.role === 'OWNER'}
-                    >
-                      Salvar
-                    </button>
-                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div className="flex items-center space-x-4">

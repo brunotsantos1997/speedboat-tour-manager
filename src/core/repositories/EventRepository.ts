@@ -241,9 +241,10 @@ class EventRepositoryImpl implements IEventRepository {
         const durationInMinutes = endMin - startMin;
 
         let rentalRevenue = 0;
+        const hours = durationInMinutes > 0 ? Math.floor(durationInMinutes / 60) : 0;
+        const remainingMinutes = durationInMinutes > 0 ? durationInMinutes % 60 : 0;
+
         if (durationInMinutes > 0 && event.boat) {
-          const hours = Math.floor(durationInMinutes / 60);
-          const remainingMinutes = durationInMinutes % 60;
           rentalRevenue = hours * (event.boat.pricePerHour || 0);
           if (remainingMinutes >= 30) {
             rentalRevenue += (event.boat.pricePerHalfHour || 0);
@@ -260,6 +261,18 @@ class EventRepositoryImpl implements IEventRepository {
           return acc + (p.price || 0);
         }, 0);
 
+        // Calculate Costs for backfill
+        const rentalCost = hours * (event.boat?.costPerHour || 0) + (remainingMinutes >= 30 ? (event.boat?.costPerHalfHour || 0) : 0);
+        const productsCost = (event.products || []).reduce((acc, p) => {
+          if (p.isCourtesy) return acc;
+          if (p.pricingType === 'PER_PERSON') return acc + (p.cost || 0) * event.passengerCount;
+          if (p.pricingType === 'HOURLY' && p.startTime && p.endTime && p.hourlyCost) {
+            const d = (timeToMinutes(p.endTime) - timeToMinutes(p.startTime)) / 60;
+            return acc + (d > 0 ? d * p.hourlyCost : 0);
+          }
+          return acc + (p.cost || 0);
+        }, 0);
+
         // Apply discount proportionally to keep consistency with event.total (which is NET)
         const totalGross = rentalRevenue + productsGross;
         let finalRentalRevenue = rentalRevenue;
@@ -274,7 +287,11 @@ class EventRepositoryImpl implements IEventRepository {
         await this.updateEvent({
           ...event,
           rentalRevenue: finalRentalRevenue,
-          productsRevenue: finalProductsRevenue
+          productsRevenue: finalProductsRevenue,
+          rentalGross: rentalRevenue,
+          productsGross: productsGross,
+          rentalCost,
+          productsCost
         });
       } catch (err) {
         console.error(`Failed to backfill event ${event.id}:`, err);

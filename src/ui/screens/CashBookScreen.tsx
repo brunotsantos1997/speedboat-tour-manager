@@ -44,37 +44,37 @@ export const CashBookScreen: React.FC = () => {
       </div>
 
       {/* Filters Area */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Search */}
-          <div className="relative">
+          <div className="relative sm:col-span-2 lg:col-span-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
-              placeholder="Buscar por descrição ou cliente..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              placeholder="Buscar por descrição..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm md:text-base"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
           {/* Date Range */}
-          <div className="flex items-center gap-2 lg:col-span-1">
-             <Calendar size={18} className="text-gray-400 flex-shrink-0" />
-             <div className="flex items-center gap-1 w-full">
+          <div className="flex flex-col sm:flex-row items-center gap-2 lg:col-span-2">
+             <div className="flex items-center gap-2 w-full">
+                <Calendar size={18} className="text-gray-400 shrink-0" />
                 <input
                     type="date"
-                    className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                    className="flex-1 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
                     value={format(startDate, 'yyyy-MM-dd')}
                     onChange={(e) => {
                         const [y, m, d] = e.target.value.split('-').map(Number);
                         setStartDate(new Date(y, m - 1, d));
                     }}
                 />
-                <span className="text-gray-400">/</span>
+                <span className="text-gray-400">até</span>
                 <input
                     type="date"
-                    className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                    className="flex-1 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
                     value={format(endDate, 'yyyy-MM-dd')}
                     onChange={(e) => {
                         const [y, m, d] = e.target.value.split('-').map(Number);
@@ -88,7 +88,7 @@ export const CashBookScreen: React.FC = () => {
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <select
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none appearance-none text-sm bg-white"
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value as any)}
             >
@@ -97,29 +97,29 @@ export const CashBookScreen: React.FC = () => {
                 <option value="EXIT">Saídas</option>
             </select>
           </div>
-
-          {/* Boat Filter */}
-          <div className="relative">
-            <Anchor className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <select
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
-                value={filterBoatId}
-                onChange={(e) => setFilterBoatId(e.target.value)}
-            >
-                <option value="ALL">Todas as Lanchas</option>
-                {boats.map(boat => (
-                    <option key={boat.id} value={boat.id}>{boat.name}</option>
-                ))}
-            </select>
-          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Boat Filter */}
+            <div className="relative">
+                <Anchor className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <select
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none appearance-none text-sm bg-white"
+                    value={filterBoatId}
+                    onChange={(e) => setFilterBoatId(e.target.value)}
+                >
+                    <option value="ALL">Todas as Lanchas</option>
+                    {boats.map(boat => (
+                        <option key={boat.id} value={boat.id}>{boat.name}</option>
+                    ))}
+                </select>
+            </div>
+
             {/* Category Filter */}
             <div className="relative">
                 <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <select
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none appearance-none text-sm bg-white"
                     value={filterCategory}
                     onChange={(e) => setFilterCategory(e.target.value)}
                 >
@@ -132,14 +132,14 @@ export const CashBookScreen: React.FC = () => {
                 </select>
             </div>
 
-            <div className="lg:col-span-3 flex items-center justify-end text-sm text-gray-500 italic">
+            <div className="sm:col-span-2 lg:col-span-2 flex items-center justify-end text-sm text-gray-500 italic">
                 {cashBook.length} registros encontrados
             </div>
         </div>
       </div>
 
-      {/* Table Area */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Desktop Table Area */}
+      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
@@ -190,7 +190,7 @@ export const CashBookScreen: React.FC = () => {
                   <td colSpan={5} className="px-6 py-20 text-center text-gray-500">
                     <div className="flex flex-col items-center gap-2">
                         <Layers size={48} className="text-gray-200" />
-                        <p>Nenhum registro encontrado com os filtros selecionados.</p>
+                        <p>Nenhum registro encontrado.</p>
                     </div>
                   </td>
                 </tr>
@@ -198,6 +198,49 @@ export const CashBookScreen: React.FC = () => {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-4">
+        {cashBook.length > 0 ? cashBook.map((entry) => (
+          <div key={entry.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-xs text-gray-500 font-medium">
+                   {new Date(entry.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                </span>
+                <p className="font-bold text-gray-900 mt-0.5">{entry.description}</p>
+              </div>
+              <button
+                onClick={() => deleteEntry(entry.id, entry.type)}
+                className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                disabled={isDeleting}
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+
+            <div className="flex justify-between items-center mt-1">
+              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                  entry.type === 'EXPENSE' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
+              }`}>
+                  {entry.subType === 'BOAT' ? 'Lancha' : entry.subType === 'PRODUCT' ? 'Produto' : entry.subType === 'TAX' ? 'Taxa' : 'Geral'}
+              </span>
+              <p className={`text-lg font-black ${entry.type === 'EXPENSE' ? 'text-red-600' : 'text-green-600'}`}>
+                {entry.type === 'EXPENSE' ? '-' : '+'} {formatCurrencyBRL(entry.amount)}
+              </p>
+            </div>
+
+            <p className="text-[10px] text-gray-400 uppercase font-bold tracking-tight border-t pt-2">
+                {entry.type === 'EXPENSE' ? 'Despesa' : entry.type === 'INCOME' ? 'Ganho Avulso' : 'Pagamento Cliente'}
+            </p>
+          </div>
+        )) : (
+          <div className="bg-white p-12 rounded-xl text-center text-gray-500 border border-dashed">
+             <Layers size={40} className="mx-auto text-gray-200 mb-2" />
+             <p>Nenhum registro encontrado.</p>
+          </div>
+        )}
       </div>
     </div>
   );

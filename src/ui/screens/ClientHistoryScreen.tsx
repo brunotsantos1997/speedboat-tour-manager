@@ -7,6 +7,8 @@ import { Search, X, Calendar, Edit, Ban, CheckCircle, Clock, Pencil, FileText, S
 import type { EventStatus, PaymentStatus, EventType, ClientProfile } from '../../core/domain/types';
 import { useNavigate } from 'react-router-dom';
 import { PaymentModal } from '../components/PaymentModal';
+import { EventCostModal } from '../components/EventCostModal';
+import { useEventCostViewModel } from '../../viewmodels/useEventCostViewModel';
 
 const ClientModal: React.FC<{
   isOpen: boolean;
@@ -97,8 +99,9 @@ const EventCard: React.FC<{
   onCancel: (id: string) => void;
   onEdit: (id: string) => void;
   onConfirmPayment: (id: string, type: 'DOWN_PAYMENT' | 'BALANCE' | 'FULL') => void;
+  onOpenCosts: (event: EventType) => void;
   onRevert?: (id: string) => void;
-}> = ({ eventType, onCancel, onEdit, onConfirmPayment, onRevert }) => {
+}> = ({ eventType, onCancel, onEdit, onConfirmPayment, onOpenCosts, onRevert }) => {
 
   const shareVoucher = (eventId: string) => {
     const url = `${window.location.origin}/voucher/${eventId}`;
@@ -146,6 +149,7 @@ const EventCard: React.FC<{
 
         {['SCHEDULED', 'PRE_SCHEDULED', 'COMPLETED', 'ARCHIVED_COMPLETED'].includes(eventType.status) && (
           <>
+            <button onClick={() => onOpenCosts(eventType)} className="px-3 py-1 text-sm bg-orange-500 text-white rounded hover:bg-orange-600 flex items-center"><DollarSign size={14} className="mr-1" /> Custos</button>
             <div className="flex gap-2">
                 {eventType.paymentStatus !== 'CONFIRMED' && (
                     <button onClick={() => onConfirmPayment(eventType.id, eventType.status === 'PRE_SCHEDULED' ? 'DOWN_PAYMENT' : 'BALANCE')} className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 flex items-center">
@@ -180,6 +184,7 @@ const EventCard: React.FC<{
 
 export const ClientHistoryScreen: React.FC = () => {
     const vm = useClientHistoryViewModel();
+    const costVm = useEventCostViewModel();
     const { showToast } = useToastContext();
     const navigate = useNavigate();
 
@@ -236,6 +241,7 @@ export const ClientHistoryScreen: React.FC = () => {
                                           onCancel={vm.cancelEvent}
                                           onEdit={handleEditEvent}
                                           onConfirmPayment={vm.initiatePayment}
+                                          onOpenCosts={costVm.openModal}
                                           onRevert={vm.revertCancellation}
                                        />
                                     ))
@@ -269,6 +275,24 @@ export const ClientHistoryScreen: React.FC = () => {
                 }}
                 onClose={vm.closeEditModal}
             />
+
+            {costVm.isModalOpen && (
+                <EventCostModal
+                    isOpen={costVm.isModalOpen}
+                    onClose={costVm.closeModal}
+                    onSave={costVm.saveCosts}
+                    event={costVm.event}
+                    rentalCost={costVm.rentalCost}
+                    setRentalCost={costVm.setRentalCost}
+                    products={costVm.products}
+                    updateProductCost={costVm.updateProductCost}
+                    additionalCosts={costVm.additionalCosts}
+                    addAdditionalCost={costVm.addAdditionalCost}
+                    updateAdditionalCost={costVm.updateAdditionalCost}
+                    removeAdditionalCost={costVm.removeAdditionalCost}
+                    isSaving={costVm.isSaving}
+                />
+            )}
         </div>
     );
 };

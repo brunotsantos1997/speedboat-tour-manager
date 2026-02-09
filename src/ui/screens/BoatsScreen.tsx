@@ -42,8 +42,12 @@ const BoatModal: React.FC<{
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4 border-t pt-4">
-            <MoneyInput id="boat-price-hour" label="Preço por Hora" value={boat.pricePerHour || 0} onChange={(val) => onUpdate('pricePerHour', val)} />
-            <MoneyInput id="boat-price-half-hour" label="Preço por Meia Hora" value={boat.pricePerHalfHour || 0} onChange={(val) => onUpdate('pricePerHalfHour', val)} />
+            <MoneyInput id="boat-price-hour" label="Preço por Hora (Venda)" value={boat.pricePerHour || 0} onChange={(val) => onUpdate('pricePerHour', val)} />
+            <MoneyInput id="boat-cost-hour" label="Custo por Hora (Operacional)" value={boat.costPerHour || 0} onChange={(val) => onUpdate('costPerHour', val)} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <MoneyInput id="boat-price-half-hour" label="Preço 30min (Venda)" value={boat.pricePerHalfHour || 0} onChange={(val) => onUpdate('pricePerHalfHour', val)} />
+            <MoneyInput id="boat-cost-half-hour" label="Custo 30min (Operacional)" value={boat.costPerHalfHour || 0} onChange={(val) => onUpdate('costPerHalfHour', val)} />
           </div>
           <div className="border-t pt-4">
             <label htmlFor="boat-org-time" className="block text-sm font-medium text-gray-700 mb-1">Tempo de Organização (minutos)</label>
