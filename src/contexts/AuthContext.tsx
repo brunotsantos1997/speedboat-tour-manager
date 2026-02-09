@@ -57,12 +57,15 @@ interface AuthContextType {
   updateUserCommissionSettings: (userId: string, settings: UserCommissionSettings) => Promise<void>;
   getAllUsers: () => Promise<User[]>;
   updateProfile: (userId: string, data: { name?: string; email?: string; newPassword?: string, oldPassword?: string }) => Promise<void>;
+  updateCalendarSettings: (userId: string, settings: { calendarId?: string; autoSync: boolean }) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<User | null>;
   approvePasswordReset: (approverId: string, targetUserId: string) => Promise<string>;
   setSecretQuestion: (userId: string, question: string, answer: string) => Promise<void>;
   verifySecretAnswer: (email: string, answer: string) => Promise<User | null>;
   resetPasswordAfterVerification: (userId: string, newPassword: string) => Promise<void>;
   linkedProviders: string[];
+  googleAccessToken: string | null;
+  setGoogleAccessToken: (token: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -95,6 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [linkedProviders, setLinkedProviders] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(localStorage.getItem('google_access_token'));
 
   const disposeRepositories = () => {
     productRepository.dispose();
@@ -210,8 +214,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const loginWithGoogle = async (): Promise<User | null> => {
     const provider = new GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/calendar.events');
+    provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
     try {
       const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setGoogleAccessToken(credential.accessToken);
+        localStorage.setItem('google_access_token', credential.accessToken);
+      }
       const firebaseUser = result.user;
 
       const profileRef = doc(db, 'profiles', firebaseUser.uid);
@@ -260,8 +271,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const linkGoogle = async (): Promise<void> => {
     if (!auth.currentUser) throw new Error("Usuário não autenticado.");
     const provider = new GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/calendar.events');
+    provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
     try {
       const result = await linkWithPopup(auth.currentUser, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setGoogleAccessToken(credential.accessToken);
+        localStorage.setItem('google_access_token', credential.accessToken);
+      }
       setLinkedProviders(result.user.providerData.map(p => p.providerId));
     } catch (error: any) {
       if (error.code === 'auth/credential-already-in-use') {
@@ -450,6 +468,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
+  const updateCalendarSettings = async (userId: string, settings: { calendarId?: string; autoSync: boolean }): Promise<void> => {
+    if (!currentUser || (currentUser.id !== userId && currentUser.role !== 'OWNER' && currentUser.role !== 'SUPER_ADMIN')) {
+      throw new Error('Você não tem permissão para atualizar estas configurações.');
+    }
+
+    const profileRef = doc(db, 'profiles', userId);
+    await updateDoc(profileRef, { calendarSettings: settings });
+
+    if (currentUser?.id === userId) {
+      setCurrentUser(prev => prev ? { ...prev, calendarSettings: settings } : null);
+    }
+  };
+
   const value = {
     currentUser,
     loading,
@@ -463,12 +494,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     updateUserCommissionSettings,
     getAllUsers,
     updateProfile,
+    updateCalendarSettings,
     requestPasswordReset,
     approvePasswordReset,
     setSecretQuestion,
     verifySecretAnswer,
     resetPasswordAfterVerification,
     linkedProviders,
+    googleAccessToken,
+    setGoogleAccessToken,
   };
 
   return (

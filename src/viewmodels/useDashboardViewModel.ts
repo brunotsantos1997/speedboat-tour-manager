@@ -5,6 +5,7 @@ import { eventRepository } from '../core/repositories/EventRepository';
 import { paymentRepository } from '../core/repositories/PaymentRepository';
 import { startOfDay, isWithinInterval, startOfWeek, endOfWeek, getMonth, isSameDay, format } from 'date-fns';
 import { useToastContext } from '../ui/contexts/ToastContext';
+import { useEventSync } from './useEventSync';
 
 // Helper to parse date string as local time to avoid timezone issues.
 // '2023-10-25' would be parsed as UTC midnight, which can be the previous day in some timezones.
@@ -13,6 +14,7 @@ const parseLocalDate = (dateString: string) => new Date(`${dateString}T00:00`);
 
 export const useDashboardViewModel = () => {
   const [allEvents, setAllEvents] = useState<EventType[]>([]);
+  const { syncEvent } = useEventSync();
   const { showToast } = useToastContext();
   const [isLoading, setIsLoading] = useState(true);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -34,7 +36,8 @@ export const useDashboardViewModel = () => {
           if (event.status === 'PRE_SCHEDULED' && event.preScheduledAt && (now - event.preScheduledAt > twentyFourHours)) {
             const cancelledEvent = { ...event, status: 'CANCELLED' as const, autoCancelled: true };
             try {
-              await eventRepository.updateEvent(cancelledEvent);
+              const savedEvent = await eventRepository.updateEvent(cancelledEvent);
+              syncEvent(savedEvent);
             } catch (error) {
               console.error(`Failed to auto-cancel event ${event.id}:`, error);
             }
@@ -54,7 +57,7 @@ export const useDashboardViewModel = () => {
     });
 
     return unsubscribe;
-  }, []);
+  }, [syncEvent]);
 
   // --- Actions ---
   const initiatePayment = useCallback(async (eventId: string, type: 'DOWN_PAYMENT' | 'BALANCE' | 'FULL') => {
@@ -112,7 +115,8 @@ export const useDashboardViewModel = () => {
         updatedEvent.paymentStatus = 'PENDING';
       }
 
-      await eventRepository.updateEvent(updatedEvent);
+      const savedEvent = await eventRepository.updateEvent(updatedEvent);
+      syncEvent(savedEvent);
 
       showToast('Pagamento registrado com sucesso!');
       setIsPaymentModalOpen(false);
@@ -145,7 +149,8 @@ export const useDashboardViewModel = () => {
         return;
       }
 
-      await eventRepository.updateEvent(updatedEvent);
+      const savedEvent = await eventRepository.updateEvent(updatedEvent);
+      syncEvent(savedEvent);
       showToast(toastMessage);
     } catch (error) {
       console.error('Failed to process notification:', error);
@@ -164,7 +169,8 @@ export const useDashboardViewModel = () => {
         autoCancelled: false
       };
 
-      await eventRepository.updateEvent(updatedEvent);
+      const savedEvent = await eventRepository.updateEvent(updatedEvent);
+      syncEvent(savedEvent);
       showToast('Cancelamento revertido e reserva confirmada!');
     } catch (error: any) {
       console.error('Failed to revert cancellation:', error);

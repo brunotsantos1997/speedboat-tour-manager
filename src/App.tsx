@@ -30,6 +30,7 @@ const ProfileScreen = lazy(() => import('./ui/screens/ProfileScreen').then(m => 
 const ForgotPasswordScreen = lazy(() => import('./ui/screens/ForgotPasswordScreen').then(m => ({ default: m.ForgotPasswordScreen })));
 const ResetPasswordSecretScreen = lazy(() => import('./ui/screens/ResetPasswordSecretScreen').then(m => ({ default: m.ResetPasswordSecretScreen })));
 const SetNewPasswordScreen = lazy(() => import('./ui/screens/SetNewPasswordScreen').then(m => ({ default: m.SetNewPasswordScreen })));
+const GoogleSyncScreen = lazy(() => import('./ui/screens/GoogleSyncScreen').then(m => ({ default: m.GoogleSyncScreen })));
 
 // Simple loading fallback
 const LoadingFallback = () => (
@@ -65,6 +66,7 @@ function App() {
               <Route path="tour-types" element={<TourTypesScreen />} />
               <Route path="clients" element={<ClientHistoryScreen />} />
               <Route path="profile" element={<ProfileScreen />} />
+              <Route path="google-sync" element={<GoogleSyncScreen />} />
 
               {/* Routes for SUPER_ADMIN and OWNER only (Sensitive Settings) */}
               <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'OWNER']} />}>

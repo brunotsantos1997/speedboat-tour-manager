@@ -147,6 +147,7 @@ export interface EventType {
   taxCost?: number;
   additionalCosts?: EventCostItem[];
   autoCancelled?: boolean;
+  googleCalendarEventIds?: Record<string, string>; // Maps userId to googleEventId
 }
 
 /**
