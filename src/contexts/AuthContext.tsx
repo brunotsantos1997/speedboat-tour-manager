@@ -14,6 +14,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   linkWithPopup,
+  unlink,
   fetchSignInMethodsForEmail
 } from 'firebase/auth';
 import {
@@ -50,6 +51,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<User | null>;
   loginWithGoogle: () => Promise<User | null>;
   linkGoogle: () => Promise<void>;
+  unlinkGoogle: () => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<User>;
   logout: () => void;
   updateUserStatus: (userId: string, status: UserStatus) => Promise<void>;
@@ -283,7 +285,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLinkedProviders(result.user.providerData.map(p => p.providerId));
     } catch (error: any) {
       if (error.code === 'auth/credential-already-in-use') {
-        throw new Error("Esta conta do Google já está vinculada a outro usuário.");
+        throw new Error("Esta conta do Google já está vinculada a outro usuário do sistema. Se esta é sua conta, você pode ter outro login ativo.");
+      }
+      if (error.code === 'auth/provider-already-linked') {
+        // If already linked, we might want to re-authenticate to get a new token with scopes
+        // But Firebase linkWithPopup might not work if already linked.
+        // Try signInWithPopup to get a new credential then link? No.
+        // Best approach if already linked is to just do signInWithPopup with the same provider
+        // but that might create a new user or merge.
+        // Actually, for refreshing tokens/scopes, we can use signInWithPopup even if linked.
+        const result = await signInWithPopup(auth, provider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (credential?.accessToken) {
+          setGoogleAccessToken(credential.accessToken);
+          localStorage.setItem('google_access_token', credential.accessToken);
+        }
+        return;
+      }
+      throw error;
+    }
+  };
+
+  const unlinkGoogle = async (): Promise<void> => {
+    if (!auth.currentUser) throw new Error("Usuário não autenticado.");
+    try {
+      await unlink(auth.currentUser, 'google.com');
+      setLinkedProviders(auth.currentUser.providerData.map(p => p.providerId));
+      setGoogleAccessToken(null);
+      localStorage.removeItem('google_access_token');
+
+      if (currentUser) {
+        await updateCalendarSettings(currentUser.id, {
+          calendarId: '',
+          autoSync: false
+        });
+      }
+    } catch (error: any) {
+      if (error.code === 'auth/no-such-provider') {
+        return; // Already unlinked
       }
       throw error;
     }
@@ -487,6 +526,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     login,
     loginWithGoogle,
     linkGoogle,
+    unlinkGoogle,
     signup,
     logout,
     updateUserStatus,

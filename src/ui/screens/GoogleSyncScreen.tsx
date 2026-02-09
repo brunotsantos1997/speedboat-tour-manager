@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, RefreshCw, CheckCircle, AlertCircle, ExternalLink, Link } from 'lucide-react';
+import { Calendar, RefreshCw, CheckCircle, AlertCircle, ExternalLink, Link, Unlink } from 'lucide-react';
 import { useGoogleSyncViewModel } from '../../viewmodels/useGoogleSyncViewModel';
 import { useNavigate } from 'react-router-dom';
 
@@ -15,7 +15,8 @@ export const GoogleSyncScreen: React.FC = () => {
     saveSettings,
     syncExistingEvents,
     fetchCalendars,
-    linkGoogle
+    linkGoogle,
+    unlinkGoogle
   } = useGoogleSyncViewModel();
 
   const [selectedCalendar, setSelectedCalendar] = useState(currentUser?.calendarSettings?.calendarId || '');
@@ -55,13 +56,30 @@ export const GoogleSyncScreen: React.FC = () => {
     );
   }
 
+  const handleUnlink = async () => {
+    if (window.confirm('Tem certeza que deseja desvincular sua conta Google? Isso desativará a sincronização automática.')) {
+      try {
+        await unlinkGoogle();
+      } catch (err: any) {
+        console.error(err);
+      }
+    }
+  };
+
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center">
           <Calendar className="mr-3 text-blue-600" />
           Sincronização com Google Calendar
         </h1>
+        <button
+          onClick={handleUnlink}
+          className="flex items-center text-sm font-medium text-red-600 hover:text-red-700 bg-red-50 px-3 py-2 rounded-lg border border-red-100 transition-colors"
+        >
+          <Unlink size={16} className="mr-2" />
+          Desvincular Conta Google
+        </button>
       </div>
 
       {error && (

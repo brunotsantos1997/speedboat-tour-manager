@@ -4,7 +4,15 @@ import { googleCalendarRepository, type GoogleCalendar } from '../core/repositor
 import { eventRepository } from '../core/repositories/EventRepository';
 
 export const useGoogleSyncViewModel = () => {
-  const { currentUser, googleAccessToken, setGoogleAccessToken, updateCalendarSettings, linkedProviders, linkGoogle } = useAuth();
+  const {
+    currentUser,
+    googleAccessToken,
+    setGoogleAccessToken,
+    updateCalendarSettings,
+    linkedProviders,
+    linkGoogle,
+    unlinkGoogle
+  } = useAuth();
   const [calendars, setCalendars] = useState<GoogleCalendar[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,5 +119,6 @@ export const useGoogleSyncViewModel = () => {
     syncExistingEvents,
     fetchCalendars,
     linkGoogle,
+    unlinkGoogle,
   };
 };
