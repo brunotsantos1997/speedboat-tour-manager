@@ -14,6 +14,7 @@ const parseLocalDate = (dateString: string) => new Date(`${dateString}T00:00`);
 
 export const useDashboardViewModel = () => {
   const [allEvents, setAllEvents] = useState<EventType[]>([]);
+  const [allPayments, setAllPayments] = useState<any[]>([]);
   const { syncEvent } = useEventSync();
   const { showToast } = useToastContext();
   const [isLoading, setIsLoading] = useState(true);
@@ -51,12 +52,19 @@ export const useDashboardViewModel = () => {
         setIsLoading(false);
       });
 
-    const unsubscribe = eventRepository.subscribe((events) => {
+    const unsubscribeEvents = eventRepository.subscribe((events) => {
       setAllEvents(events);
       setIsLoading(false);
     });
 
-    return unsubscribe;
+    const unsubscribePayments = paymentRepository.subscribe((payments) => {
+      setAllPayments(payments);
+    });
+
+    return () => {
+      unsubscribeEvents();
+      unsubscribePayments();
+    };
   }, [syncEvent]);
 
   // --- Actions ---
@@ -223,11 +231,21 @@ export const useDashboardViewModel = () => {
       (event.status === 'SCHEDULED' || event.status === 'COMPLETED' || event.status === 'ARCHIVED_COMPLETED')
     );
 
-    const totalRevenue = monthlyEvents.reduce((acc, event) => acc + event.total, 0);
+    let realizedRevenue = 0;
+    let pendingRevenue = 0;
+
+    monthlyEvents.forEach(event => {
+      const eventPayments = allPayments.filter(p => p.eventId === event.id);
+      const totalPaid = eventPayments.reduce((acc, p) => acc + p.amount, 0);
+
+      realizedRevenue += Math.min(event.total, totalPaid);
+      pendingRevenue += Math.max(0, event.total - totalPaid);
+    });
+
     const totalEvents = monthlyEvents.length;
 
-    return { totalRevenue, totalEvents };
-  }, [allEvents, today]);
+    return { realizedRevenue, pendingRevenue, totalEvents };
+  }, [allEvents, allPayments, today]);
 
   const calendarEvents = useMemo(() =>
     upcomingEvents.map(event => parseLocalDate(event.date)),

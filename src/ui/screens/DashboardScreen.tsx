@@ -16,7 +16,7 @@ import { useEventCostViewModel } from '../../viewmodels/useEventCostViewModel';
 
 // --- Sub-components for the Dashboard ---
 
-const StatCard: React.FC<{ title: string; value: string; icon: React.ReactNode }> = ({ title, value, icon }) => (
+const StatCard: React.FC<{ title: string; value: string; subValue?: string; icon: React.ReactNode }> = ({ title, value, subValue, icon }) => (
   <div className="bg-white p-4 rounded-lg shadow-md flex items-center">
     <div className="bg-blue-100 text-blue-600 p-3 rounded-full mr-4">
       {icon}
@@ -24,6 +24,7 @@ const StatCard: React.FC<{ title: string; value: string; icon: React.ReactNode }
     <div>
       <p className="text-sm text-gray-500">{title}</p>
       <p className="text-2xl font-bold text-gray-800">{value}</p>
+      {subValue && <p className="text-xs text-gray-400 mt-0.5">{subValue}</p>}
     </div>
   </div>
 );
@@ -225,7 +226,14 @@ export const DashboardScreen: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Stat Cards */}
-        {!isSeller && <StatCard title="Faturamento do Mês" value={formatCurrencyBRL(monthlyStats.totalRevenue)} icon={<DollarSign />} />}
+        {!isSeller && (
+          <StatCard
+            title="Faturamento Realizado (Mês)"
+            value={formatCurrencyBRL(monthlyStats.realizedRevenue)}
+            subValue={`Projeção (A receber): ${formatCurrencyBRL(monthlyStats.pendingRevenue)}`}
+            icon={<DollarSign />}
+          />
+        )}
         <StatCard title="Passeios no Mês" value={monthlyStats.totalEvents.toString()} icon={<Hash />} />
       </div>
 
