@@ -87,7 +87,17 @@ export const GoogleSyncScreen: React.FC = () => {
           <AlertCircle className="text-red-500 mr-3 flex-shrink-0" />
           <p className="text-red-700">{error}</p>
           <button
-            onClick={fetchCalendars}
+            onClick={async () => {
+              if (error.includes('expirada')) {
+                try {
+                  await linkGoogle();
+                } catch (err) {
+                  console.error('Failed to relink Google:', err);
+                }
+              } else {
+                fetchCalendars();
+              }
+            }}
             className="ml-auto text-red-700 hover:underline text-sm font-semibold"
           >
             Tentar novamente

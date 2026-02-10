@@ -275,6 +275,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const provider = new GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/calendar.events');
     provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+    provider.setCustomParameters({
+      prompt: 'consent'
+    });
     try {
       const result = await linkWithPopup(auth.currentUser, provider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
