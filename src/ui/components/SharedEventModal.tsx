@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useSharedEventViewModel } from '../../viewmodels/useSharedEventViewModel';
 import { MoneyInput } from './MoneyInput';
-import { X, Anchor, Users, Clock, Calendar, Tag, CreditCard, MessageSquare } from 'lucide-react';
+import { X, Anchor, Users, Clock, Calendar, CreditCard, MessageSquare } from 'lucide-react';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 
 interface SharedEventModalProps {
@@ -272,11 +272,7 @@ export const SharedEventModal: React.FC<SharedEventModalProps> = ({ isOpen, onCl
                   existingSharedEvent ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'
                 }`}
               >
-                {isSaving ? 'Salvando...' : existingSharedEvent ? 'Adicionar ao Passeio' : 'Confirmar e Pagar'}
-                disabled={isSaving || availableTimeSlots.length === 0}
-                className="px-8 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-all shadow-md disabled:bg-gray-400 disabled:shadow-none"
-              >
-                {isSaving ? 'Criando...' : 'Confirmar e Pagar'}
+                {isSaving ? (existingSharedEvent ? 'Salvando...' : 'Criando...') : (existingSharedEvent ? 'Adicionar ao Passeio' : 'Confirmar e Pagar')}
               </button>
             </div>
           </div>

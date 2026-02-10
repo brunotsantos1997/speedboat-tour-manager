@@ -1,7 +1,7 @@
 // src/viewmodels/useSharedEventViewModel.ts
 import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import type { Boat, EventType, CompanyData, ClientProfile, TourType, PaymentMethod } from '../core/domain/types';
+import type { Boat, EventType, ClientProfile, TourType, PaymentMethod } from '../core/domain/types';
 import { clientRepository } from '../core/repositories/ClientRepository';
 import { boatRepository } from '../core/repositories/BoatRepository';
 import { tourTypeRepository } from '../core/repositories/TourTypeRepository';
@@ -31,7 +31,6 @@ export const useSharedEventViewModel = () => {
 
   const [availableBoats, setAvailableBoats] = useState<Boat[]>([]);
   const [scheduledEvents, setScheduledEvents] = useState<EventType[]>([]);
-  const [companyData, setCompanyData] = useState<CompanyData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const existingSharedEvent = useMemo(() => {
@@ -49,14 +48,13 @@ export const useSharedEventViewModel = () => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const [boats, companyDataResponse] = await Promise.all([
+        const [boats] = await Promise.all([
           boatRepository.getAll(),
           CompanyDataRepository.getInstance().get()
         ]);
         const activeBoats = boats.filter(b => !b.isArchived);
         setAvailableBoats(activeBoats);
         if (activeBoats.length > 0) setSelectedBoat(activeBoats[0]);
-        if (companyDataResponse) setCompanyData(companyDataResponse);
       } finally {
         setIsLoading(false);
       }
@@ -105,7 +103,6 @@ export const useSharedEventViewModel = () => {
         e.status !== 'ARCHIVED_CANCELLED' &&
         e.tourType?.name.toLowerCase() !== 'compartilhado' // Ignore shared for slot visibility, we handle merging later
     );
-    const otherEvents = scheduledEvents.filter(e => e.boat.id === selectedBoat.id && e.status !== 'CANCELLED' && e.status !== 'ARCHIVED_CANCELLED');
 
     return slots.filter(slot => {
       const slotMin = timeToMinutes(slot);

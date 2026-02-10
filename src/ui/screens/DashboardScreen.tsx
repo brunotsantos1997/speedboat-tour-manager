@@ -105,7 +105,6 @@ export const DashboardScreen: React.FC = () => {
   const { currentUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isSharedModalOpen, setIsSharedModalOpen] = React.useState(searchParams.get('shared') === 'true');
-  const [isSharedModalOpen, setIsSharedModalOpen] = React.useState(false);
   const isSeller = currentUser?.role === 'SELLER';
 
   useEffect(() => {
@@ -248,7 +247,6 @@ export const DashboardScreen: React.FC = () => {
             <span className="mt-2 font-semibold">Buscar Cliente (Bloqueado)</span>
           </div>
         )}
-        {!isSeller && <QuickAccessButton to="/clients" title="Buscar Cliente" icon={<Search size={32}/>} />}
       </div>
 
       {/* Main Content Grid */}
@@ -368,7 +366,6 @@ export const DashboardScreen: React.FC = () => {
         <SharedEventModal
           isOpen={isSharedModalOpen}
           onClose={closeSharedModal}
-          onClose={() => setIsSharedModalOpen(false)}
           onSuccess={() => {}}
         />
       )}
