@@ -6,11 +6,13 @@ import { clientRepository } from '../core/repositories/ClientRepository';
 import { eventRepository } from '../core/repositories/EventRepository';
 import { paymentRepository } from '../core/repositories/PaymentRepository';
 import { format } from 'date-fns';
+import { useEventSync } from './useEventSync';
 
 export const useClientHistoryViewModel = () => {
   const [searchParams] = useSearchParams();
   const clientIdParam = searchParams.get('clientId');
   const [searchTerm, setSearchTerm] = useState('');
+  const { syncEvent } = useEventSync();
   const [searchResults, setSearchResults] = useState<ClientProfile[]>([]);
   const [selectedClient, setSelectedClient] = useState<ClientProfile | null>(null);
   const [clientEvents, setClientEvents] = useState<EventType[]>([]);
@@ -63,7 +65,8 @@ export const useClientHistoryViewModel = () => {
       for (const event of events) {
         if (event.status === 'PRE_SCHEDULED' && event.preScheduledAt && (now - event.preScheduledAt > twentyFourHours)) {
           try {
-            await eventRepository.updateEvent({ ...event, status: 'CANCELLED', autoCancelled: true });
+            const savedEvent = await eventRepository.updateEvent({ ...event, status: 'CANCELLED', autoCancelled: true });
+            await syncEvent(savedEvent);
           } catch (error) {
             console.error(`Failed to auto-cancel event ${event.id}:`, error);
           }
@@ -79,7 +82,7 @@ export const useClientHistoryViewModel = () => {
     });
 
     return unsubscribe;
-  }, [selectedClient]);
+  }, [selectedClient, syncEvent]);
 
   const clearSelection = () => {
     setSelectedClient(null);
@@ -99,7 +102,8 @@ export const useClientHistoryViewModel = () => {
     if (window.confirm(message)) {
       const newStatus = eventToUpdate.paymentStatus === 'CONFIRMED' ? 'PENDING_REFUND' : 'CANCELLED';
       const updatedEvent = { ...eventToUpdate, status: newStatus as EventType['status'] };
-      await eventRepository.updateEvent(updatedEvent);
+      const savedEvent = await eventRepository.updateEvent(updatedEvent);
+      await syncEvent(savedEvent);
     }
   }, [clientEvents, selectedClient, selectClient]);
 
@@ -152,7 +156,8 @@ export const useClientHistoryViewModel = () => {
             updatedEvent.paymentStatus = 'PENDING';
         }
 
-        await eventRepository.updateEvent(updatedEvent);
+        const savedEvent = await eventRepository.updateEvent(updatedEvent);
+        await syncEvent(savedEvent);
 
         setIsPaymentModalOpen(false);
         setActiveEventForPayment(null);
@@ -173,7 +178,8 @@ export const useClientHistoryViewModel = () => {
         autoCancelled: false
       };
 
-      await eventRepository.updateEvent(updatedEvent);
+      const savedEvent = await eventRepository.updateEvent(updatedEvent);
+      await syncEvent(savedEvent);
     } catch (error: any) {
       console.error('Failed to revert cancellation:', error);
       throw error;

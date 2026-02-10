@@ -56,16 +56,23 @@ export const VoucherTermsScreen: React.FC = () => {
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Termos do Voucher</h1>
-        <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition">
-          Salvar Termos
-        </button>
-      </div>
-      <div className="bg-white shadow rounded-lg">
-        <MenuBar editor={editor} />
-        <EditorContent editor={editor} className="p-4 min-h-[300px]" />
+    <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div>
+                <h1 className="text-3xl font-black text-gray-900">Termos do Voucher</h1>
+                <p className="text-gray-500">Regras e políticas exibidas no rodapé do voucher</p>
+            </div>
+            <button onClick={handleSave} className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95">
+                Salvar Termos
+            </button>
+        </div>
+        <div className="bg-white shadow-sm border border-gray-100 rounded-2xl overflow-hidden">
+            <MenuBar editor={editor} />
+            <div className="prose prose-sm max-w-none">
+                <EditorContent editor={editor} className="p-6 min-h-[400px] outline-none" />
+            </div>
+        </div>
       </div>
     </div>
   );

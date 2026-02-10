@@ -70,11 +70,11 @@ export const FinanceScreen: React.FC = () => {
             <PlusCircle size={18} />
             <span>Ganhos</span>
           </button>
-          <Link to="/expenses" className="flex items-center gap-2 bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm md:text-base">
+          <Link to="/dashboard/expenses" className="flex items-center gap-2 bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm md:text-base">
             <PlusCircle size={18} />
             <span>Despesa</span>
           </Link>
-          <Link to="/expense-categories" className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors" title="Categorias">
+          <Link to="/dashboard/expense-categories" className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors" title="Categorias">
             <Settings size={20} />
           </Link>
         </div>
@@ -110,7 +110,7 @@ export const FinanceScreen: React.FC = () => {
             </div>
           </div>
           <button
-            onClick={() => navigate('/cash-book')}
+            onClick={() => navigate('/dashboard/cash-book')}
             className="flex items-center justify-center gap-2 bg-gray-800 text-white px-4 py-3 md:px-6 md:py-3 rounded-xl hover:bg-black transition-all shadow-sm md:shadow-md font-bold text-sm md:text-base"
           >
             <BookOpen size={18} />
@@ -120,9 +120,9 @@ export const FinanceScreen: React.FC = () => {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
         <StatCard
-          title="Receita Total"
+          title="Receita Realizada"
           value={formatCurrencyBRL(stats.totalRevenue)}
-          subValue={`${stats.eventCount} passeios`}
+          subValue={`Projeção (A receber): ${formatCurrencyBRL((stats as any).projectedRevenue || 0)}`}
           icon={<TrendingUp className="text-green-600" size={20} />}
           color="bg-green-50"
         />
@@ -142,7 +142,8 @@ export const FinanceScreen: React.FC = () => {
         />
         <StatCard
           title="Média por Passeio"
-          value={formatCurrencyBRL(stats.eventCount > 0 ? stats.totalRevenue / stats.eventCount : 0)}
+          value={formatCurrencyBRL((stats as any).averageProjectedValue || 0)}
+          subValue="Ticket médio (Contratos)"
           icon={<BarChart3 className="text-purple-600" size={20} />}
           color="bg-purple-50"
         />
@@ -245,11 +246,11 @@ export const FinanceScreen: React.FC = () => {
             <div className="flex justify-center flex-wrap gap-x-4 gap-y-2 mt-6">
                 <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 bg-blue-200 rounded-full"></div>
-                    <span className="text-[10px] text-gray-600 font-medium">Projetado (Agenda)</span>
+                    <span className="text-[10px] text-gray-600 font-medium">Projeção (A receber)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 bg-green-500 rounded-full"></div>
-                    <span className="text-[10px] text-gray-600 font-medium">Realizado (Pagos)</span>
+                    <span className="text-[10px] text-gray-600 font-medium">Realizado (Pago)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 bg-red-400 rounded-full"></div>
@@ -299,7 +300,7 @@ export const FinanceScreen: React.FC = () => {
             <div className="flex justify-center flex-wrap gap-x-6 gap-y-2 mt-8 border-t pt-4">
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 bg-blue-200 rounded-full"></div>
-                    <span className="text-[10px] md:text-xs text-gray-600 font-semibold">Projetado</span>
+                    <span className="text-[10px] md:text-xs text-gray-600 font-semibold">Projeção</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 bg-green-500 rounded-full"></div>

@@ -15,7 +15,7 @@ export function LoginScreen() {
     setIsGoogleLoading(true);
     try {
       await loginWithGoogle();
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao fazer login com Google.');
     } finally {
@@ -28,7 +28,7 @@ export function LoginScreen() {
     setError(null);
     try {
       await login(email, password);
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao fazer login.');
     }
@@ -112,7 +112,7 @@ export function LoginScreen() {
           <span className="font-medium">Entrar com Google</span>
         </button>
 
-        <div className="text-sm text-center text-gray-600">
+        <div className="text-sm text-center text-gray-600 space-y-2">
           <p>
             <Link to="/forgot-password"className="font-medium text-indigo-600 hover:text-indigo-500">
               Esqueceu sua senha?
@@ -124,6 +124,14 @@ export function LoginScreen() {
               Cadastre-se
             </Link>
           </p>
+          <div className="pt-4 flex justify-center gap-4 border-t border-gray-100">
+            <Link to="/privacy-policy" className="text-xs text-gray-400 hover:text-gray-600 underline">
+              Política de Privacidade
+            </Link>
+            <Link to="/terms-of-service" className="text-xs text-gray-400 hover:text-gray-600 underline">
+              Termos de Uso
+            </Link>
+          </div>
         </div>
       </div>
     </div>

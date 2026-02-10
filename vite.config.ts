@@ -10,9 +10,10 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'Gestão de Passeios',
-        short_name: 'GestãoPasseio',
+        name: 'Dilancha Náutica',
+        short_name: 'Dilancha',
         description: 'Sistema de gestão de passeios de lancha',
+        start_url: '/dashboard',
         theme_color: '#2563eb',
         background_color: '#ffffff',
         display: 'standalone',

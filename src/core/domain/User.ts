@@ -27,4 +27,8 @@ export interface User {
   mustChangePassword?: boolean;
   secretQuestion?: string;
   secretAnswerHash?: string;
+  calendarSettings?: {
+    calendarId?: string;
+    autoSync: boolean;
+  };
 }

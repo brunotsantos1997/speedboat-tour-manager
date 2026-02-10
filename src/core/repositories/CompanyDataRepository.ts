@@ -93,6 +93,7 @@ export class CompanyDataRepository {
         }
       });
       this.data = fetchedData;
+      this.notifyListeners();
       return this.data;
     }
 

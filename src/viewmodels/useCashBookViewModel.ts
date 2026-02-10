@@ -8,6 +8,7 @@ import { paymentRepository } from '../core/repositories/PaymentRepository';
 import { boatRepository } from '../core/repositories/BoatRepository';
 import { timeToMinutes } from '../core/utils/timeUtils';
 import { startOfMonth, endOfMonth, format } from 'date-fns';
+import { useEventSync } from './useEventSync';
 
 export type CashBookEntry = {
     id: string;
@@ -24,6 +25,7 @@ export type CashBookEntry = {
 };
 
 export const useCashBookViewModel = () => {
+    const { syncEvent } = useEventSync();
     const [events, setEvents] = useState<EventType[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [payments, setPayments] = useState<Payment[]>([]);
@@ -230,7 +232,8 @@ export const useCashBookViewModel = () => {
                             updatedEvent.status = 'PRE_SCHEDULED';
                             updatedEvent.preScheduledAt = Date.now();
                         }
-                        await eventRepository.updateEvent(updatedEvent);
+                        const savedEvent = await eventRepository.updateEvent(updatedEvent);
+                        await syncEvent(savedEvent);
                     }
                 }
             }
