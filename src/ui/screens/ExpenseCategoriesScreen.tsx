@@ -36,7 +36,7 @@ export const ExpenseCategoriesScreen: React.FC = () => {
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
       <div className="flex items-center gap-4 mb-8">
-        <Link to="/finance" className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+        <Link to="/dashboard/finance" className="p-2 hover:bg-gray-100 rounded-full transition-colors">
             <ChevronLeft size={24} />
         </Link>
         <div>

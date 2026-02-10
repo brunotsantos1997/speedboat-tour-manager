@@ -54,38 +54,48 @@ export const BoardingLocationsScreen: React.FC = () => {
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Locais de Embarque</h1>
+    <div className="p-4 md:p-8 max-w-4xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-black text-gray-900">Locais de Embarque</h1>
+          <p className="text-gray-500">Onde seus clientes iniciam o passeio</p>
+        </div>
         {isAuthorized && (
-          <button onClick={() => openModal()} className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition">
+          <button onClick={() => openModal()} className="w-full sm:w-auto flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95">
             Adicionar Local
           </button>
         )}
       </div>
 
-      <div className="bg-white shadow rounded-lg overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-100">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-100">
+          <thead className="bg-gray-50 hidden md:table-header-group">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Link do Mapa</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nome do Local</th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Mapa</th>
+              <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Ações</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-gray-100">
             {locations.map((location) => (
-              <tr key={location.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{location.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <a href={location.mapLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                    Ver no mapa
-                  </a>
+              <tr key={location.id} className="flex flex-col md:table-row hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4 md:whitespace-nowrap text-lg md:text-sm font-bold md:font-medium text-gray-900">{location.name}</td>
+                <td className="px-6 py-2 md:py-4 md:whitespace-nowrap text-sm">
+                  {location.mapLink ? (
+                    <a href={location.mapLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-blue-600 font-bold hover:underline bg-blue-50 px-3 py-1 rounded-full text-xs">
+                        Ver no Google Maps
+                        <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </a>
+                  ) : (
+                    <span className="text-gray-400 italic text-xs">Sem link</span>
+                  )}
                 </td>
                 {isAuthorized && (
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button onClick={() => openModal(location)} className="text-indigo-600 hover:text-indigo-900 mr-4">Editar</button>
-                    <button onClick={() => deleteLocation(location.id)} className="text-red-600 hover:text-red-900">Excluir</button>
+                  <td className="px-6 py-4 md:whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex justify-end gap-3">
+                        <button onClick={() => openModal(location)} className="flex-1 md:flex-none bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors font-bold text-xs md:text-sm">Editar</button>
+                        <button onClick={() => deleteLocation(location.id)} className="flex-1 md:flex-none border border-red-100 text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 transition-colors font-bold text-xs md:text-sm">Excluir</button>
+                    </div>
                   </td>
                 )}
               </tr>
@@ -127,34 +137,36 @@ const LocationModal: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6">{location ? 'Editar' : 'Adicionar'} Local de Embarque</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="name">Nome</label>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+      <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 w-full max-w-md">
+        <h2 className="text-2xl font-black mb-6 text-gray-900 border-b pb-4">{location ? 'Editar' : 'Adicionar'} Local</h2>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-gray-700 text-xs font-bold mb-2 uppercase tracking-widest" htmlFor="name">Nome do Local</label>
             <input
               id="name"
               type="text"
               value={name}
+              placeholder="Ex: Marina da Glória"
               onChange={(e) => setName(e.target.value)}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium"
               required
             />
           </div>
-          <div className="mb-6">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="mapLink">Link do Mapa (Opcional)</label>
+          <div>
+            <label className="block text-gray-700 text-xs font-bold mb-2 uppercase tracking-widest" htmlFor="mapLink">Link do Google Maps (Opcional)</label>
             <input
               id="mapLink"
-              type="text"
+              type="url"
               value={mapLink}
+              placeholder="https://goo.gl/maps/..."
               onChange={(e) => setMapLink(e.target.value)}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium"
             />
           </div>
-          <div className="flex items-center justify-end">
-            <button type="button" onClick={onClose} className="mr-4 bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300">Cancelar</button>
-            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700">Salvar</button>
+          <div className="flex gap-3 pt-4">
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors">Cancelar</button>
+            <button type="submit" className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95">Salvar Local</button>
           </div>
         </form>
       </div>

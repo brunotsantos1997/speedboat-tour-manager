@@ -5,8 +5,10 @@ import { eventRepository } from '../core/repositories/EventRepository';
 import { expenseRepository } from '../core/repositories/ExpenseRepository';
 import { expenseCategoryRepository } from '../core/repositories/ExpenseCategoryRepository';
 import { v4 as uuidv4 } from 'uuid';
+import { useEventSync } from './useEventSync';
 
 export const useEventCostViewModel = () => {
+  const { syncEvent } = useEventSync();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [event, setEvent] = useState<EventType | null>(null);
   const [rentalCost, setRentalCost] = useState(0);
@@ -62,7 +64,8 @@ export const useEventCostViewModel = () => {
         taxCost: totalAdditionalCost
       };
 
-      await eventRepository.updateEvent(updatedEvent);
+      const savedEvent = await eventRepository.updateEvent(updatedEvent);
+      await syncEvent(savedEvent);
 
       // Manage Expenses in Livro Caixa
       // 1. Find and archive existing expenses for this event

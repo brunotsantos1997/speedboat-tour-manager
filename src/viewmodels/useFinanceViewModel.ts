@@ -61,37 +61,48 @@ export const useFinanceViewModel = () => {
 
     const totalExpenses = filteredExpenses.reduce((acc, e) => acc + e.amount, 0);
 
-    // Granular revenue from events in this period
-    let boatRentalRevenue = 0;
-    let productsRevenue = 0;
-    const otherRevenue = filteredIncomes.reduce((acc, i) => acc + i.amount, 0);
+    // Calculate Realized vs Pending for events in the period
+    let realizedFromEvents = 0;
+    let pendingFromEvents = 0;
+    let boatRentalRealized = 0;
+    let productsRealized = 0;
+    let totalEventsValue = 0;
 
     filteredEvents.forEach(event => {
-        // If we have stored breakdown, use it, otherwise approximate
-        if (event.rentalRevenue !== undefined && event.productsRevenue !== undefined) {
-            boatRentalRevenue += event.rentalRevenue;
-            productsRevenue += event.productsRevenue;
-        } else {
-            // Fallback calculation logic if not stored
-            const boatCost = event.boat ? event.total * 0.7 : 0; // Rough estimate
-            boatRentalRevenue += boatCost;
-            productsRevenue += (event.total - boatCost);
+        totalEventsValue += event.total;
+        // We need ALL payments for this event to know how much is realized
+        const eventPayments = payments.filter(p => p.eventId === event.id);
+        const totalPaidForEvent = eventPayments.reduce((acc, p) => acc + p.amount, 0);
+
+        const realized = Math.min(event.total, totalPaidForEvent);
+        const pending = Math.max(0, event.total - totalPaidForEvent);
+
+        realizedFromEvents += realized;
+        pendingFromEvents += pending;
+
+        if (event.total > 0) {
+            const ratio = realized / event.total;
+            boatRentalRealized += (event.rentalRevenue || 0) * ratio;
+            productsRealized += (event.productsRevenue || 0) * ratio;
         }
     });
 
-    const totalRevenue = boatRentalRevenue + productsRevenue + otherRevenue;
+    const otherRevenue = filteredIncomes.reduce((acc, i) => acc + i.amount, 0);
+    const totalRealizedRevenue = realizedFromEvents + otherRevenue;
 
     return {
-      totalRevenue,
+      totalRevenue: totalRealizedRevenue,
+      projectedRevenue: pendingFromEvents,
+      averageProjectedValue: filteredEvents.length > 0 ? totalEventsValue / filteredEvents.length : 0,
       totalExpenses,
-      netProfit: totalRevenue - totalExpenses,
-      boatRentalRevenue,
-      productsRevenue,
+      netProfit: totalRealizedRevenue - totalExpenses,
+      boatRentalRevenue: boatRentalRealized,
+      productsRevenue: productsRealized,
       otherRevenue,
       eventCount: filteredEvents.length,
       expenseCount: filteredExpenses.length
     };
-  }, [filteredData]);
+  }, [filteredData, payments]);
 
   const cashFlowData = useMemo(() => {
     // Generate last 6 months of data
@@ -106,15 +117,21 @@ export const useFinanceViewModel = () => {
       const monthEvents = events.filter(e => e.date >= mStart && e.date <= mEnd && projectedStatuses.includes(e.status));
       const monthExpenses = expenses.filter(e => e.date >= mStart && e.date <= mEnd && e.status === 'PAID');
       const monthIncomes = incomes.filter(i => i.date >= mStart && i.date <= mEnd);
-      const monthPayments = payments.filter(p => p.date >= mStart && p.date <= mEnd);
 
-      const projectedRevenue = monthEvents.reduce((acc, e) => acc + (e.total || 0), 0) + monthIncomes.reduce((acc, i) => acc + i.amount, 0);
-      const realizedRevenue = monthPayments.reduce((acc, p) => acc + p.amount, 0) + monthIncomes.reduce((acc, i) => acc + i.amount, 0);
+      let realized = monthIncomes.reduce((acc, i) => acc + i.amount, 0);
+      let pending = 0;
+
+      monthEvents.forEach(e => {
+          const ePayments = payments.filter(p => p.eventId === e.id);
+          const ePaid = ePayments.reduce((acc, p) => acc + p.amount, 0);
+          realized += Math.min(e.total, ePaid);
+          pending += Math.max(0, e.total - ePaid);
+      });
 
       data.push({
         month: format(monthDate, 'MMM', { locale: ptBR }),
-        projected: projectedRevenue,
-        realized: realizedRevenue,
+        projected: pending,
+        realized: realized,
         expenses: monthExpenses.reduce((acc, e) => acc + e.amount, 0),
       });
     }
@@ -134,16 +151,23 @@ export const useFinanceViewModel = () => {
       const dayEvents = events.filter(e => e.date === dStr && projectedStatuses.includes(e.status));
       const dayIncomes = incomes.filter(i => i.date === dStr);
       const dayExpenses = expenses.filter(e => e.date === dStr && e.status === 'PAID');
-      const dayPayments = payments.filter(p => p.date === dStr);
 
-      const projected = dayEvents.reduce((acc, e) => acc + (e.total || 0), 0) + dayIncomes.reduce((acc, i) => acc + i.amount, 0);
-      const realized = dayPayments.reduce((acc, p) => acc + p.amount, 0) + dayIncomes.reduce((acc, i) => acc + i.amount, 0);
+      let dayRealized = dayIncomes.reduce((acc, i) => acc + i.amount, 0);
+      let dayPending = 0;
+
+      dayEvents.forEach(e => {
+          const ePayments = payments.filter(p => p.eventId === e.id);
+          const ePaid = ePayments.reduce((acc, p) => acc + p.amount, 0);
+          dayRealized += Math.min(e.total, ePaid);
+          dayPending += Math.max(0, e.total - ePaid);
+      });
+
       const exp = dayExpenses.reduce((acc, e) => acc + e.amount, 0);
 
       return {
         day: format(date, 'dd/MM'),
-        projected,
-        realized,
+        projected: dayPending,
+        realized: dayRealized,
         expenses: exp,
       };
     });

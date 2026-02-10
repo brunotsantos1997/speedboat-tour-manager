@@ -75,6 +75,7 @@ export class VoucherAppearanceRepository {
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       this.data = { ...docSnap.data() as VoucherAppearanceData, id: docSnap.id };
+      this.notifyListeners();
       return this.data;
     }
 

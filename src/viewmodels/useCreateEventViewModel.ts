@@ -14,9 +14,11 @@ import { timeToMinutes, minutesToTime } from '../core/utils/timeUtils';
 import type { BoardingLocation, TourType } from '../core/domain/types';
 import { boardingLocationRepository } from '../core/repositories/BoardingLocationRepository';
 import { sanitizeObject } from '../core/utils/objectUtils';
+import { useEventSync } from './useEventSync';
 
 export const useCreateEventViewModel = () => {
   const { currentUser } = useAuth();
+  const { syncEvent } = useEventSync();
   const [searchParams] = useSearchParams();
   const [editingEventId, setEditingEventId] = useState<string | null>(searchParams.get('eventId'));
   const [originalEvent, setOriginalEvent] = useState<EventType | null>(null);
@@ -489,20 +491,24 @@ export const useCreateEventViewModel = () => {
       eventData.preScheduledAt = originalEvent?.preScheduledAt || Date.now();
     }
 
+    let savedEvent: EventType;
     if (editingEventId) {
       const updatedEvent = sanitizeObject({
         ...eventData,
         id: editingEventId,
         createdByUserId: originalEvent?.createdByUserId,
-      });
-      await eventRepository.updateEvent(updatedEvent as EventType);
+      }) as EventType;
+      savedEvent = await eventRepository.updateEvent(updatedEvent);
     } else {
       const newEventData = sanitizeObject({
         ...eventData,
         createdByUserId: currentUser?.id,
-      });
-      await eventRepository.add(newEventData);
+      }) as Omit<EventType, 'id'>;
+      savedEvent = await eventRepository.add(newEventData);
     }
+
+    // Auto-sync
+    await syncEvent(savedEvent);
 
     return selectedClient;
   }, [

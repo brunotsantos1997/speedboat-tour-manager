@@ -10,7 +10,12 @@ import {
   updatePassword as firebaseUpdatePassword,
   updateEmail as firebaseUpdateEmail,
   sendPasswordResetEmail,
-  type User as FirebaseUser
+  type User as FirebaseUser,
+  GoogleAuthProvider,
+  signInWithPopup,
+  linkWithPopup,
+  unlink,
+  fetchSignInMethodsForEmail
 } from 'firebase/auth';
 import {
   doc,
@@ -44,6 +49,9 @@ interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<User | null>;
+  loginWithGoogle: () => Promise<User | null>;
+  linkGoogle: () => Promise<void>;
+  unlinkGoogle: () => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<User>;
   logout: () => void;
   updateUserStatus: (userId: string, status: UserStatus) => Promise<void>;
@@ -51,11 +59,15 @@ interface AuthContextType {
   updateUserCommissionSettings: (userId: string, settings: UserCommissionSettings) => Promise<void>;
   getAllUsers: () => Promise<User[]>;
   updateProfile: (userId: string, data: { name?: string; email?: string; newPassword?: string, oldPassword?: string }) => Promise<void>;
+  updateCalendarSettings: (userId: string, settings: { calendarId?: string; autoSync: boolean }) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<User | null>;
   approvePasswordReset: (approverId: string, targetUserId: string) => Promise<string>;
   setSecretQuestion: (userId: string, question: string, answer: string) => Promise<void>;
   verifySecretAnswer: (email: string, answer: string) => Promise<User | null>;
   resetPasswordAfterVerification: (userId: string, newPassword: string) => Promise<void>;
+  linkedProviders: string[];
+  googleAccessToken: string | null;
+  setGoogleAccessToken: (token: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -86,7 +98,9 @@ const validatePassword = (password: string) => {
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [linkedProviders, setLinkedProviders] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(localStorage.getItem('google_access_token'));
 
   const disposeRepositories = () => {
     productRepository.dispose();
@@ -123,6 +137,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
+        setLinkedProviders(firebaseUser.providerData.map(p => p.providerId));
         const profileRef = doc(db, 'profiles', firebaseUser.uid);
         const profileSnap = await getDoc(profileRef);
 
@@ -141,6 +156,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       } else {
         setCurrentUser(null);
+        setLinkedProviders([]);
         disposeRepositories();
       }
       setLoading(false);
@@ -189,7 +205,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       name: sanitizedName,
       email: sanitizedEmail,
       status: 'PENDING',
-      role: 'ADMIN',
+      role: 'SELLER',
       commissionPercentage: 0,
     };
 
@@ -198,8 +214,127 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return newUser;
   };
 
+  const loginWithGoogle = async (): Promise<User | null> => {
+    const provider = new GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/calendar.events');
+    provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setGoogleAccessToken(credential.accessToken);
+        localStorage.setItem('google_access_token', credential.accessToken);
+      }
+      const firebaseUser = result.user;
+
+      const profileRef = doc(db, 'profiles', firebaseUser.uid);
+      const profileSnap = await getDoc(profileRef);
+
+      if (profileSnap.exists()) {
+        const profileData = profileSnap.data() as User;
+        if (profileData.status !== 'APPROVED') {
+          await logout();
+          throw new Error("Sua conta ainda não foi aprovada.");
+        }
+        const user = { ...profileData, id: firebaseUser.uid };
+        setCurrentUser(user);
+        initializeRepositories(user);
+        return user;
+      } else {
+        // Check if user with same email exists with different provider
+        const methods = await fetchSignInMethodsForEmail(auth, firebaseUser.email!);
+        if (methods.length > 0) {
+          // If we are here, it means we somehow signed in but no profile exists for this UID.
+          // This could happen if they have an email/password account but the UIDs are different?
+          // Actually, if they use the same email, Firebase might have merged them OR thrown an error.
+          // If "One account per email" is on, it should have thrown an error before getting here.
+        }
+
+        const newUser: User = {
+          id: firebaseUser.uid,
+          name: firebaseUser.displayName || 'Usuário Google',
+          email: firebaseUser.email || '',
+          status: 'PENDING',
+          role: 'SELLER',
+          commissionPercentage: 0,
+        };
+        await setDoc(profileRef, newUser);
+        await logout();
+        throw new Error("Conta criada com sucesso! Aguarde a aprovação de um administrador.");
+      }
+    } catch (error: any) {
+      if (error.code === 'auth/account-exists-with-different-credential') {
+        throw new Error("Este e-mail já está associado a uma conta. Por favor, faça login com seu e-mail e senha para vincular sua conta do Google nas configurações de perfil.");
+      }
+      throw error;
+    }
+  };
+
+  const linkGoogle = async (): Promise<void> => {
+    if (!auth.currentUser) throw new Error("Usuário não autenticado.");
+    const provider = new GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/calendar.events');
+    provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+    provider.setCustomParameters({
+      prompt: 'consent'
+    });
+    try {
+      const result = await linkWithPopup(auth.currentUser, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setGoogleAccessToken(credential.accessToken);
+        localStorage.setItem('google_access_token', credential.accessToken);
+      }
+      setLinkedProviders(result.user.providerData.map(p => p.providerId));
+    } catch (error: any) {
+      if (error.code === 'auth/credential-already-in-use') {
+        throw new Error("Esta conta do Google já está vinculada a outro usuário do sistema. Se esta é sua conta, você pode ter outro login ativo.");
+      }
+      if (error.code === 'auth/provider-already-linked') {
+        // If already linked, we might want to re-authenticate to get a new token with scopes
+        // But Firebase linkWithPopup might not work if already linked.
+        // Try signInWithPopup to get a new credential then link? No.
+        // Best approach if already linked is to just do signInWithPopup with the same provider
+        // but that might create a new user or merge.
+        // Actually, for refreshing tokens/scopes, we can use signInWithPopup even if linked.
+        const result = await signInWithPopup(auth, provider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (credential?.accessToken) {
+          setGoogleAccessToken(credential.accessToken);
+          localStorage.setItem('google_access_token', credential.accessToken);
+        }
+        return;
+      }
+      throw error;
+    }
+  };
+
+  const unlinkGoogle = async (): Promise<void> => {
+    if (!auth.currentUser) throw new Error("Usuário não autenticado.");
+    try {
+      await unlink(auth.currentUser, 'google.com');
+      setLinkedProviders(auth.currentUser.providerData.map(p => p.providerId));
+      setGoogleAccessToken(null);
+      localStorage.removeItem('google_access_token');
+
+      if (currentUser) {
+        await updateCalendarSettings(currentUser.id, {
+          calendarId: '',
+          autoSync: false
+        });
+      }
+    } catch (error: any) {
+      if (error.code === 'auth/no-such-provider') {
+        return; // Already unlinked
+      }
+      throw error;
+    }
+  };
+
   const logout = async () => {
     setCurrentUser(null);
+    setGoogleAccessToken(null);
+    localStorage.removeItem('google_access_token');
     disposeRepositories();
     await signOut(auth);
     try {
@@ -377,10 +512,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
+  const updateCalendarSettings = async (userId: string, settings: { calendarId?: string; autoSync: boolean }): Promise<void> => {
+    if (!currentUser || (currentUser.id !== userId && currentUser.role !== 'OWNER' && currentUser.role !== 'SUPER_ADMIN')) {
+      throw new Error('Você não tem permissão para atualizar estas configurações.');
+    }
+
+    const profileRef = doc(db, 'profiles', userId);
+    await updateDoc(profileRef, { calendarSettings: settings });
+
+    if (currentUser?.id === userId) {
+      setCurrentUser(prev => prev ? { ...prev, calendarSettings: settings } : null);
+    }
+  };
+
   const value = {
     currentUser,
     loading,
     login,
+    loginWithGoogle,
+    linkGoogle,
+    unlinkGoogle,
     signup,
     logout,
     updateUserStatus,
@@ -388,11 +539,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     updateUserCommissionSettings,
     getAllUsers,
     updateProfile,
+    updateCalendarSettings,
     requestPasswordReset,
     approvePasswordReset,
     setSecretQuestion,
     verifySecretAnswer,
     resetPasswordAfterVerification,
+    linkedProviders,
+    googleAccessToken,
+    setGoogleAccessToken,
   };
 
   return (

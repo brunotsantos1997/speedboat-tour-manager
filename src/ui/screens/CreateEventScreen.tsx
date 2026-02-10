@@ -1,6 +1,6 @@
 // src/ui/screens/CreateEventScreen.tsx
 import React, { useState } from 'react';
-import { Anchor, Utensils, Beer, User, Circle, HelpCircle, Users, Search, X, Package, Pencil, Trash2, AlertTriangle, Minus, Plus, Tag } from 'lucide-react';
+import { Anchor, Utensils, Beer, User, Circle, HelpCircle, Users, Search, X, Package, Pencil, Trash2, AlertTriangle, Minus, Plus, Tag, CalendarDays } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import { useCreateEventViewModel } from '../../viewmodels/useCreateEventViewModel';
 import { useToastContext } from '../../ui/contexts/ToastContext';
@@ -246,15 +246,15 @@ export const CreateEventScreen: React.FC = () => {
   const bookedDays = vm.scheduledEvents.map(event => new Date(event.date));
 
   return (
-    <div className="bg-gray-50 font-sans text-gray-800">
-      <main className="max-w-7xl mx-auto p-4 pb-64">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="bg-gray-50 font-sans text-gray-800 min-h-screen">
+      <main className="max-w-7xl mx-auto p-4 pb-48 md:pb-64">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
 
           {/* Left Column: Event Details */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-8">
 
             {/* Section: Client and Passengers */}
-            <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
               {/* Client Search */}
               <div className="relative">
                 <h2 className="text-lg font-semibold mb-2">Cliente</h2>
@@ -328,8 +328,11 @@ export const CreateEventScreen: React.FC = () => {
             </section>
 
             {/* Section: Date, Time & Reservation Settings */}
-            <section className="bg-white p-4 rounded-lg shadow">
-              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Agendamento e Reserva</h2>
+            <section className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+              <h2 className="text-xl font-bold mb-4 text-gray-900 flex items-center gap-2">
+                <CalendarDays size={20} className="text-blue-500" />
+                Agendamento e Reserva
+              </h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
                 <div className="flex justify-center lg:justify-start border rounded-lg p-2 bg-gray-50">
                   <DayPicker
@@ -425,8 +428,8 @@ export const CreateEventScreen: React.FC = () => {
             </section>
 
             {/* Section: Boat Discount (Immediately after settings) */}
-            <section className="bg-white p-4 rounded-lg shadow">
-              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Desconto no Aluguel</h2>
+            <section className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+              <h2 className="text-lg font-bold mb-4 text-gray-900">Desconto no Aluguel</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center mt-2">
                 <div className="col-span-1 flex">
                   <button onClick={() => vm.updateDiscountType('FIXED', 'rental')} className={`flex-grow px-2 py-2 text-sm rounded-l-md font-bold ${vm.rentalDiscount.type === 'FIXED' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>R$</button>
@@ -450,8 +453,8 @@ export const CreateEventScreen: React.FC = () => {
             </section>
 
             {/* Section: Available Products */}
-            <section>
-              <h2 className="text-lg font-semibold mb-3">Produtos Disponíveis</h2>
+            <section className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+              <h2 className="text-xl font-bold mb-4 text-gray-900">Produtos Disponíveis</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {vm.availableProducts.map((product) => (
                   <label key={product.id} htmlFor={`product-${product.id}`} className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${isProductSelected(product) ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-500' : 'bg-white border-gray-200 hover:border-gray-400'}`}>
@@ -555,8 +558,8 @@ export const CreateEventScreen: React.FC = () => {
             )}
 
             {/* Section: Taxas */}
-            <section className="bg-white p-4 rounded-lg shadow">
-              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Taxas e Encargos</h2>
+            <section className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+              <h2 className="text-xl font-bold mb-4 text-gray-900">Taxas e Encargos</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1 font-semibold">Valor da Taxa Adicional</label>
@@ -579,8 +582,8 @@ export const CreateEventScreen: React.FC = () => {
             </section>
 
             {/* Section: Description */}
-            <section className="bg-white p-4 rounded-lg shadow">
-              <h2 className="text-lg font-semibold mb-3 border-b pb-2">Descrição / Observações</h2>
+            <section className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+              <h2 className="text-xl font-bold mb-4 text-gray-900">Descrição / Observações</h2>
               <textarea
                 value={vm.observations}
                 onChange={(e) => vm.setObservations(e.target.value)}
@@ -614,55 +617,72 @@ export const CreateEventScreen: React.FC = () => {
         </div>
       </main>
 
-      <footer className="fixed bottom-0 left-0 md:left-64 right-0 bg-white border-t border-gray-200 shadow-lg z-10">
-        <div className="max-w-7xl mx-auto p-4 flex justify-between items-center">
-          {/* Pricing Summary */}
-          <div className="flex-grow pr-4">
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-600">Custo do Aluguel da Lancha</span>
-              <span className="font-medium">{formatCurrencyBRL(vm.boatRentalCost)}</span>
-            </div>
-            <div className="flex justify-between items-center text-sm mb-1">
-              <span className="text-gray-600">Subtotal (Produtos)</span>
-              <span className="font-medium">{formatCurrencyBRL(vm.subtotal - vm.boatRentalCost)}</span>
-            </div>
-            <div className="flex justify-between items-center text-sm mb-2 text-red-600">
-              <span>Desconto</span>
-              <span className="font-medium">- {formatCurrencyBRL(vm.totalDiscount)}</span>
-            </div>
-            {vm.tax > 0 && (
-              <div className="flex justify-between items-center text-sm text-green-600">
-                <span>{vm.taxDescription || 'Taxa Adicional'}</span>
-                <span className="font-medium">+ {formatCurrencyBRL(vm.tax)}</span>
+      <footer className="fixed bottom-0 left-0 md:left-64 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-30">
+        <div className="max-w-7xl mx-auto p-4">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            {/* Pricing Summary - Hidden on mobile or made compact */}
+            <div className="hidden sm:block flex-grow pr-8 border-r border-gray-100">
+              <div className="grid grid-cols-2 gap-x-8 gap-y-1">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-500 uppercase font-bold tracking-tighter">Aluguel</span>
+                  <span className="font-semibold">{formatCurrencyBRL(vm.boatRentalCost)}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs text-red-600">
+                  <span className="uppercase font-bold tracking-tighter">Desconto</span>
+                  <span className="font-semibold">- {formatCurrencyBRL(vm.totalDiscount)}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-500 uppercase font-bold tracking-tighter">Produtos</span>
+                  <span className="font-semibold">{formatCurrencyBRL(vm.subtotal - vm.boatRentalCost)}</span>
+                </div>
+                {vm.tax > 0 && (
+                  <div className="flex justify-between items-center text-xs text-green-600">
+                    <span className="uppercase font-bold tracking-tighter">Taxas</span>
+                    <span className="font-semibold">+ {formatCurrencyBRL(vm.tax)}</span>
+                  </div>
+                )}
               </div>
-            )}
-            <div className="border-t border-gray-200 my-2"></div>
-            <div className="flex justify-between items-center text-xl font-bold">
-              <span>Total</span>
-              <span>{formatCurrencyBRL(vm.total)}</span>
+            </div>
+
+            {/* Mobile View Summary (Compact) */}
+            <div className="flex sm:hidden w-full justify-between items-center px-2">
+                <div className="flex flex-col">
+                    <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Total do Passeio</span>
+                    <span className="text-2xl font-black text-gray-900 leading-none">{formatCurrencyBRL(vm.total)}</span>
+                </div>
+                <div className="text-right">
+                    <span className="text-[10px] text-red-500 font-bold">-{formatCurrencyBRL(vm.totalDiscount)} desc.</span>
+                </div>
+            </div>
+
+            {/* Total and Action Button */}
+            <div className="flex items-center gap-6 w-full sm:w-auto">
+              <div className="hidden sm:flex flex-col items-end">
+                <span className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Valor Final</span>
+                <span className="text-2xl font-black text-blue-600 leading-none">{formatCurrencyBRL(vm.total)}</span>
+              </div>
+              <button
+                onClick={() => {
+                  vm.createEvent().then((client) => {
+                    showToast(vm.editingEventId ? 'Passeio atualizado com sucesso!' : 'Passeio agendado com sucesso!');
+                    if (client) {
+                      navigate(`/dashboard/clients?clientId=${client.id}`);
+                    }
+                  }).catch((err) => {
+                    console.error('Erro ao salvar evento:', err);
+                    if (err.message === 'Campos obrigatórios ausentes.') {
+                      showToast('Por favor, preencha todos os campos obrigatórios: Data, Cliente, Lancha, Local de Embarque e Tipo de Passeio.');
+                    } else {
+                      showToast('Ocorreu um erro ao salvar o passeio: ' + (err.message || 'Erro desconhecido'));
+                    }
+                  });
+                }}
+                className="flex-1 sm:flex-none px-8 py-4 bg-blue-600 text-white rounded-xl text-lg font-black shadow-lg shadow-blue-200 hover:bg-blue-700 hover:shadow-blue-300 transition-all active:scale-95"
+              >
+                {vm.editingEventId ? 'Atualizar' : 'Agendar Passeio'}
+              </button>
             </div>
           </div>
-          {/* Action Button */}
-          <button
-            onClick={() => {
-              vm.createEvent().then((client) => {
-                showToast(vm.editingEventId ? 'Passeio atualizado com sucesso!' : 'Passeio agendado com sucesso!');
-                if (client) {
-                  navigate(`/clients?clientId=${client.id}`);
-                }
-              }).catch((err) => {
-                console.error('Erro ao salvar evento:', err);
-                if (err.message === 'Campos obrigatórios ausentes.') {
-                  showToast('Por favor, preencha todos os campos obrigatórios: Data, Cliente, Lancha, Local de Embarque e Tipo de Passeio.');
-                } else {
-                  showToast('Ocorreu um erro ao salvar o passeio: ' + (err.message || 'Erro desconhecido'));
-                }
-              });
-            }}
-            className="px-8 py-4 text-white rounded-lg text-lg font-bold shadow-lg transition-colors bg-blue-600 hover:bg-blue-700"
-          >
-            {vm.editingEventId ? 'Atualizar Passeio' : 'Agendar Passeio'}
-          </button>
         </div>
       </footer>
 

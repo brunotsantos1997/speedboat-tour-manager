@@ -1,21 +1,22 @@
 // src/ui/screens/DashboardScreen.tsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useDashboardViewModel } from '../../viewmodels/useDashboardViewModel';
 import { useAuth } from '../../contexts/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
-import { DollarSign, Hash, PlusCircle, Search, Clock, AlertTriangle, Anchor, CheckCircle, Bell, Ban, Wallet } from 'lucide-react';
+import { DollarSign, Hash, PlusCircle, Search, Clock, AlertTriangle, Anchor, CheckCircle, Bell, Ban, Wallet, Users } from 'lucide-react';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import { ptBR } from 'date-fns/locale';
 import type { EventType, PaymentType } from '../../core/domain/types';
 import { PaymentModal } from '../components/PaymentModal';
 import { EventCostModal } from '../components/EventCostModal';
+import { SharedEventModal } from '../components/SharedEventModal';
 import { useEventCostViewModel } from '../../viewmodels/useEventCostViewModel';
 
 // --- Sub-components for the Dashboard ---
 
-const StatCard: React.FC<{ title: string; value: string; icon: React.ReactNode }> = ({ title, value, icon }) => (
+const StatCard: React.FC<{ title: string; value: string; subValue?: string; icon: React.ReactNode }> = ({ title, value, subValue, icon }) => (
   <div className="bg-white p-4 rounded-lg shadow-md flex items-center">
     <div className="bg-blue-100 text-blue-600 p-3 rounded-full mr-4">
       {icon}
@@ -23,16 +24,50 @@ const StatCard: React.FC<{ title: string; value: string; icon: React.ReactNode }
     <div>
       <p className="text-sm text-gray-500">{title}</p>
       <p className="text-2xl font-bold text-gray-800">{value}</p>
+      {subValue && <p className="text-xs text-gray-400 mt-0.5">{subValue}</p>}
     </div>
   </div>
 );
 
-const QuickAccessButton: React.FC<{ to: string; title: string; icon: React.ReactNode }> = ({ to, title, icon }) => (
-  <Link to={to} className="bg-blue-600 text-white p-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors flex flex-col items-center justify-center text-center">
-    {icon}
-    <span className="mt-2 font-semibold">{title}</span>
-  </Link>
-);
+const QuickAccessButton: React.FC<{
+    to?: string;
+    title: string;
+    icon: React.ReactNode;
+    onClick?: () => void;
+    colorClass?: string;
+    disabled?: boolean;
+}> = ({ to, title, icon, onClick, colorClass = "bg-blue-600 hover:bg-blue-700", disabled }) => {
+  const content = (
+    <>
+      {icon}
+      <span className="mt-2 font-bold text-sm md:text-base">{title}</span>
+    </>
+  );
+
+  const baseClasses = `flex flex-col items-center justify-center text-center p-4 md:p-6 rounded-xl shadow-sm transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] h-28 md:h-32 w-full`;
+
+  if (disabled) {
+    return (
+      <div className={`${baseClasses} bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200 shadow-none hover:scale-100`}>
+        {content}
+      </div>
+    );
+  }
+
+  if (to) {
+    return (
+      <Link to={to} className={`${baseClasses} ${colorClass} text-white`}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button onClick={onClick} className={`${baseClasses} ${colorClass} text-white`}>
+      {content}
+    </button>
+  );
+};
 
 const EventListItem: React.FC<{
   event: EventType;
@@ -53,41 +88,44 @@ const EventListItem: React.FC<{
   const capitalizedDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
 
   return (
-    <div className="bg-gray-50 p-3 rounded-lg flex flex-col sm:flex-row justify-between sm:items-center">
-      <div className="mb-2 sm:mb-0">
-        <div className="flex items-baseline gap-x-3">
-          <Link to={`/clients?clientId=${event.client.id}`} className="font-semibold text-blue-600 hover:underline">{event.client.name}</Link>
-          <span className="font-normal text-sm text-gray-600">{capitalizedDate}</span>
+    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex flex-col sm:flex-row justify-between sm:items-center gap-4 transition-all hover:bg-white hover:shadow-sm">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-x-3 mb-1.5">
+          <Link to={`/dashboard/clients?clientId=${event.client.id}`} className="font-bold text-blue-600 hover:underline truncate text-lg">{event.client.name}</Link>
+          <span className="shrink-0 font-medium text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">{capitalizedDate}</span>
         </div>
-        <div className="flex flex-wrap items-center text-sm text-gray-500 mt-1 gap-y-1">
-          <div className="flex items-center mr-4">
+        <div className="flex flex-wrap items-center text-xs md:text-sm text-gray-500 gap-y-2">
+          <div className="flex items-center mr-4 bg-white px-2 py-1 rounded-md border border-gray-100">
             <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: event.tourType?.color || '#cbd5e1' }}></div>
-            <span className="font-medium text-gray-700">{event.tourType?.name || 'Passeio'}</span>
+            <span className="font-semibold text-gray-700">{event.tourType?.name || 'Passeio'}</span>
           </div>
           <div className="flex items-center mr-4">
-            <Anchor size={14} className="mr-2" /> {event.boat.name}
+            <Anchor size={14} className="mr-1.5 text-gray-400" /> {event.boat.name}
+          </div>
+          <div className="flex items-center mr-4">
+            <Users size={14} className="mr-1.5 text-gray-400" /> {event.passengerCount} {event.passengerCount === 1 ? 'pessoa' : 'pessoas'}
           </div>
           <div className="flex items-center">
-            <Clock size={14} className="mr-2" /> {event.startTime} - {event.endTime}
+            <Clock size={14} className="mr-1.5 text-gray-400" /> {event.startTime} - {event.endTime}
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3 shrink-0">
         {!isSeller && (
           <button
             onClick={() => onOpenCosts(event)}
-            className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
+            className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
             title="Adicionar Custos"
           >
-            <DollarSign size={18} />
+            <DollarSign size={20} />
           </button>
         )}
         {event.paymentStatus === 'PENDING' && !isSeller && (
           <button
             onClick={() => onConfirmPayment(event.id, event.status === 'PRE_SCHEDULED' ? 'DOWN_PAYMENT' : 'BALANCE')}
-            className="bg-green-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-600 transition-colors flex items-center"
+            className="flex-1 sm:flex-none bg-green-500 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-green-600 transition-colors flex items-center justify-center shadow-sm active:scale-95"
           >
-            <Wallet size={14} className="mr-1"/>
+            <Wallet size={16} className="mr-2"/>
             {event.status === 'PRE_SCHEDULED' ? 'Confirmar Reserva' : 'Confirmar Pagamento'}
           </button>
         )}
@@ -99,7 +137,22 @@ const EventListItem: React.FC<{
 
 export const DashboardScreen: React.FC = () => {
   const { currentUser } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [isSharedModalOpen, setIsSharedModalOpen] = React.useState(searchParams.get('shared') === 'true');
   const isSeller = currentUser?.role === 'SELLER';
+
+  useEffect(() => {
+    if (searchParams.get('shared') === 'true') {
+      setIsSharedModalOpen(true);
+    }
+  }, [searchParams]);
+
+  const closeSharedModal = () => {
+    setIsSharedModalOpen(false);
+    if (searchParams.get('shared') === 'true') {
+        setSearchParams({}, { replace: true });
+    }
+  };
   const {
     isLoading,
     error,
@@ -128,28 +181,28 @@ export const DashboardScreen: React.FC = () => {
   const NotificationCard: React.FC<{ event: EventType; onAcknowledge: (id: string) => void; onPayment: (id: string, type: PaymentType) => void; onRevert: (id: string) => void; }> = ({ event, onAcknowledge, onPayment, onRevert }) => {
     const styleMap = {
       CANCELLED: {
-        container: 'bg-red-50 border-l-4 border-red-500',
+        container: 'bg-red-50 border-red-200 border',
         iconContainer: 'text-red-700',
-        button: 'bg-gray-500 hover:bg-gray-600',
+        button: 'bg-red-600 hover:bg-red-700',
         icon: Ban,
         actionText: 'Arquivar',
-        message: `O passeio de ${event.client.name} foi cancelado.`
+        message: `Passeio Cancelado: ${event.client.name}`
       },
       COMPLETED: {
-        container: 'bg-green-50 border-l-4 border-green-500',
+        container: 'bg-green-50 border-green-200 border',
         iconContainer: 'text-green-700',
         button: 'bg-green-600 hover:bg-green-700',
         icon: CheckCircle,
         actionText: event.paymentStatus === 'PENDING' ? 'Pagar e Arquivar' : 'Arquivar',
-        message: `O passeio de ${event.client.name} foi concluído.`
+        message: `Passeio Concluído: ${event.client.name}`
       },
       PENDING_REFUND: {
-        container: 'bg-yellow-50 border-l-4 border-yellow-500',
+        container: 'bg-yellow-50 border-yellow-200 border',
         iconContainer: 'text-yellow-700',
-        button: 'bg-yellow-500 hover:bg-yellow-600',
+        button: 'bg-yellow-600 hover:bg-yellow-700',
         icon: AlertTriangle,
         actionText: 'Confirmar Estorno',
-        message: `Reembolso pendente para ${event.client.name}.`
+        message: `Reembolso Pendente: ${event.client.name}`
       }
     };
 
@@ -157,19 +210,21 @@ export const DashboardScreen: React.FC = () => {
     const { container, iconContainer, button, icon: Icon, actionText, message } = styleMap[status];
 
     return (
-      <div className={`${container} p-3 flex justify-between items-center`}>
-        <div>
-          <div className={`${iconContainer} flex items-center`}>
-            <Icon size={18} className="mr-2"/>
-            <span className="font-semibold">{message}</span>
+      <div className={`${container} p-4 rounded-xl flex flex-col sm:flex-row justify-between sm:items-center gap-3`}>
+        <div className="flex items-start gap-3">
+          <div className={`p-2 rounded-full bg-white bg-opacity-50 ${iconContainer}`}>
+            <Icon size={20}/>
           </div>
-          <p className="text-sm text-gray-600 ml-7">{new Date(event.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} - {event.boat.name}</p>
+          <div>
+            <span className={`font-bold block ${iconContainer}`}>{message}</span>
+            <p className="text-xs text-gray-500 font-medium">{new Date(event.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} • {event.boat.name}</p>
+          </div>
         </div>
         <div className="flex gap-2">
             {status === 'CANCELLED' && event.autoCancelled && (
                 <button
                     onClick={() => onRevert(event.id)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+                    className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors"
                 >
                     Reverter
                 </button>
@@ -182,7 +237,7 @@ export const DashboardScreen: React.FC = () => {
                         onAcknowledge(event.id);
                     }
                 }}
-                className={`${button} text-white px-3 py-1 rounded-lg text-sm transition-colors`}
+                className={`${button} flex-1 sm:flex-none text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors`}
             >
                 {actionText}
             </button>
@@ -204,14 +259,34 @@ export const DashboardScreen: React.FC = () => {
     <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">Dashboard</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Stat Cards */}
-        {!isSeller && <StatCard title="Faturamento do Mês" value={formatCurrencyBRL(monthlyStats.totalRevenue)} icon={<DollarSign />} />}
+        {!isSeller && (
+          <StatCard
+            title="Faturamento Realizado (Mês)"
+            value={formatCurrencyBRL(monthlyStats.realizedRevenue)}
+            subValue={`Projeção (A receber): ${formatCurrencyBRL(monthlyStats.pendingRevenue)}`}
+            icon={<DollarSign />}
+          />
+        )}
         <StatCard title="Passeios no Mês" value={monthlyStats.totalEvents.toString()} icon={<Hash />} />
+      </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
         {/* Quick Access */}
-        <QuickAccessButton to="/create-event" title="Criar Passeio" icon={<PlusCircle size={32}/>} />
-        {!isSeller && <QuickAccessButton to="/clients" title="Buscar Cliente" icon={<Search size={32}/>} />}
+        <QuickAccessButton to="/dashboard/create-event" title="Criar Passeio" icon={<PlusCircle size={32}/>} />
+        <QuickAccessButton
+          onClick={() => setIsSharedModalOpen(true)}
+          title="Passeio Compartilhado"
+          icon={<Users size={32} />}
+          colorClass="bg-indigo-600 hover:bg-indigo-700"
+        />
+        <QuickAccessButton
+          to="/dashboard/clients"
+          title="Buscar Cliente"
+          icon={<Search size={32}/>}
+          disabled={isSeller}
+        />
       </div>
 
       {/* Main Content Grid */}
@@ -324,6 +399,14 @@ export const DashboardScreen: React.FC = () => {
           updateAdditionalCost={costVm.updateAdditionalCost}
           removeAdditionalCost={costVm.removeAdditionalCost}
           isSaving={costVm.isSaving}
+        />
+      )}
+
+      {isSharedModalOpen && (
+        <SharedEventModal
+          isOpen={isSharedModalOpen}
+          onClose={closeSharedModal}
+          onSuccess={() => {}}
         />
       )}
     </div>
