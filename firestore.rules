@@ -21,11 +21,10 @@ service cloud.firestore {
     // Função central de permissões (Mais robusta)
     // Permite OWNER, SUPER_ADMIN e, opcionalmente, ADMIN
     function hasStaffPermission(allowAdmin) {
-      let role = getUserData().role;
       return isApproved() && (
-        role == 'OWNER' ||
-        role == 'SUPER_ADMIN' ||
-        (allowAdmin && role == 'ADMIN')
+        getUserData().role == 'OWNER' ||
+        getUserData().role == 'SUPER_ADMIN' ||
+        (allowAdmin && getUserData().role == 'ADMIN')
       );
     }
 
@@ -114,7 +113,7 @@ service cloud.firestore {
 
     // Pagamentos
     match /payments/{id} {
-      allow read: if isApproved();
+      allow read: if true;
       allow write: if hasStaffPermission(true);
     }
 
