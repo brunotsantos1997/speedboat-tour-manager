@@ -57,41 +57,48 @@ export const useFinanceViewModel = () => {
   }, [events, expenses, payments, incomes, startDate, endDate]);
 
   const stats = useMemo(() => {
-    const { filteredEvents, filteredExpenses, filteredIncomes } = filteredData;
+    const { filteredEvents, filteredExpenses, filteredIncomes, filteredPayments } = filteredData;
 
     const totalExpenses = filteredExpenses.reduce((acc, e) => acc + e.amount, 0);
 
-    // Granular revenue from events in this period
+    // Realized revenue (Cash Flow: payments and incomes actually received in the period)
     let boatRentalRevenue = 0;
     let productsRevenue = 0;
+    let totalPaymentsAmount = 0;
     const otherRevenue = filteredIncomes.reduce((acc, i) => acc + i.amount, 0);
 
-    filteredEvents.forEach(event => {
-        // If we have stored breakdown, use it, otherwise approximate
-        if (event.rentalRevenue !== undefined && event.productsRevenue !== undefined) {
-            boatRentalRevenue += event.rentalRevenue;
-            productsRevenue += event.productsRevenue;
+    filteredPayments.forEach(p => {
+        totalPaymentsAmount += p.amount;
+        const event = events.find(ev => ev.id === p.eventId);
+        if (event && event.total > 0) {
+            const ratio = p.amount / event.total;
+            boatRentalRevenue += (event.rentalRevenue || 0) * ratio;
+            productsRevenue += (event.productsRevenue || 0) * ratio;
         } else {
-            // Fallback calculation logic if not stored
-            const boatCost = event.boat ? event.total * 0.7 : 0; // Rough estimate
-            boatRentalRevenue += boatCost;
-            productsRevenue += (event.total - boatCost);
+            // If no event found, attribute to boat rental as fallback or keep as is
+            boatRentalRevenue += p.amount;
         }
     });
 
-    const totalRevenue = boatRentalRevenue + productsRevenue + otherRevenue;
+    const totalRealizedRevenue = totalPaymentsAmount + otherRevenue;
+
+    // Projected revenue (Accrual: total value of events scheduled for the period)
+    const totalEventsValue = filteredEvents.reduce((acc, e) => acc + (e.total || 0), 0);
+    const projectedRevenue = totalEventsValue + otherRevenue;
 
     return {
-      totalRevenue,
+      totalRevenue: totalRealizedRevenue,
+      projectedRevenue,
+      averageProjectedValue: filteredEvents.length > 0 ? totalEventsValue / filteredEvents.length : 0,
       totalExpenses,
-      netProfit: totalRevenue - totalExpenses,
+      netProfit: totalRealizedRevenue - totalExpenses,
       boatRentalRevenue,
       productsRevenue,
       otherRevenue,
       eventCount: filteredEvents.length,
       expenseCount: filteredExpenses.length
     };
-  }, [filteredData]);
+  }, [filteredData, events]);
 
   const cashFlowData = useMemo(() => {
     // Generate last 6 months of data

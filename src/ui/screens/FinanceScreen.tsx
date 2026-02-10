@@ -120,9 +120,9 @@ export const FinanceScreen: React.FC = () => {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
         <StatCard
-          title="Receita Total"
+          title="Receita Realizada"
           value={formatCurrencyBRL(stats.totalRevenue)}
-          subValue={`${stats.eventCount} passeios`}
+          subValue={`Previsto: ${formatCurrencyBRL((stats as any).projectedRevenue || 0)}`}
           icon={<TrendingUp className="text-green-600" size={20} />}
           color="bg-green-50"
         />
@@ -142,7 +142,8 @@ export const FinanceScreen: React.FC = () => {
         />
         <StatCard
           title="Média por Passeio"
-          value={formatCurrencyBRL(stats.eventCount > 0 ? stats.totalRevenue / stats.eventCount : 0)}
+          value={formatCurrencyBRL((stats as any).averageProjectedValue || 0)}
+          subValue="Ticket médio (Contratos)"
           icon={<BarChart3 className="text-purple-600" size={20} />}
           color="bg-purple-50"
         />
