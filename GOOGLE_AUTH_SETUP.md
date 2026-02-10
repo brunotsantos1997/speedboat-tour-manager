@@ -22,14 +22,35 @@ Para que o login funcione corretamente, é necessário configurar a tela de cons
 3. No menu lateral, vá em **APIs e Serviços** > **Tela de consentimento OAuth**.
 4. Configure como **Externo** (se desejar que qualquer pessoa com conta Google possa se cadastrar).
 5. Preencha as informações obrigatórias (Nome do app, e-mail de suporte, e-mail de contato do desenvolvedor).
-6. Em **Domínios autorizados**, adicione o domínio onde o seu app está hospedado (ex: `seu-app.firebaseapp.com` ou seu domínio customizado).
+7. Na seção de **Escopos (Scopes)**, clique em **Adicionar ou remover escopos** e adicione manualmente:
+   - `https://www.googleapis.com/auth/calendar.events`
+   - `https://www.googleapis.com/auth/calendar.readonly`
+8. Em **Domínios autorizados**, adicione o domínio onde o seu app está hospedado (ex: `seu-app.firebaseapp.com` ou seu domínio customizado).
 
-## 3. Adicionar Domínios Autorizados no Firebase
+## 3. Ativar API do Google Calendar
+
+Para que a sincronização funcione, você deve ativar a API no console do Google Cloud:
+
+1. Vá para a [Biblioteca de APIs](https://console.cloud.google.com/apis/library).
+2. Procure por **Google Calendar API**.
+3. Clique em **Ativar**.
+
+## 4. Adicionar Domínios Autorizados no Firebase
 
 1. No Console do Firebase, em **Authentication** > **Settings** > **Authorized domains**.
 2. Certifique-se de que `localhost` e o domínio de produção do seu app estão na lista.
 
-## 4. Configuração de Conta Única por E-mail (Recomendado)
+## 5. Status de Publicação e Usuários de Teste (Importante!)
+
+Se o seu app ainda não foi verificado pelo Google, ele estará em modo de "Teste". Isso causará o erro **"403: access_denied"** se você tentar logar com um e-mail que não está na lista de permissões.
+
+Para resolver:
+1. No [Google Cloud Console](https://console.cloud.google.com/), vá em **APIs e Serviços** > **Tela de consentimento OAuth**.
+2. Verifique o **Status de publicação**:
+   - Se estiver em **Teste (Testing)**: Role para baixo até **Usuários de teste** e clique em **ADD USERS**. Adicione o e-mail que você está tentando usar.
+   - Alternativamente, clique em **PUBLICAR APLICATIVO (PUBLISH APP)** para movê-lo para produção (isso removerá o limite de usuários de teste, mas o Google pode exibir um aviso de "App não verificado" até que você passe pelo processo de auditoria deles).
+
+## 6. Configuração de Conta Única por E-mail (Recomendado)
 
 Para garantir que a vinculação de contas funcione conforme implementado:
 
@@ -37,7 +58,7 @@ Para garantir que a vinculação de contas funcione conforme implementado:
 2. Selecione a opção **"Link accounts that use the same email"** (Vincular contas que usam o mesmo e-mail).
    - Isso permite que o Firebase tente mesclar as contas automaticamente ou lance o erro `auth/account-exists-with-different-credential`, que é tratado no app instruindo o usuário a fazer login com senha e depois vincular o Google.
 
-## 5. Vinculação Manual de Contas
+## 7. Vinculação Manual de Contas
 
 Se um usuário já possui uma conta com e-mail e senha e deseja usar o Google:
 1. Ele deve fazer login normalmente com e-mail e senha.

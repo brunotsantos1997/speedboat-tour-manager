@@ -57,7 +57,7 @@ const EventListItem: React.FC<{
     <div className="bg-gray-50 p-3 rounded-lg flex flex-col sm:flex-row justify-between sm:items-center">
       <div className="mb-2 sm:mb-0">
         <div className="flex items-baseline gap-x-3">
-          <Link to={`/clients?clientId=${event.client.id}`} className="font-semibold text-blue-600 hover:underline">{event.client.name}</Link>
+          <Link to={`/dashboard/clients?clientId=${event.client.id}`} className="font-semibold text-blue-600 hover:underline">{event.client.name}</Link>
           <span className="font-normal text-sm text-gray-600">{capitalizedDate}</span>
         </div>
         <div className="flex flex-wrap items-center text-sm text-gray-500 mt-1 gap-y-1">

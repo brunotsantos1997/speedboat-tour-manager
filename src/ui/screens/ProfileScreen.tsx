@@ -4,7 +4,7 @@ import { Toast } from '../components/Toast';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
 
 export function ProfileScreen() {
-  const { currentUser, updateProfile, setSecretQuestion, linkGoogle, linkedProviders } = useAuth();
+  const { currentUser, updateProfile, setSecretQuestion, linkGoogle, unlinkGoogle, linkedProviders } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [oldPassword, setOldPassword] = useState('');
@@ -192,26 +192,41 @@ export function ProfileScreen() {
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              disabled={linkedProviders.includes('google.com')}
-              onClick={async () => {
-                try {
-                  setError(null);
-                  await linkGoogle();
-                  setToastMessage('Conta do Google vinculada com sucesso!');
-                } catch (err) {
-                  setError(err instanceof Error ? err.message : 'Falha ao vincular conta.');
-                }
-              }}
-              className={`px-4 py-2 border rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                linkedProviders.includes('google.com')
-                  ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              {linkedProviders.includes('google.com') ? 'Vinculada' : 'Vincular'}
-            </button>
+            {linkedProviders.includes('google.com') ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (window.confirm('Tem certeza que deseja desvincular sua conta Google?')) {
+                    try {
+                      setError(null);
+                      await unlinkGoogle();
+                      setToastMessage('Conta do Google desvinculada com sucesso!');
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Falha ao desvincular conta.');
+                    }
+                  }
+                }}
+                className="px-4 py-2 border border-red-300 text-red-700 bg-white rounded-md text-sm font-medium hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"
+              >
+                Desvincular
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    setError(null);
+                    await linkGoogle();
+                    setToastMessage('Conta do Google vinculada com sucesso!');
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Falha ao vincular conta.');
+                  }
+                }}
+                className="px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded-md text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              >
+                Vincular
+              </button>
+            )}
           </div>
         </div>
 

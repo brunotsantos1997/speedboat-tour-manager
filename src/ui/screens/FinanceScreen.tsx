@@ -70,11 +70,11 @@ export const FinanceScreen: React.FC = () => {
             <PlusCircle size={18} />
             <span>Ganhos</span>
           </button>
-          <Link to="/expenses" className="flex items-center gap-2 bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm md:text-base">
+          <Link to="/dashboard/expenses" className="flex items-center gap-2 bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm md:text-base">
             <PlusCircle size={18} />
             <span>Despesa</span>
           </Link>
-          <Link to="/expense-categories" className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors" title="Categorias">
+          <Link to="/dashboard/expense-categories" className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors" title="Categorias">
             <Settings size={20} />
           </Link>
         </div>
@@ -110,7 +110,7 @@ export const FinanceScreen: React.FC = () => {
             </div>
           </div>
           <button
-            onClick={() => navigate('/cash-book')}
+            onClick={() => navigate('/dashboard/cash-book')}
             className="flex items-center justify-center gap-2 bg-gray-800 text-white px-4 py-3 md:px-6 md:py-3 rounded-xl hover:bg-black transition-all shadow-sm md:shadow-md font-bold text-sm md:text-base"
           >
             <BookOpen size={18} />

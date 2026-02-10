@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
 
 export function SignupScreen() {
@@ -17,7 +17,7 @@ export function SignupScreen() {
     setIsGoogleLoading(true);
     try {
       await loginWithGoogle();
-      navigate('/');
+      navigate('/dashboard');
     } catch (err: any) {
       if (err.message.includes('Conta criada com sucesso')) {
         navigate('/pending-approval');
@@ -38,7 +38,7 @@ export function SignupScreen() {
       if (user.status === 'PENDING') {
         navigate('/pending-approval');
       } else {
-        navigate('/'); // Navigate to dashboard for the first (approved) user
+        navigate('/dashboard'); // Navigate to dashboard for the first (approved) user
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ocorreu um erro inesperado.');
@@ -136,6 +136,15 @@ export function SignupScreen() {
           </svg>
           <span className="font-medium">Cadastrar com Google</span>
         </button>
+
+        <div className="pt-6 flex justify-center gap-4 border-t border-gray-100 mt-6">
+          <Link to="/privacy-policy" className="text-xs text-gray-400 hover:text-gray-600 underline">
+            Política de Privacidade
+          </Link>
+          <Link to="/terms-of-service" className="text-xs text-gray-400 hover:text-gray-600 underline">
+            Termos de Uso
+          </Link>
+        </div>
       </div>
     </div>
   );
