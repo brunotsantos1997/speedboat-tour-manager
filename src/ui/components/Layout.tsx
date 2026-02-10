@@ -4,6 +4,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Menu, PlusCircle, Settings, Users, LayoutDashboard, Palette, UserCog, TrendingUp, LogOut, Wallet, Calendar } from 'lucide-react';
 import { useCompanyDataViewModel } from '../../viewmodels/CompanyDataViewModel';
 import { useAuth } from '../../contexts/AuthContext';
+import { useGlobalSync } from '../../viewmodels/useGlobalSync';
 
 
 const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string }> = ({ isOpen, onClose, appName }) => {
@@ -185,6 +186,7 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
 };
 
 export const Layout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
+  useGlobalSync();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const { companyData } = useCompanyDataViewModel();
   const [appName, setAppName] = useState('BoatManager');
