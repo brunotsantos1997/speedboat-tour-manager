@@ -4,13 +4,14 @@ import { useDashboardViewModel } from '../../viewmodels/useDashboardViewModel';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
-import { DollarSign, Hash, PlusCircle, Search, Clock, AlertTriangle, Anchor, CheckCircle, Bell, Ban, Wallet } from 'lucide-react';
+import { DollarSign, Hash, PlusCircle, Search, Clock, AlertTriangle, Anchor, CheckCircle, Bell, Ban, Wallet, Users } from 'lucide-react';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import { ptBR } from 'date-fns/locale';
 import type { EventType, PaymentType } from '../../core/domain/types';
 import { PaymentModal } from '../components/PaymentModal';
 import { EventCostModal } from '../components/EventCostModal';
+import { SharedEventModal } from '../components/SharedEventModal';
 import { useEventCostViewModel } from '../../viewmodels/useEventCostViewModel';
 
 // --- Sub-components for the Dashboard ---
@@ -99,6 +100,7 @@ const EventListItem: React.FC<{
 
 export const DashboardScreen: React.FC = () => {
   const { currentUser } = useAuth();
+  const [isSharedModalOpen, setIsSharedModalOpen] = React.useState(false);
   const isSeller = currentUser?.role === 'SELLER';
   const {
     isLoading,
@@ -210,8 +212,15 @@ export const DashboardScreen: React.FC = () => {
         <StatCard title="Passeios no Mês" value={monthlyStats.totalEvents.toString()} icon={<Hash />} />
 
         {/* Quick Access */}
-        <QuickAccessButton to="/dashboard/create-event" title="Criar Passeio" icon={<PlusCircle size={32}/>} />
-        {!isSeller && <QuickAccessButton to="/dashboard/clients" title="Buscar Cliente" icon={<Search size={32}/>} />}
+        <QuickAccessButton to="/create-event" title="Criar Passeio" icon={<PlusCircle size={32}/>} />
+        <button
+          onClick={() => setIsSharedModalOpen(true)}
+          className="bg-indigo-600 text-white p-4 rounded-lg shadow-md hover:bg-indigo-700 transition-colors flex flex-col items-center justify-center text-center"
+        >
+          <Users size={32} />
+          <span className="mt-2 font-semibold">Passeio Compartilhado</span>
+        </button>
+        {!isSeller && <QuickAccessButton to="/clients" title="Buscar Cliente" icon={<Search size={32}/>} />}
       </div>
 
       {/* Main Content Grid */}
@@ -324,6 +333,14 @@ export const DashboardScreen: React.FC = () => {
           updateAdditionalCost={costVm.updateAdditionalCost}
           removeAdditionalCost={costVm.removeAdditionalCost}
           isSaving={costVm.isSaving}
+        />
+      )}
+
+      {isSharedModalOpen && (
+        <SharedEventModal
+          isOpen={isSharedModalOpen}
+          onClose={() => setIsSharedModalOpen(false)}
+          onSuccess={() => {}}
         />
       )}
     </div>
