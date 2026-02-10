@@ -62,10 +62,6 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
             <PlusCircle className="mr-3" />
             <span>Criar Passeio</span>
           </NavLink>
-          <NavLink to="/?shared=true" className={navLinkClass} onClick={onClose}>
-            <Users className="mr-3" />
-            <span>Passeio Compartilhado</span>
-          </NavLink>
 
           {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN') && (
             <NavLink to="/dashboard/admin/users" className={(props) => navLinkClass(props) + ' justify-between'} onClick={onClose}>
