@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Anchor, Calendar, Users, BarChart3, ShieldCheck, ArrowRight, MessageCircle } from 'lucide-react';
+import { Calendar, Users, BarChart3, ShieldCheck, ArrowRight, MessageCircle } from 'lucide-react';
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useCompanyDataViewModel } from '../../viewmodels/CompanyDataViewModel';
@@ -26,7 +26,7 @@ export const LandingScreen: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center gap-2">
-              <Anchor className="text-blue-600" size={32} />
+              <img src="/vite.svg" alt="Logo" className="w-8 h-8 object-contain" />
               <span className="text-xl font-bold tracking-tight text-gray-900">Dilancha Náutica</span>
             </div>
             <div className="flex items-center gap-4">
@@ -145,7 +145,7 @@ export const LandingScreen: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-8 mb-12 border-b border-gray-800 pb-12">
             <div className="flex items-center gap-2">
-              <Anchor className="text-blue-500" size={32} />
+              <img src="/vite.svg" alt="Logo" className="w-8 h-8 object-contain" />
               <span className="text-xl font-bold tracking-tight text-white">Dilancha Náutica</span>
             </div>
             <div className="flex flex-wrap justify-center gap-8 font-medium">
