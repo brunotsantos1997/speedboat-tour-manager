@@ -273,6 +273,10 @@ export const SharedEventModal: React.FC<SharedEventModalProps> = ({ isOpen, onCl
                 }`}
               >
                 {isSaving ? 'Salvando...' : existingSharedEvent ? 'Adicionar ao Passeio' : 'Confirmar e Pagar'}
+                disabled={isSaving || availableTimeSlots.length === 0}
+                className="px-8 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-all shadow-md disabled:bg-gray-400 disabled:shadow-none"
+              >
+                {isSaving ? 'Criando...' : 'Confirmar e Pagar'}
               </button>
             </div>
           </div>

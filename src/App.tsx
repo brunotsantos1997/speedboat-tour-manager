@@ -30,6 +30,10 @@ const ProfileScreen = lazy(() => import('./ui/screens/ProfileScreen').then(m => 
 const ForgotPasswordScreen = lazy(() => import('./ui/screens/ForgotPasswordScreen').then(m => ({ default: m.ForgotPasswordScreen })));
 const ResetPasswordSecretScreen = lazy(() => import('./ui/screens/ResetPasswordSecretScreen').then(m => ({ default: m.ResetPasswordSecretScreen })));
 const SetNewPasswordScreen = lazy(() => import('./ui/screens/SetNewPasswordScreen').then(m => ({ default: m.SetNewPasswordScreen })));
+const GoogleSyncScreen = lazy(() => import('./ui/screens/GoogleSyncScreen').then(m => ({ default: m.GoogleSyncScreen })));
+const PrivacyPolicyScreen = lazy(() => import('./ui/screens/PrivacyPolicyScreen').then(m => ({ default: m.PrivacyPolicyScreen })));
+const TermsOfServiceScreen = lazy(() => import('./ui/screens/TermsOfServiceScreen').then(m => ({ default: m.TermsOfServiceScreen })));
+const LandingScreen = lazy(() => import('./ui/screens/LandingScreen').then(m => ({ default: m.LandingScreen })));
 
 // Simple loading fallback
 const LoadingFallback = () => (
@@ -44,18 +48,21 @@ function App() {
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
           {/* Public routes that don't use any layout */}
+          <Route path="/" element={<LandingScreen />} />
           <Route path="/login" element={<LoginScreen />} />
           <Route path="/signup" element={<SignupScreen />} />
           <Route path="/pending-approval" element={<PendingApprovalScreen />} />
           <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
           <Route path="/reset-password-secret" element={<ResetPasswordSecretScreen />} />
           <Route path="/set-new-password" element={<SetNewPasswordScreen />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyScreen />} />
+          <Route path="/terms-of-service" element={<TermsOfServiceScreen />} />
 
           {/* Public voucher route with a specific public layout */}
           <Route path="/voucher/:eventId" element={<PublicLayout><VoucherScreen /></PublicLayout>} />
 
           {/* Protected Admin Routes with the main Layout */}
-          <Route path="/" element={<ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'OWNER', 'SELLER']} />}>
+          <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'OWNER', 'SELLER']} />}>
             <Route element={<Layout />}>
               <Route index element={<DashboardScreen />} />
               <Route path="create-event" element={<CreateEventScreen />} />
@@ -65,6 +72,7 @@ function App() {
               <Route path="tour-types" element={<TourTypesScreen />} />
               <Route path="clients" element={<ClientHistoryScreen />} />
               <Route path="profile" element={<ProfileScreen />} />
+              <Route path="google-sync" element={<GoogleSyncScreen />} />
 
               {/* Routes for SUPER_ADMIN and OWNER only (Sensitive Settings) */}
               <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'OWNER']} />}>

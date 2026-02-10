@@ -189,7 +189,7 @@ export const ClientHistoryScreen: React.FC = () => {
     const navigate = useNavigate();
 
     const handleEditEvent = (eventId: string) => {
-        navigate(`/create-event?eventId=${eventId}`);
+        navigate(`/dashboard/create-event?eventId=${eventId}`);
     };
 
     return (

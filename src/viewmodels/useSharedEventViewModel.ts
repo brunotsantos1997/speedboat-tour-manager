@@ -105,6 +105,7 @@ export const useSharedEventViewModel = () => {
         e.status !== 'ARCHIVED_CANCELLED' &&
         e.tourType?.name.toLowerCase() !== 'compartilhado' // Ignore shared for slot visibility, we handle merging later
     );
+    const otherEvents = scheduledEvents.filter(e => e.boat.id === selectedBoat.id && e.status !== 'CANCELLED' && e.status !== 'ARCHIVED_CANCELLED');
 
     return slots.filter(slot => {
       const slotMin = timeToMinutes(slot);

@@ -39,6 +39,11 @@ export const useVoucherViewModel = () => {
     const termsRepo = VoucherTermsRepository.getInstance();
     const appearanceRepo = VoucherAppearanceRepository.getInstance();
 
+    // Ensure listeners are started (important for unauthenticated users)
+    companyRepo.initialize();
+    termsRepo.initialize();
+    appearanceRepo.initialize();
+
     // Trigger loads/seeding
     companyRepo.get();
     termsRepo.get();

@@ -1,7 +1,7 @@
 // src/ui/components/Layout.tsx
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Menu, PlusCircle, Settings, Users, LayoutDashboard, Palette, UserCog, TrendingUp, LogOut, Wallet } from 'lucide-react';
+import { Menu, PlusCircle, Settings, Users, LayoutDashboard, Palette, UserCog, TrendingUp, LogOut, Wallet, Calendar } from 'lucide-react';
 import { useCompanyDataViewModel } from '../../viewmodels/CompanyDataViewModel';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -54,11 +54,11 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
           <h2 className="text-2xl font-bold text-center truncate">{appName}</h2>
         </div>
         <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-          <NavLink to="/" className={navLinkClass} onClick={onClose} end>
+          <NavLink to="/dashboard" className={navLinkClass} onClick={onClose} end>
             <LayoutDashboard className="mr-3" />
             Dashboard
           </NavLink>
-          <NavLink to="/create-event" className={navLinkClass} onClick={onClose}>
+          <NavLink to="/dashboard/create-event" className={navLinkClass} onClick={onClose}>
             <PlusCircle className="mr-3" />
             <span>Criar Passeio</span>
           </NavLink>
@@ -68,7 +68,7 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
           </NavLink>
 
           {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN') && (
-            <NavLink to="/admin/users" className={(props) => navLinkClass(props) + ' justify-between'} onClick={onClose}>
+            <NavLink to="/dashboard/admin/users" className={(props) => navLinkClass(props) + ' justify-between'} onClick={onClose}>
               <div className="flex items-center">
                 <UserCog className="mr-3" />
                 <span>Gerenciar Usuários</span>
@@ -82,14 +82,14 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
           )}
 
           {(currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN') && (
-            <NavLink to="/finance" className={navLinkClass} onClick={onClose}>
+            <NavLink to="/dashboard/finance" className={navLinkClass} onClick={onClose}>
               <Wallet className="mr-3" />
               <span>Financeiro</span>
             </NavLink>
           )}
 
           {(currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN') && (
-            <NavLink to="/commission-report" className={navLinkClass} onClick={onClose}>
+            <NavLink to="/dashboard/commission-report" className={navLinkClass} onClick={onClose}>
               <TrendingUp className="mr-3" />
               <span>Relatório de Comissão</span>
             </NavLink>
@@ -109,26 +109,26 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
                 Configurações
               </button>
             <div className="pl-10 space-y-2 hidden">
-              <NavLink to="/products" className={navLinkClass} onClick={onClose}>
+              <NavLink to="/dashboard/products" className={navLinkClass} onClick={onClose}>
                 Produtos
               </NavLink>
-              <NavLink to="/boats" className={navLinkClass} onClick={onClose}>
+              <NavLink to="/dashboard/boats" className={navLinkClass} onClick={onClose}>
                 Lanchas
               </NavLink>
-              <NavLink to="/boarding-locations" className={navLinkClass} onClick={onClose}>
+              <NavLink to="/dashboard/boarding-locations" className={navLinkClass} onClick={onClose}>
                 Locais de Embarque
               </NavLink>
-              <NavLink to="/tour-types" className={navLinkClass} onClick={onClose}>
+              <NavLink to="/dashboard/tour-types" className={navLinkClass} onClick={onClose}>
                 Tipos de Passeio
               </NavLink>
               {(currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
-                <NavLink to="/admin/commissions" className={navLinkClass} onClick={onClose}>
+                <NavLink to="/dashboard/admin/commissions" className={navLinkClass} onClick={onClose}>
                   Comissões
                 </NavLink>
               )}
               {(currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN') && (
                 <>
-                  <NavLink to="/voucher-terms" className={navLinkClass} onClick={onClose}>
+                  <NavLink to="/dashboard/voucher-terms" className={navLinkClass} onClick={onClose}>
                     Termos do Voucher
                   </NavLink>
                 </>
@@ -150,22 +150,26 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
                 Personalização
               </button>
               <div className="pl-10 space-y-2 hidden">
-                <NavLink to="/company-data" className={navLinkClass} onClick={onClose}>
+                <NavLink to="/dashboard/company-data" className={navLinkClass} onClick={onClose}>
                   Dados da Empresa
                 </NavLink>
-                <NavLink to="/voucher-appearance" className={navLinkClass} onClick={onClose}>
+                <NavLink to="/dashboard/voucher-appearance" className={navLinkClass} onClick={onClose}>
                   Aparência do Voucher
                 </NavLink>
               </div>
             </div>
           )}
           {(currentUser?.role !== 'SELLER') && (
-            <NavLink to="/clients" className={navLinkClass} onClick={onClose}>
+            <NavLink to="/dashboard/clients" className={navLinkClass} onClick={onClose}>
               <Users className="mr-3" />
               Clientes
             </NavLink>
           )}
-          <NavLink to="/profile" className={navLinkClass} onClick={onClose}>
+          <NavLink to="/dashboard/google-sync" className={navLinkClass} onClick={onClose}>
+            <Calendar className="mr-3" />
+            Sincronizar Agenda
+          </NavLink>
+          <NavLink to="/dashboard/profile" className={navLinkClass} onClick={onClose}>
             <UserCog className="mr-3" />
             Meu Perfil
           </NavLink>

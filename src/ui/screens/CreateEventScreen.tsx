@@ -648,7 +648,7 @@ export const CreateEventScreen: React.FC = () => {
               vm.createEvent().then((client) => {
                 showToast(vm.editingEventId ? 'Passeio atualizado com sucesso!' : 'Passeio agendado com sucesso!');
                 if (client) {
-                  navigate(`/clients?clientId=${client.id}`);
+                  navigate(`/dashboard/clients?clientId=${client.id}`);
                 }
               }).catch((err) => {
                 console.error('Erro ao salvar evento:', err);
