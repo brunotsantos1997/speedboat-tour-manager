@@ -204,11 +204,16 @@ export const Layout: React.FC<{ children?: React.ReactNode }> = ({ children }) =
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white shadow-md md:hidden">
-          <div className="flex justify-between items-center p-4">
-            <h1 className="text-xl font-bold">{appName}</h1>
-            <button onClick={() => setSidebarOpen(true)}>
+          <div className="relative flex justify-center items-center p-4">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="absolute left-4 p-1 rounded-md hover:bg-gray-100 transition-colors"
+            >
               <Menu size={24} />
             </button>
+            <h1 className="text-xl font-bold text-center truncate px-12">
+              {appName}
+            </h1>
           </div>
         </header>
 
