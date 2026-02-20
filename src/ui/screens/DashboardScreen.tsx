@@ -13,11 +13,13 @@ import { PaymentModal } from '../components/PaymentModal';
 import { EventCostModal } from '../components/EventCostModal';
 import { SharedEventModal } from '../components/SharedEventModal';
 import { useEventCostViewModel } from '../../viewmodels/useEventCostViewModel';
+import { Tutorial } from '../components/Tutorial';
+import { dashboardSteps } from '../tutorials/dashboardSteps';
 
 // --- Sub-components for the Dashboard ---
 
-const StatCard: React.FC<{ title: string; value: string; subValue?: string; icon: React.ReactNode }> = ({ title, value, subValue, icon }) => (
-  <div className="bg-white p-4 rounded-lg shadow-md flex items-center">
+const StatCard: React.FC<{ title: string; value: string; subValue?: string; icon: React.ReactNode; tourId?: string }> = ({ title, value, subValue, icon, tourId }) => (
+  <div className="bg-white p-4 rounded-lg shadow-md flex items-center" data-tour={tourId}>
     <div className="bg-blue-100 text-blue-600 p-3 rounded-full mr-4">
       {icon}
     </div>
@@ -36,7 +38,8 @@ const QuickAccessButton: React.FC<{
     onClick?: () => void;
     colorClass?: string;
     disabled?: boolean;
-}> = ({ to, title, icon, onClick, colorClass = "bg-blue-600 hover:bg-blue-700", disabled }) => {
+    tourId?: string;
+}> = ({ to, title, icon, onClick, colorClass = "bg-blue-600 hover:bg-blue-700", disabled, tourId }) => {
   const content = (
     <>
       {icon}
@@ -56,14 +59,14 @@ const QuickAccessButton: React.FC<{
 
   if (to) {
     return (
-      <Link to={to} className={`${baseClasses} ${colorClass} text-white`}>
+      <Link to={to} className={`${baseClasses} ${colorClass} text-white`} data-tour={tourId}>
         {content}
       </Link>
     );
   }
 
   return (
-    <button onClick={onClick} className={`${baseClasses} ${colorClass} text-white`}>
+    <button onClick={onClick} className={`${baseClasses} ${colorClass} text-white`} data-tour={tourId}>
       {content}
     </button>
   );
@@ -257,6 +260,7 @@ export const DashboardScreen: React.FC = () => {
 
   return (
     <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
+      <Tutorial tourId="dashboard" steps={dashboardSteps} />
       <h1 className="text-3xl font-bold text-gray-800 mb-6">Dashboard</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -267,25 +271,28 @@ export const DashboardScreen: React.FC = () => {
             value={formatCurrencyBRL(monthlyStats.realizedRevenue)}
             subValue={`Projeção (A receber): ${formatCurrencyBRL(monthlyStats.pendingRevenue)}`}
             icon={<DollarSign />}
+            tourId="stat-revenue"
           />
         )}
-        <StatCard title="Passeios no Mês" value={monthlyStats.totalEvents.toString()} icon={<Hash />} />
+        <StatCard title="Passeios no Mês" value={monthlyStats.totalEvents.toString()} icon={<Hash />} tourId="stat-events" />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
         {/* Quick Access */}
-        <QuickAccessButton to="/dashboard/create-event" title="Criar Passeio" icon={<PlusCircle size={32}/>} />
+        <QuickAccessButton to="/dashboard/create-event" title="Criar Passeio" icon={<PlusCircle size={32}/>} tourId="btn-create-event" />
         <QuickAccessButton
           onClick={() => setIsSharedModalOpen(true)}
           title="Passeio Compartilhado"
           icon={<Users size={32} />}
           colorClass="bg-indigo-600 hover:bg-indigo-700"
+          tourId="btn-shared-event"
         />
         <QuickAccessButton
           to="/dashboard/clients"
           title="Buscar Cliente"
           icon={<Search size={32}/>}
           disabled={isSeller}
+          tourId="btn-search-client"
         />
       </div>
 
@@ -297,7 +304,7 @@ export const DashboardScreen: React.FC = () => {
 
           {/* Notifications */}
           {notificationEvents.length > 0 && (
-            <div className="bg-white rounded-lg shadow-md">
+            <div className="bg-white rounded-lg shadow-md" data-tour="notifications">
               <div className="p-4 border-b">
                 <h2 className="text-xl font-semibold flex items-center"><Bell className="mr-2 text-gray-600"/> Avisos</h2>
               </div>
@@ -317,7 +324,7 @@ export const DashboardScreen: React.FC = () => {
 
 
           {/* Pending Payments */}
-          <div className="bg-white p-4 rounded-lg shadow-md">
+          <div className="bg-white p-4 rounded-lg shadow-md" data-tour="pending-payments">
             <h2 className="text-xl font-semibold mb-3 flex items-center"><AlertTriangle className="mr-2 text-yellow-500"/> Pagamentos Pendentes</h2>
             <div className="space-y-3 max-h-60 overflow-y-auto">
               {pendingPayments.length > 0
@@ -328,7 +335,7 @@ export const DashboardScreen: React.FC = () => {
           </div>
 
           {/* Week's Events */}
-          <div className="bg-white p-4 rounded-lg shadow-md">
+          <div className="bg-white p-4 rounded-lg shadow-md" data-tour="week-events">
             <h2 className="text-xl font-semibold mb-3 flex items-center"><Clock className="mr-2 text-purple-500"/> Passeios da Semana</h2>
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {eventsThisWeek.length > 0
@@ -339,7 +346,7 @@ export const DashboardScreen: React.FC = () => {
           </div>
 
           {/* Events for Selected Date */}
-          <div className="bg-white p-4 rounded-lg shadow-md">
+          <div className="bg-white p-4 rounded-lg shadow-md" data-tour="selected-date-events">
             <h2 className="text-xl font-semibold mb-3 flex items-center"><Clock className="mr-2 text-blue-500"/>
               Passeios para {selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
             </h2>
@@ -354,7 +361,7 @@ export const DashboardScreen: React.FC = () => {
         </div>
 
         {/* Right Column: Calendar */}
-        <div className="bg-white p-4 rounded-lg shadow-md">
+        <div className="bg-white p-4 rounded-lg shadow-md" data-tour="calendar">
           <h2 className="text-xl font-semibold mb-3">Calendário de Eventos</h2>
           <DayPicker
             mode="single"

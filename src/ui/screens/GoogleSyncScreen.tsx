@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, RefreshCw, CheckCircle, AlertCircle, ExternalLink, Link, Unlink } from 'lucide-react';
 import { useGoogleSyncViewModel } from '../../viewmodels/useGoogleSyncViewModel';
 import { useNavigate } from 'react-router-dom';
+import { Tutorial } from '../components/Tutorial';
+import { googleSyncSteps } from '../tutorials/googleSyncSteps';
 
 export const GoogleSyncScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -68,6 +70,7 @@ export const GoogleSyncScreen: React.FC = () => {
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <Tutorial tourId="google-sync" steps={googleSyncSteps} />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center">
           <Calendar className="mr-3 text-blue-600" />
@@ -107,7 +110,7 @@ export const GoogleSyncScreen: React.FC = () => {
 
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <div className="p-6 space-y-6">
-          <section>
+          <section data-tour="google-calendar-select">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Selecione o Calendário
             </label>
@@ -149,7 +152,7 @@ export const GoogleSyncScreen: React.FC = () => {
             )}
           </section>
 
-          <section className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <section className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200" data-tour="google-auto-sync">
             <div>
               <h3 className="font-semibold text-gray-800">Auto Sincronização</h3>
               <p className="text-sm text-gray-600">Atualizar automaticamente na agenda ao criar ou editar um passeio.</p>
@@ -168,6 +171,7 @@ export const GoogleSyncScreen: React.FC = () => {
           <div className="pt-4 flex flex-col sm:flex-row gap-4">
             <button
               onClick={handleSave}
+              data-tour="btn-save-google-settings"
               disabled={isLoading || !selectedCalendar}
               className="flex-1 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300 flex items-center justify-center"
             >
@@ -181,6 +185,7 @@ export const GoogleSyncScreen: React.FC = () => {
 
             <button
               onClick={syncExistingEvents}
+              data-tour="btn-sync-existing"
               disabled={isLoading || !currentUser?.calendarSettings?.calendarId}
               className="flex-1 px-6 py-3 border-2 border-blue-600 text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-colors disabled:border-blue-200 disabled:text-blue-200 flex items-center justify-center"
             >

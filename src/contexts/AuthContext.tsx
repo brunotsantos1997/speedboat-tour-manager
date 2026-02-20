@@ -60,6 +60,8 @@ interface AuthContextType {
   getAllUsers: () => Promise<User[]>;
   updateProfile: (userId: string, data: { name?: string; email?: string; newPassword?: string, oldPassword?: string }) => Promise<void>;
   updateCalendarSettings: (userId: string, settings: { calendarId?: string; autoSync: boolean }) => Promise<void>;
+  updateCompletedTours: (userId: string, tourId: string) => Promise<void>;
+  resetTours: (userId: string) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<User | null>;
   approvePasswordReset: (approverId: string, targetUserId: string) => Promise<string>;
   setSecretQuestion: (userId: string, question: string, answer: string) => Promise<void>;
@@ -525,6 +527,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateCompletedTours = async (userId: string, tourId: string): Promise<void> => {
+    if (!currentUser || currentUser.id !== userId) return;
+
+    const profileRef = doc(db, 'profiles', userId);
+    const updatedTours = [...(currentUser.completedTours || []), tourId];
+
+    await updateDoc(profileRef, { completedTours: updatedTours });
+    setCurrentUser(prev => prev ? { ...prev, completedTours: updatedTours } : null);
+  };
+
+  const resetTours = async (userId: string): Promise<void> => {
+    if (!currentUser || currentUser.id !== userId) return;
+
+    const profileRef = doc(db, 'profiles', userId);
+    await updateDoc(profileRef, { completedTours: [] });
+    setCurrentUser(prev => prev ? { ...prev, completedTours: [] } : null);
+  };
+
   const value = {
     currentUser,
     loading,
@@ -540,6 +560,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     getAllUsers,
     updateProfile,
     updateCalendarSettings,
+    updateCompletedTours,
+    resetTours,
     requestPasswordReset,
     approvePasswordReset,
     setSecretQuestion,

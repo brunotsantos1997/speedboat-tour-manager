@@ -10,6 +10,8 @@ import type { IconKey } from '../components/IconPicker';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { MoneyInput } from '../components/MoneyInput';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
+import { Tutorial } from '../components/Tutorial';
+import { productsSteps } from '../tutorials/productsSteps';
 
 // --- Components ---
 
@@ -103,13 +105,14 @@ export const ProductsScreen: React.FC = () => {
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
+      <Tutorial tourId="products" steps={productsSteps} />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-black text-gray-900">Produtos e Serviços</h1>
           <p className="text-gray-500">Gerencie itens adicionais para os passeios</p>
         </div>
         {isAuthorized && (
-          <button onClick={vm.openNewProductModal} className="w-full sm:w-auto flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95">
+          <button onClick={vm.openNewProductModal} className="w-full sm:w-auto flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95" data-tour="btn-add-product">
             <Plus size={20} className="mr-2" />
             Adicionar Produto
           </button>
@@ -121,7 +124,7 @@ export const ProductsScreen: React.FC = () => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" data-tour="products-list">
           <ul className="divide-y divide-gray-100">
             {vm.products.length > 0 ? vm.products.map((product) => (
               <li key={product.id} className="p-5 flex items-center justify-between hover:bg-gray-50 transition-colors group">
@@ -147,7 +150,7 @@ export const ProductsScreen: React.FC = () => {
                 </div>
                 {isAuthorized && (
                   <div className="flex items-center gap-2 ml-4 shrink-0">
-                    <button onClick={() => vm.openEditProductModal(product)} className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Editar">
+                    <button onClick={() => vm.openEditProductModal(product)} className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Editar" data-tour="btn-edit-product">
                       <Edit size={20} />
                     </button>
                     <button onClick={() => vm.handleDelete(product.id)} className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Excluir">

@@ -8,6 +8,8 @@ import type { Boat } from '../../core/domain/types';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { MoneyInput } from '../components/MoneyInput';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
+import { Tutorial } from '../components/Tutorial';
+import { boatsSteps } from '../tutorials/boatsSteps';
 
 // --- Components ---
 
@@ -92,13 +94,14 @@ export const BoatsScreen: React.FC = () => {
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
+      <Tutorial tourId="boats" steps={boatsSteps} />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-black text-gray-900">Configurar Lanchas</h1>
           <p className="text-gray-500">Gerencie sua frota de embarcações</p>
         </div>
         {isAuthorized && (
-          <button onClick={vm.openNewBoatModal} className="w-full sm:w-auto flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95">
+          <button onClick={vm.openNewBoatModal} className="w-full sm:w-auto flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95" data-tour="btn-add-boat">
             <Plus size={20} className="mr-2" />
             Adicionar Lancha
           </button>
@@ -110,7 +113,7 @@ export const BoatsScreen: React.FC = () => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" data-tour="boats-list">
           <ul className="divide-y divide-gray-100">
             {vm.boats.length > 0 ? vm.boats.map((boat) => (
               <li key={boat.id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors group">
@@ -142,7 +145,7 @@ export const BoatsScreen: React.FC = () => {
                 </div>
                 {isAuthorized && (
                   <div className="flex items-center gap-2 ml-4 shrink-0">
-                    <button onClick={() => vm.openEditBoatModal(boat)} className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Editar">
+                    <button onClick={() => vm.openEditBoatModal(boat)} className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Editar" data-tour="btn-edit-boat">
                       <Edit size={20} />
                     </button>
                     <button onClick={() => vm.handleDelete(boat.id)} className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Excluir">

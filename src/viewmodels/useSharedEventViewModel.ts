@@ -15,7 +15,7 @@ import { sanitizeObject } from '../core/utils/objectUtils';
 import { useToastContext } from '../ui/contexts/ToastContext';
 import { useEventSync } from './useEventSync';
 
-export const useSharedEventViewModel = () => {
+export const useSharedEventViewModel = (editingEventId?: string | null) => {
   const { currentUser } = useAuth();
   const { syncEvent } = useEventSync();
   const { showToast } = useToastContext();
@@ -38,12 +38,13 @@ export const useSharedEventViewModel = () => {
   const existingSharedEvent = useMemo(() => {
     if (!selectedBoat || !startTime) return null;
     return scheduledEvents.find(e =>
+      e.id !== editingEventId && // Ignore itself
       e.boat.id === selectedBoat.id &&
       e.startTime === startTime &&
       e.tourType?.name.toLowerCase() === 'compartilhado' &&
       e.status !== 'CANCELLED' && e.status !== 'ARCHIVED_CANCELLED'
     );
-  }, [scheduledEvents, selectedBoat, startTime]);
+  }, [scheduledEvents, selectedBoat, startTime, editingEventId]);
 
   // Load initial data
   useEffect(() => {
@@ -56,13 +57,34 @@ export const useSharedEventViewModel = () => {
         ]);
         const activeBoats = boats.filter(b => !b.isArchived);
         setAvailableBoats(activeBoats);
-        if (activeBoats.length > 0) setSelectedBoat(activeBoats[0]);
+
+        if (editingEventId) {
+          const event = await eventRepository.getById(editingEventId);
+          if (event) {
+            setSelectedDate(new Date(event.date + 'T00:00'));
+            setStartTime(event.startTime);
+            setSelectedBoat(activeBoats.find(b => b.id === event.boat.id) || event.boat);
+            setPassengerCount(event.passengerCount);
+            setObservations(event.observations || '');
+
+            const startMin = timeToMinutes(event.startTime);
+            const endMin = timeToMinutes(event.endTime);
+            setDurationHours(Math.max(1, (endMin - startMin) / 60));
+
+            if (event.passengerCount > 0) {
+              setCostPerPerson((event.rentalGross || 0) / event.passengerCount);
+              setDiscountPerPerson(((event.rentalGross || 0) - (event.rentalRevenue || 0)) / event.passengerCount);
+            }
+          }
+        } else if (activeBoats.length > 0) {
+          setSelectedBoat(activeBoats[0]);
+        }
       } finally {
         setIsLoading(false);
       }
     };
     loadData();
-  }, []);
+  }, [editingEventId]);
 
   // Fetch events for conflict check
   useEffect(() => {
@@ -100,6 +122,7 @@ export const useSharedEventViewModel = () => {
 
     const orgTime = selectedBoat.organizationTimeMinutes || 0;
     const otherEvents = scheduledEvents.filter(e =>
+        e.id !== editingEventId &&
         e.boat.id === selectedBoat.id &&
         e.status !== 'CANCELLED' &&
         e.status !== 'ARCHIVED_CANCELLED' &&
@@ -165,6 +188,33 @@ export const useSharedEventViewModel = () => {
     }
 
     try {
+      if (editingEventId) {
+        // Update existing event instead of creating/merging
+        const originalEvent = await eventRepository.getById(editingEventId);
+        if (!originalEvent) throw new Error('Evento não encontrado');
+
+        const updatedEvent: EventType = {
+          ...originalEvent,
+          date: format(selectedDate, 'yyyy-MM-dd'),
+          startTime,
+          endTime,
+          boat: selectedBoat!,
+          passengerCount,
+          subtotal,
+          total,
+          rentalGross: subtotal,
+          rentalRevenue: total,
+          observations,
+          rentalDiscount: { type: 'FIXED', value: totalDiscount },
+        };
+
+        const savedEvent = await eventRepository.updateEvent(updatedEvent);
+        await syncEvent(savedEvent);
+
+        showToast('Passeio compartilhado atualizado com sucesso!');
+        return true;
+      }
+
       if (existingSharedEvent) {
         // Update existing event
         const updatedEvent: EventType = {

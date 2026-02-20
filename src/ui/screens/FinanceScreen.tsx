@@ -8,9 +8,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { MoneyInput } from '../components/MoneyInput';
 import { incomeRepository } from '../../core/repositories/IncomeRepository';
 import { useToastContext } from '../contexts/ToastContext';
+import { Tutorial } from '../components/Tutorial';
+import { financeSteps } from '../tutorials/financeSteps';
 
-const StatCard: React.FC<{ title: string; value: string; subValue?: string; icon: React.ReactNode; color: string }> = ({ title, value, subValue, icon, color }) => (
-  <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+const StatCard: React.FC<{ title: string; value: string; subValue?: string; icon: React.ReactNode; color: string; tourId?: string }> = ({ title, value, subValue, icon, color, tourId }) => (
+  <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100" data-tour={tourId}>
     <div className="flex justify-between items-start">
       <div>
         <p className="text-[10px] md:text-sm font-medium text-gray-500 uppercase tracking-wider">{title}</p>
@@ -57,24 +59,26 @@ export const FinanceScreen: React.FC = () => {
 
   return (
     <div className="p-3 md:p-8 max-w-7xl mx-auto space-y-6 md:space-y-8">
+      <Tutorial tourId="finance" steps={financeSteps} />
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center md:text-left">Gestão Financeira</h1>
           <p className="text-sm md:text-base text-gray-500 text-center md:text-left">Acompanhe a saúde financeira do seu negócio</p>
         </div>
-        <div className="flex items-center justify-center md:justify-end gap-2 md:gap-3 flex-wrap">
+        <div className="flex items-center justify-center md:justify-end gap-2 md:gap-3 flex-wrap" data-tour="finance-actions">
           <button
             onClick={() => setIsIncomeModalOpen(true)}
             className="flex items-center gap-2 bg-green-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-green-700 transition-colors text-sm md:text-base"
+            data-tour="btn-add-income"
           >
             <PlusCircle size={18} />
             <span>Ganhos</span>
           </button>
-          <Link to="/dashboard/expenses" className="flex items-center gap-2 bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm md:text-base">
+          <Link to="/dashboard/expenses" className="flex items-center gap-2 bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm md:text-base" data-tour="btn-add-expense">
             <PlusCircle size={18} />
             <span>Despesa</span>
           </Link>
-          <Link to="/dashboard/expense-categories" className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors" title="Categorias">
+          <Link to="/dashboard/expense-categories" className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors" title="Categorias" data-tour="btn-expense-categories">
             <Settings size={20} />
           </Link>
         </div>
@@ -82,7 +86,7 @@ export const FinanceScreen: React.FC = () => {
 
       {/* Overview Stats */}
       <div className="flex flex-col md:flex-row gap-4">
-          <div className="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-1 flex-wrap items-center justify-center md:justify-start gap-3">
+          <div className="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-1 flex-wrap items-center justify-center md:justify-start gap-3" data-tour="finance-period">
             <div className="flex items-center gap-2 text-xs md:text-sm font-medium text-gray-700">
               <Calendar size={16} className="text-gray-400" />
               <span>Período:</span>
@@ -112,6 +116,7 @@ export const FinanceScreen: React.FC = () => {
           <button
             onClick={() => navigate('/dashboard/cash-book')}
             className="flex items-center justify-center gap-2 bg-gray-800 text-white px-4 py-3 md:px-6 md:py-3 rounded-xl hover:bg-black transition-all shadow-sm md:shadow-md font-bold text-sm md:text-base"
+            data-tour="btn-cash-book"
           >
             <BookOpen size={18} />
             <span>Livro Caixa Detalhado</span>
@@ -125,6 +130,7 @@ export const FinanceScreen: React.FC = () => {
           subValue={`Projeção (A receber): ${formatCurrencyBRL((stats as any).projectedRevenue || 0)}`}
           icon={<TrendingUp className="text-green-600" size={20} />}
           color="bg-green-50"
+          tourId="stat-finance-revenue"
         />
         <StatCard
           title="Despesas Totais"
@@ -132,6 +138,7 @@ export const FinanceScreen: React.FC = () => {
           subValue={`${stats.expenseCount} lançamentos`}
           icon={<TrendingDown className="text-red-600" size={20} />}
           color="bg-red-50"
+          tourId="stat-finance-expenses"
         />
         <StatCard
           title="Lucro Líquido"
@@ -139,6 +146,7 @@ export const FinanceScreen: React.FC = () => {
           subValue={`Margem: ${stats.totalRevenue > 0 ? ((stats.netProfit / stats.totalRevenue) * 100).toFixed(1) : 0}%`}
           icon={<DollarSign className="text-blue-600" size={20} />}
           color="bg-blue-50"
+          tourId="stat-finance-profit"
         />
         <StatCard
           title="Média por Passeio"
@@ -146,12 +154,13 @@ export const FinanceScreen: React.FC = () => {
           subValue="Ticket médio (Contratos)"
           icon={<BarChart3 className="text-purple-600" size={20} />}
           color="bg-purple-50"
+          tourId="stat-finance-avg"
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Revenue Breakdown */}
-        <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100" data-tour="revenue-origin">
           <h2 className="text-lg font-bold text-gray-900 mb-6">Origem da Receita</h2>
           <div className="space-y-6">
             <div>
@@ -200,7 +209,7 @@ export const FinanceScreen: React.FC = () => {
         </div>
 
         {/* Cash Flow Charts */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6" data-tour="finance-charts">
           <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
             <h2 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
                 <BarChart3 size={20} className="text-blue-500"/>

@@ -31,4 +31,5 @@ export interface User {
     calendarId?: string;
     autoSync: boolean;
   };
+  completedTours?: string[];
 }

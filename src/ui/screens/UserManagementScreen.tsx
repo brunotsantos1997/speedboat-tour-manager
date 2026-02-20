@@ -4,6 +4,8 @@ import type { User, UserRole, UserStatus } from '../../core/domain/User';
 import { Toast } from '../components/Toast';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { InformationModal } from '../components/InformationModal';
+import { Tutorial } from '../components/Tutorial';
+import { userManagementSteps } from '../tutorials/userManagementSteps';
 
 export function UserManagementScreen() {
   const [users, setUsers] = useState<User[]>([]);
@@ -96,6 +98,7 @@ export function UserManagementScreen() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
+      <Tutorial tourId="user-management" steps={userManagementSteps} />
       {toastMessage && (
         <Toast
           message={toastMessage}
@@ -133,14 +136,14 @@ export function UserManagementScreen() {
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden">
+      <div className="hidden md:block bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden" data-tour="users-table">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Usuário</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Cargo</th>
-              <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Ações</th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider" data-tour="user-status">Status</th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider" data-tour="user-role">Cargo</th>
+              <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider" data-tour="user-actions">Ações</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">

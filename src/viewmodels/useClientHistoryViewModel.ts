@@ -31,6 +31,10 @@ export const useClientHistoryViewModel = () => {
   const [paymentType, setPaymentType] = useState<'DOWN_PAYMENT' | 'BALANCE' | 'FULL'>('BALANCE');
   const [defaultPaymentAmount, setDefaultPaymentAmount] = useState(0);
 
+  // Shared Event Modal State
+  const [isSharedModalOpen, setIsSharedModalOpen] = useState(false);
+  const [selectedSharedEventId, setSelectedSharedEventId] = useState<string | null>(null);
+
   const handleSearch = useCallback(async (term: string) => {
     setSearchTerm(term);
     if (term.length > 2) {
@@ -255,6 +259,10 @@ export const useClientHistoryViewModel = () => {
     defaultPaymentAmount,
     initiatePayment,
     confirmPaymentRecord,
-    revertCancellation
+    revertCancellation,
+    isSharedModalOpen,
+    setIsSharedModalOpen,
+    selectedSharedEventId,
+    setSelectedSharedEventId
   };
 };

@@ -5,6 +5,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToastContext } from '../contexts/ToastContext';
 import type { BoardingLocation } from '../../core/domain/types';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { Tutorial } from '../components/Tutorial';
+import { boardingLocationsSteps } from '../tutorials/boardingLocationsSteps';
 
 export const BoardingLocationsScreen: React.FC = () => {
   const { locations, isLoading, addLocation, updateLocation, deleteLocation, isConfirmModalOpen, confirmDelete, closeConfirmDeleteModal } = useBoardingLocationsViewModel();
@@ -55,19 +57,20 @@ export const BoardingLocationsScreen: React.FC = () => {
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
+      <Tutorial tourId="boarding-locations" steps={boardingLocationsSteps} />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-black text-gray-900">Locais de Embarque</h1>
           <p className="text-gray-500">Onde seus clientes iniciam o passeio</p>
         </div>
         {isAuthorized && (
-          <button onClick={() => openModal()} className="w-full sm:w-auto flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95">
+          <button onClick={() => openModal()} className="w-full sm:w-auto flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95" data-tour="btn-add-location">
             Adicionar Local
           </button>
         )}
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" data-tour="locations-list">
         <table className="min-w-full divide-y divide-gray-100">
           <thead className="bg-gray-50 hidden md:table-header-group">
             <tr>
@@ -82,7 +85,7 @@ export const BoardingLocationsScreen: React.FC = () => {
                 <td className="px-6 py-4 md:whitespace-nowrap text-lg md:text-sm font-bold md:font-medium text-gray-900">{location.name}</td>
                 <td className="px-6 py-2 md:py-4 md:whitespace-nowrap text-sm">
                   {location.mapLink ? (
-                    <a href={location.mapLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-blue-600 font-bold hover:underline bg-blue-50 px-3 py-1 rounded-full text-xs">
+                    <a href={location.mapLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-blue-600 font-bold hover:underline bg-blue-50 px-3 py-1 rounded-full text-xs" data-tour="location-map-link">
                         Ver no Google Maps
                         <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                     </a>

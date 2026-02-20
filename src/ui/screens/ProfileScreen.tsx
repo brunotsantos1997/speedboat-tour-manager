@@ -4,7 +4,7 @@ import { Toast } from '../components/Toast';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
 
 export function ProfileScreen() {
-  const { currentUser, updateProfile, setSecretQuestion, linkGoogle, unlinkGoogle, linkedProviders } = useAuth();
+  const { currentUser, updateProfile, setSecretQuestion, linkGoogle, unlinkGoogle, linkedProviders, resetTours } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [oldPassword, setOldPassword] = useState('');
@@ -228,6 +228,23 @@ export function ProfileScreen() {
               </button>
             )}
           </div>
+        </div>
+
+        <div className="bg-white shadow-md rounded-lg p-6 mt-6">
+          <h2 className="text-xl font-bold mb-2">Tutoriais</h2>
+          <p className="text-sm text-gray-500 mb-4">Deseja ver as explicações das telas novamente?</p>
+          <button
+            type="button"
+            onClick={async () => {
+                if (window.confirm('Deseja resetar todos os tutoriais? Eles aparecerão novamente quando você acessar cada tela.')) {
+                    await resetTours(currentUser.id);
+                    setToastMessage('Tutoriais resetados! Eles aparecerão ao navegar pelas telas.');
+                }
+            }}
+            className="w-full sm:w-auto px-6 py-2 border-2 border-blue-600 text-blue-600 font-bold rounded-lg hover:bg-blue-50 transition-all active:scale-95"
+          >
+            Resetar Tutoriais
+          </button>
         </div>
 
         <div className="flex justify-end mt-6">

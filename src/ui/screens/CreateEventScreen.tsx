@@ -10,6 +10,8 @@ import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 import { MoneyInput } from '../components/MoneyInput';
 import { CustomTimePicker } from '../components/CustomTimePicker';
 import { EndTimePicker } from '../components/EndTimePicker';
+import { Tutorial } from '../components/Tutorial';
+import { createEventSteps } from '../tutorials/createEventSteps';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import { ptBR } from 'date-fns/locale';
@@ -247,6 +249,7 @@ export const CreateEventScreen: React.FC = () => {
 
   return (
     <div className="bg-gray-50 font-sans text-gray-800 min-h-screen">
+      <Tutorial tourId="create-event" steps={createEventSteps} />
       <main className="max-w-7xl mx-auto p-4 pb-48 md:pb-64">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
 
@@ -256,7 +259,7 @@ export const CreateEventScreen: React.FC = () => {
             {/* Section: Client and Passengers */}
             <section className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
               {/* Client Search */}
-              <div className="relative">
+              <div className="relative" data-tour="client-section">
                 <h2 className="text-lg font-semibold mb-2">Cliente</h2>
                 {vm.selectedClient ? (
                   <div className="flex items-center justify-between bg-white p-3 border border-gray-300 rounded-lg">
@@ -307,7 +310,7 @@ export const CreateEventScreen: React.FC = () => {
               </div>
 
               {/* Passenger Count */}
-              <div>
+              <div data-tour="passengers-section">
                 <h2 className="text-lg font-semibold mb-2 flex items-center">
                   <Users className="mr-2 text-gray-500" size={20} />
                   Nº de Passageiros
@@ -328,7 +331,7 @@ export const CreateEventScreen: React.FC = () => {
             </section>
 
             {/* Section: Date, Time & Reservation Settings */}
-            <section className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+            <section className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100" data-tour="schedule-section">
               <h2 className="text-xl font-bold mb-4 text-gray-900 flex items-center gap-2">
                 <CalendarDays size={20} className="text-blue-500" />
                 Agendamento e Reserva
@@ -377,7 +380,7 @@ export const CreateEventScreen: React.FC = () => {
                   </div>
 
                   {/* Boat Selection */}
-                  <div>
+                  <div data-tour="boat-section">
                       <label htmlFor="boat-select" className="block text-sm font-medium text-gray-700 mb-1 font-semibold">Lancha</label>
                       <select id="boat-select" value={vm.selectedBoat?.id || ''} onChange={(e) => vm.handleBoatSelection(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
                           {vm.availableBoats.map(boat => (
@@ -387,7 +390,7 @@ export const CreateEventScreen: React.FC = () => {
                   </div>
 
                   {/* Boarding Location Selection */}
-                  <div>
+                  <div data-tour="location-section">
                       <label htmlFor="boarding-location-select" className="block text-sm font-medium text-gray-700 mb-1 font-semibold">Local de Embarque</label>
                       <select id="boarding-location-select" value={vm.selectedBoardingLocation?.id || ''} onChange={(e) => vm.handleBoardingLocationSelection(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
                           {vm.availableBoardingLocations.map(location => (
@@ -397,7 +400,7 @@ export const CreateEventScreen: React.FC = () => {
                   </div>
 
                   {/* Tour Type Selection */}
-                  <div>
+                  <div data-tour="tour-type-section">
                       <div className="flex justify-between items-center mb-1">
                         <label htmlFor="tour-type-select" className="block text-sm font-medium text-gray-700 font-semibold flex items-center">
                           <Tag size={16} className="mr-1 text-gray-500" />
@@ -428,7 +431,7 @@ export const CreateEventScreen: React.FC = () => {
             </section>
 
             {/* Section: Boat Discount (Immediately after settings) */}
-            <section className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+            <section className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100" data-tour="discount-section">
               <h2 className="text-lg font-bold mb-4 text-gray-900">Desconto no Aluguel</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center mt-2">
                 <div className="col-span-1 flex">
@@ -453,7 +456,7 @@ export const CreateEventScreen: React.FC = () => {
             </section>
 
             {/* Section: Available Products */}
-            <section className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+            <section className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100" data-tour="products-section">
               <h2 className="text-xl font-bold mb-4 text-gray-900">Produtos Disponíveis</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {vm.availableProducts.map((product) => (
@@ -558,7 +561,7 @@ export const CreateEventScreen: React.FC = () => {
             )}
 
             {/* Section: Taxas */}
-            <section className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+            <section className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100" data-tour="taxes-section">
               <h2 className="text-xl font-bold mb-4 text-gray-900">Taxas e Encargos</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <div>
@@ -656,7 +659,7 @@ export const CreateEventScreen: React.FC = () => {
             </div>
 
             {/* Total and Action Button */}
-            <div className="flex items-center gap-6 w-full sm:w-auto">
+            <div className="flex items-center gap-6 w-full sm:w-auto" data-tour="save-section">
               <div className="hidden sm:flex flex-col items-end">
                 <span className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Valor Final</span>
                 <span className="text-2xl font-black text-blue-600 leading-none">{formatCurrencyBRL(vm.total)}</span>

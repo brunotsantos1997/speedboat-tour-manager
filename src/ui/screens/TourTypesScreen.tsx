@@ -4,6 +4,8 @@ import { useToastContext } from '../contexts/ToastContext';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import type { TourType } from '../../core/domain/types';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { Tutorial } from '../components/Tutorial';
+import { tourTypesSteps } from '../tutorials/tourTypesSteps';
 
 const TourTypeModal: React.FC<{
   isOpen: boolean;
@@ -119,12 +121,13 @@ export const TourTypesScreen: React.FC = () => {
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
+      <Tutorial tourId="tour-types" steps={tourTypesSteps} />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-black text-gray-900">Tipos de Passeio</h1>
           <p className="text-gray-500">Categorize e identifique seus eventos pela cor</p>
         </div>
-        <button onClick={handleOpenNewModal} className="w-full sm:w-auto flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95">
+        <button onClick={handleOpenNewModal} className="w-full sm:w-auto flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95" data-tour="btn-add-tour-type">
           <Plus size={20} className="mr-2" />
           Adicionar Tipo
         </button>
@@ -135,7 +138,7 @@ export const TourTypesScreen: React.FC = () => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" data-tour="tour-types-list">
           <ul className="divide-y divide-gray-100">
             {vm.tourTypes.length > 0 ? vm.tourTypes.map((type) => (
               <li key={type.id} className="p-5 flex items-center justify-between hover:bg-gray-50 transition-colors group">
@@ -143,6 +146,7 @@ export const TourTypesScreen: React.FC = () => {
                   <div
                     className="w-3 h-12 rounded-full mr-5 shadow-sm border border-black border-opacity-5"
                     style={{ backgroundColor: type.color }}
+                    data-tour="tour-type-color"
                   ></div>
                   <div>
                     <p className="font-bold text-gray-900 text-lg leading-tight">{type.name}</p>

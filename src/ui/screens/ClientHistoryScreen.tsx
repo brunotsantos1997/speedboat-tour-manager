@@ -7,6 +7,7 @@ import { Search, X, Calendar, Edit, Ban, CheckCircle, Clock, Pencil, FileText, S
 import type { EventStatus, PaymentStatus, EventType, ClientProfile } from '../../core/domain/types';
 import { useNavigate } from 'react-router-dom';
 import { PaymentModal } from '../components/PaymentModal';
+import { SharedEventModal } from '../components/SharedEventModal';
 import { EventCostModal } from '../components/EventCostModal';
 import { useEventCostViewModel } from '../../viewmodels/useEventCostViewModel';
 
@@ -193,7 +194,13 @@ export const ClientHistoryScreen: React.FC = () => {
     const navigate = useNavigate();
 
     const handleEditEvent = (eventId: string) => {
-        navigate(`/dashboard/create-event?eventId=${eventId}`);
+        const event = vm.clientEvents.find(e => e.id === eventId);
+        if (event?.tourType?.name.toLowerCase() === 'compartilhado') {
+            vm.setSelectedSharedEventId(eventId);
+            vm.setIsSharedModalOpen(true);
+        } else {
+            navigate(`/dashboard/create-event?eventId=${eventId}`);
+        }
     };
 
     return (
@@ -306,6 +313,17 @@ export const ClientHistoryScreen: React.FC = () => {
                 }}
                 onClose={vm.closeEditModal}
             />
+
+            {vm.isSharedModalOpen && (
+                <SharedEventModal
+                    isOpen={vm.isSharedModalOpen}
+                    onClose={() => vm.setIsSharedModalOpen(false)}
+                    onSuccess={() => {
+                        // Success toast is handled by the ViewModel
+                    }}
+                    eventId={vm.selectedSharedEventId}
+                />
+            )}
 
             {costVm.isModalOpen && (
                 <EventCostModal

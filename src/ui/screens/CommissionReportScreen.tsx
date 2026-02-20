@@ -8,6 +8,8 @@ import { ptBR } from 'date-fns/locale';
 import { CheckCircle, Clock, DollarSign, X } from 'lucide-react';
 import type { CommissionReportEntry, PaymentMethod } from '../../core/domain/types';
 import { useToastContext } from '../contexts/ToastContext';
+import { Tutorial } from '../components/Tutorial';
+import { commissionReportSteps } from '../tutorials/commissionReportSteps';
 
 export const CommissionReportScreen: React.FC = () => {
   const {
@@ -66,10 +68,11 @@ export const CommissionReportScreen: React.FC = () => {
 
   return (
     <div className="p-4 md:p-6">
+      <Tutorial tourId="commission-report" steps={commissionReportSteps} />
       <h1 className="text-2xl font-bold mb-4">Relatório de Comissão</h1>
 
       {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 p-4 border rounded-lg bg-gray-50">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 p-4 border rounded-lg bg-gray-50" data-tour="commission-filters">
           <div>
             <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
             <DayPicker
@@ -92,7 +95,7 @@ export const CommissionReportScreen: React.FC = () => {
               className="bg-white p-2 border rounded-md shadow-sm"
             />
           </div>
-          <div>
+          <div data-tour="commission-user-filter">
             <label htmlFor="userFilter" className="block text-sm font-medium text-gray-700 mb-1">Filtrar por Usuário</label>
             <select
               id="userFilter"
@@ -109,7 +112,7 @@ export const CommissionReportScreen: React.FC = () => {
         </div>
 
         {/* Report Table */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" data-tour="commission-table">
           <table className="min-w-full bg-white border rounded-lg">
             <thead className="bg-gray-100">
               <tr>

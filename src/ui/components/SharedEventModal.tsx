@@ -9,9 +9,10 @@ interface SharedEventModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  eventId?: string | null;
 }
 
-export const SharedEventModal: React.FC<SharedEventModalProps> = ({ isOpen, onClose, onSuccess }) => {
+export const SharedEventModal: React.FC<SharedEventModalProps> = ({ isOpen, onClose, onSuccess, eventId }) => {
   const {
     isLoading,
     selectedDate,
@@ -41,7 +42,7 @@ export const SharedEventModal: React.FC<SharedEventModalProps> = ({ isOpen, onCl
     total,
     existingSharedEvent,
     createSharedEvent
-  } = useSharedEventViewModel();
+  } = useSharedEventViewModel(eventId);
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -63,7 +64,7 @@ export const SharedEventModal: React.FC<SharedEventModalProps> = ({ isOpen, onCl
         {/* Header */}
         <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10">
           <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-            <Users className="mr-2 text-blue-600" /> Criar Passeio Compartilhado
+            <Users className="mr-2 text-blue-600" /> {eventId ? 'Editar' : 'Criar'} Passeio Compartilhado
           </h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
             <X size={24} className="text-gray-500" />
@@ -267,12 +268,12 @@ export const SharedEventModal: React.FC<SharedEventModalProps> = ({ isOpen, onCl
               </button>
               <button
                 onClick={handleSave}
-                disabled={isSaving || (availableTimeSlots.length === 0 && !existingSharedEvent)}
+                disabled={isSaving || (availableTimeSlots.length === 0 && !existingSharedEvent && !eventId)}
                 className={`px-8 py-2 rounded-lg font-bold transition-all shadow-md disabled:bg-gray-400 disabled:shadow-none text-white ${
-                  existingSharedEvent ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'
+                  eventId ? 'bg-indigo-600 hover:bg-indigo-700' : (existingSharedEvent ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700')
                 }`}
               >
-                {isSaving ? (existingSharedEvent ? 'Salvando...' : 'Criando...') : (existingSharedEvent ? 'Adicionar ao Passeio' : 'Confirmar e Pagar')}
+                {isSaving ? 'Salvando...' : (eventId ? 'Salvar Alterações' : (existingSharedEvent ? 'Adicionar ao Passeio' : 'Confirmar e Pagar'))}
               </button>
             </div>
           </div>
