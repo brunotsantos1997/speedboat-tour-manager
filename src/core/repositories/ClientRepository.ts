@@ -103,17 +103,10 @@ class ClientRepositoryImpl implements IClientRepository {
     const all = await this.getAll();
     if (!term) return [];
     const lowercasedTerm = term.toLowerCase();
-    return all.filter(client => {
-      const name = (client.name || '').toLowerCase();
-      const phone = client.phone || '';
-
-      // Special case for "compartilhando" variant to match "Compartilhado"
-      if (lowercasedTerm.includes('compartilha') && name.includes('compartilha')) {
-        return true;
-      }
-
-      return name.includes(lowercasedTerm) || phone.includes(term);
-    });
+    return all.filter(client =>
+      (client.name || '').toLowerCase().includes(lowercasedTerm) ||
+      (client.phone || '').includes(term)
+    );
   }
 
   async getById(clientId: string): Promise<ClientProfile | null> {
