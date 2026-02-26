@@ -11,7 +11,6 @@ export function UserManagementScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [temporaryPassword, setTemporaryPassword] = useState<string | undefined>('');
   const { getAllUsers, updateUserStatus, updateUserRole, currentUser, approvePasswordReset } = useAuth();
   const { confirm, showAlert } = useModalContext();
 
@@ -75,7 +74,6 @@ export function UserManagementScreen() {
       try {
         const tempPassword = await approvePasswordReset(currentUser.id, user.id);
         setToastMessage('Redefinição de senha aprovada com sucesso!');
-        setTemporaryPassword(tempPassword || '');
 
         await showAlert(
           'Senha Resetada com Sucesso',
