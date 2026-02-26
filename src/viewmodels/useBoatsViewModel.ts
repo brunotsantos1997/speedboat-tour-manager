@@ -60,34 +60,13 @@ export const useBoatsViewModel = () => {
     }
   };
 
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [boatToDeleteId, setBoatToDeleteId] = useState<string | null>(null);
-
-  const openConfirmDeleteModal = (boatId: string) => {
-    setBoatToDeleteId(boatId);
-    setIsConfirmModalOpen(true);
-  };
-
-  const closeConfirmDeleteModal = () => {
-    setBoatToDeleteId(null);
-    setIsConfirmModalOpen(false);
-  };
-
-  const confirmDelete = async () => {
-    if (boatToDeleteId) {
-      try {
-        await boatRepository.remove(boatToDeleteId);
-        closeConfirmDeleteModal();
-        return { success: true };
-      } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : 'Erro ao excluir lancha.' };
-      }
+  const confirmDeleteExternal = async (boatId: string) => {
+    try {
+      await boatRepository.remove(boatId);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Erro ao excluir lancha.' };
     }
-    return { success: false, error: 'ID da lancha não encontrado.' };
-  };
-
-  const handleDelete = async (boatId: string) => {
-    openConfirmDeleteModal(boatId);
   };
 
   const updateEditingBoat = (field: keyof Boat, value: any) => {
@@ -103,10 +82,7 @@ export const useBoatsViewModel = () => {
     openEditBoatModal,
     closeModal,
     handleSave,
-    handleDelete,
+    confirmDeleteExternal,
     updateEditingBoat,
-    isConfirmModalOpen,
-    confirmDelete,
-    closeConfirmDeleteModal,
   };
 };

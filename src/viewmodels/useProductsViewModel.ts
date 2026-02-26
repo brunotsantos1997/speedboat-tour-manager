@@ -61,34 +61,13 @@ export const useProductsViewModel = () => {
     }
   };
 
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [productToDeleteId, setProductToDeleteId] = useState<string | null>(null);
-
-  const openConfirmDeleteModal = (productId: string) => {
-    setProductToDeleteId(productId);
-    setIsConfirmModalOpen(true);
-  };
-
-  const closeConfirmDeleteModal = () => {
-    setProductToDeleteId(null);
-    setIsConfirmModalOpen(false);
-  };
-
-  const confirmDelete = async () => {
-    if (productToDeleteId) {
-      try {
-        await productRepository.remove(productToDeleteId);
-        closeConfirmDeleteModal();
-        return { success: true };
-      } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : 'Erro ao excluir produto.' };
-      }
+  const confirmDeleteExternal = async (productId: string) => {
+    try {
+      await productRepository.remove(productId);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Erro ao excluir produto.' };
     }
-    return { success: false, error: 'ID do produto não encontrado.' };
-  };
-
-  const handleDelete = (productId: string) => {
-    openConfirmDeleteModal(productId);
   };
 
   const updateEditingProduct = (field: keyof Product, value: any) => {
@@ -104,10 +83,7 @@ export const useProductsViewModel = () => {
     openEditProductModal,
     closeModal,
     handleSave,
-    handleDelete,
+    confirmDeleteExternal,
     updateEditingProduct,
-    isConfirmModalOpen,
-    confirmDelete,
-    closeConfirmDeleteModal,
   };
 };

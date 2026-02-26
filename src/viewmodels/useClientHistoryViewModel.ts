@@ -7,12 +7,14 @@ import { eventRepository } from '../core/repositories/EventRepository';
 import { paymentRepository } from '../core/repositories/PaymentRepository';
 import { format } from 'date-fns';
 import { useEventSync } from './useEventSync';
+import { useModalContext } from '../ui/contexts/ModalContext';
 
 export const useClientHistoryViewModel = () => {
   const [searchParams] = useSearchParams();
   const clientIdParam = searchParams.get('clientId');
   const [searchTerm, setSearchTerm] = useState('');
   const { syncEvent } = useEventSync();
+  const { confirm, showAlert } = useModalContext();
   const [searchResults, setSearchResults] = useState<ClientProfile[]>([]);
   const [selectedClient, setSelectedClient] = useState<ClientProfile | null>(null);
   const [clientEvents, setClientEvents] = useState<EventType[]>([]);
@@ -108,13 +110,13 @@ export const useClientHistoryViewModel = () => {
       ? 'Este evento já foi pago. Ao cancelar, o status será alterado para "Pendente de Reembolso". Deseja continuar?'
       : 'Tem certeza que deseja cancelar este evento?';
 
-    if (window.confirm(message)) {
+    if (await confirm('Confirmar Cancelamento', message)) {
       const newStatus = eventToUpdate.paymentStatus === 'CONFIRMED' ? 'PENDING_REFUND' : 'CANCELLED';
       const updatedEvent = { ...eventToUpdate, status: newStatus as EventType['status'] };
       const savedEvent = await eventRepository.updateEvent(updatedEvent);
       await syncEvent(savedEvent);
     }
-  }, [clientEvents, selectedClient, selectClient]);
+  }, [clientEvents, selectedClient, selectClient, confirm]);
 
   const initiatePayment = useCallback(async (eventId: string, type: 'DOWN_PAYMENT' | 'BALANCE' | 'FULL') => {
     const event = clientEvents.find(e => e.id === eventId);
@@ -237,7 +239,7 @@ export const useClientHistoryViewModel = () => {
   }, [activeEventForQuickEdit]);
 
   const deleteEventPermanently = useCallback(async (eventId: string) => {
-    if (!window.confirm('TEM CERTEZA? Esta ação é irreversível e apagará o evento e todos os seus pagamentos permanentemente.')) return;
+    if (!await confirm('Excluir Permanentemente', 'TEM CERTEZA? Esta ação é irreversível e apagará o evento e todos os seus pagamentos permanentemente.')) return;
 
     try {
       await eventRepository.remove(eventId);
@@ -248,9 +250,9 @@ export const useClientHistoryViewModel = () => {
       // UI will update automatically via subscription in useEffect
     } catch (error) {
       console.error('Failed to delete event:', error);
-      alert('Erro ao excluir evento.');
+      await showAlert('Erro', 'Erro ao excluir evento.');
     }
-  }, []);
+  }, [confirm, showAlert]);
 
   // --- Client Edit Handlers ---
   const openEditModal = () => {

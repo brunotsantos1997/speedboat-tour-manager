@@ -3,6 +3,7 @@
 import React from 'react';
 import { useClientHistoryViewModel } from '../../viewmodels/useClientHistoryViewModel';
 import { useToastContext } from '../contexts/ToastContext';
+import { useModalContext } from '../contexts/ModalContext';
 import { Search, X, Calendar, Edit, Ban, CheckCircle, Clock, Pencil, FileText, Share2, DollarSign, AlertTriangle, History, Settings, Trash2 } from 'lucide-react';
 import type { EventStatus, PaymentStatus, EventType, ClientProfile } from '../../core/domain/types';
 import { useNavigate } from 'react-router-dom';
@@ -112,14 +113,16 @@ const EventCard: React.FC<{
   onQuickEdit: (event: EventType) => void;
   onDelete: (id: string) => void;
 }> = ({ eventType, onCancel, onEdit, onConfirmPayment, onOpenCosts, onRevert, onQuickEdit, onDelete }) => {
+  const { showToast } = useToastContext();
+  const { showAlert } = useModalContext();
 
   const shareVoucher = (eventId: string) => {
     const url = `${window.location.origin}/voucher/${eventId}`;
     navigator.clipboard.writeText(url).then(() => {
-      alert('Link do voucher copiado para a área de transferência!');
+      showToast('Link do voucher copiado para a área de transferência!');
     }, (err) => {
       console.error('Falha ao copiar o link: ', err);
-      alert('Falha ao copiar o link.');
+      showAlert('Erro', 'Falha ao copiar o link.');
     });
   };
 

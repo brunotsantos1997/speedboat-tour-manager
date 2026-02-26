@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useTourTypesViewModel } from '../../viewmodels/useTourTypesViewModel';
 import { useToastContext } from '../contexts/ToastContext';
+import { useModalContext } from '../contexts/ModalContext';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import type { TourType } from '../../core/domain/types';
-import { ConfirmationModal } from '../components/ConfirmationModal';
 import { Tutorial } from '../components/Tutorial';
 import { tourTypesSteps } from '../tutorials/tourTypesSteps';
 
@@ -79,10 +79,9 @@ const TourTypeModal: React.FC<{
 export const TourTypesScreen: React.FC = () => {
   const vm = useTourTypesViewModel();
   const { showToast } = useToastContext();
+  const { confirm } = useModalContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTourType, setEditingTourType] = useState<Partial<TourType> | null>(null);
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [tourTypeToDelete, setTourTypeToDelete] = useState<string | null>(null);
 
   const handleOpenNewModal = () => {
     setEditingTourType({ name: '', color: '#3b82f6' });
@@ -105,17 +104,10 @@ export const TourTypesScreen: React.FC = () => {
     setIsModalOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    setTourTypeToDelete(id);
-    setIsConfirmModalOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (tourTypeToDelete) {
-      await vm.deleteTourType(tourTypeToDelete);
+  const handleDelete = async (id: string) => {
+    if (await confirm('Confirmar Exclusão', 'Deseja arquivar este tipo de passeio? Ele não poderá mais ser selecionado para novos passeios.')) {
+      await vm.deleteTourType(id);
       showToast('Tipo de passeio excluído!');
-      setIsConfirmModalOpen(false);
-      setTourTypeToDelete(null);
     }
   };
 
@@ -174,14 +166,6 @@ export const TourTypesScreen: React.FC = () => {
         tourType={editingTourType}
         onSave={handleSave}
         onClose={() => setIsModalOpen(false)}
-      />
-
-      <ConfirmationModal
-        isOpen={isConfirmModalOpen}
-        title="Confirmar Exclusão"
-        message="Deseja arquivar este tipo de passeio? Ele não poderá mais ser selecionado para novos passeios."
-        onConfirm={confirmDelete}
-        onCancel={() => setIsConfirmModalOpen(false)}
       />
     </div>
   );

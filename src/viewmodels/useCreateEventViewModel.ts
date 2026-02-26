@@ -15,10 +15,12 @@ import type { BoardingLocation, TourType } from '../core/domain/types';
 import { boardingLocationRepository } from '../core/repositories/BoardingLocationRepository';
 import { sanitizeObject } from '../core/utils/objectUtils';
 import { useEventSync } from './useEventSync';
+import { useModalContext } from '../ui/contexts/ModalContext';
 
 export const useCreateEventViewModel = () => {
   const { currentUser } = useAuth();
   const { syncEvent } = useEventSync();
+  const { confirm } = useModalContext();
   const [searchParams] = useSearchParams();
   const [editingEventId, setEditingEventId] = useState<string | null>(searchParams.get('eventId'));
   const [originalEvent, setOriginalEvent] = useState<EventType | null>(null);
@@ -314,7 +316,7 @@ export const useCreateEventViewModel = () => {
   }, [editingClient, newClientName, newClientPhone, selectedClient, clientSearchTerm, handleCloseModal, selectClient]);
 
   const handleDeleteClient = useCallback(async (clientId: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este cliente?')) {
+    if (await confirm('Confirmar Exclusão', 'Tem certeza que deseja excluir este cliente?')) {
       await clientRepository.delete(clientId);
       if (selectedClient?.id === clientId) {
         clearClientSelection();

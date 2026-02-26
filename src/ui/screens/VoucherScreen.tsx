@@ -10,6 +10,7 @@ import {
   Beer,
   Sailboat,
   Download,
+  Printer,
   HelpCircle,
   Package,
   MapPin,
@@ -57,6 +58,10 @@ const formatDuration = (hours: number) => {
 
 export const VoucherScreen: React.FC = () => {
   const { voucher, companyData, voucherTerms, watermark, isLoading, error, handleDownloadPdf } = useVoucherViewModel();
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   const isShared = React.useMemo(() => {
     return voucher?.tourType?.name.toLowerCase() === 'compartilhado';
@@ -119,9 +124,51 @@ export const VoucherScreen: React.FC = () => {
     : {};
 
   return (
-    <div className="bg-gray-100 p-4 sm:p-8 font-sans">
+    <div className="bg-gray-100 p-4 sm:p-8 font-sans print:p-0 print:bg-white">
+      <style>{`
+        @media print {
+          body { background: white !important; }
+          .bg-gray-100 { background: white !important; }
+          #voucher-content {
+            box-shadow: none !important;
+            border: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+          }
+          #download-pdf-button, #print-button { display: none !important; }
+          header {
+            background: white !important;
+            color: black !important;
+            border-bottom: 2px solid black !important;
+            padding: 1rem !important;
+            border-radius: 0 !important;
+          }
+          header * { color: black !important; }
+          .bg-blue-600, .bg-gray-800 { background: white !important; color: black !important; }
+          .text-white { color: black !important; }
+          .shadow-2xl { box-shadow: none !important; }
+
+          .grid { display: block !important; }
+          .grid > div { margin-bottom: 1.5rem; border-left: none !important; padding-left: 0 !important; }
+
+          .bg-blue-50, .bg-gray-50, .bg-yellow-50, .bg-green-50 {
+            background: white !important;
+            border: 1px solid #eee !important;
+            color: black !important;
+          }
+
+          .text-blue-600, .text-green-600, .text-red-600, .text-yellow-600 {
+            color: black !important;
+            font-weight: bold !important;
+          }
+
+          svg { color: black !important; }
+        }
+      `}</style>
       <div id="voucher-content" className="max-w-4xl mx-auto bg-white rounded-lg shadow-2xl relative">
-        <div style={watermarkStyle} className="absolute inset-0 opacity-10"></div>
+        <div style={watermarkStyle} className="absolute inset-0 opacity-10 print:hidden"></div>
         <div className="relative">
           {/* Header */}
           <header className="p-6 sm:p-8 bg-gray-800 text-white rounded-t-lg flex justify-between items-center">
@@ -132,14 +179,24 @@ export const VoucherScreen: React.FC = () => {
                 <p className="text-xs sm:text-sm text-gray-300">CNPJ: {companyData.cnpj} | {companyData.phone}</p>
               </div>
             </div>
-            <button
-              id="download-pdf-button"
-              onClick={handleDownloadPdf}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Download className="w-5 h-5 mr-2" />
-              <span className="hidden sm:inline">Baixar PDF</span>
-            </button>
+            <div className="flex gap-2">
+              <button
+                id="print-button"
+                onClick={handlePrint}
+                className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                <Printer className="w-5 h-5 mr-2" />
+                <span className="hidden sm:inline">Imprimir</span>
+              </button>
+              <button
+                id="download-pdf-button"
+                onClick={handleDownloadPdf}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Download className="w-5 h-5 mr-2" />
+                <span className="hidden sm:inline">Baixar PDF</span>
+              </button>
+            </div>
           </header>
 
           <main className="p-6 sm:p-8">
@@ -371,10 +428,16 @@ export const VoucherScreen: React.FC = () => {
                 .voucher-terms ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
                 .voucher-terms li { margin-bottom: 0.25rem; }
                 .voucher-terms hr { margin: 1rem 0; border: 0; border-top: 1px solid #e5e7eb; }
+                .voucher-terms mark {
+                  padding: 0.15rem 0.35rem;
+                  border-radius: 0.5rem;
+                  box-decoration-break: clone;
+                  -webkit-box-decoration-break: clone;
+                }
               `}</style>
               <div
                 className="text-sm text-gray-600 voucher-terms"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(voucherTerms.terms) }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(voucherTerms.terms, { ADD_ATTR: ['style'] }) }}
               />
             </section>
           </main>

@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, RefreshCw, CheckCircle, AlertCircle, ExternalLink, Link, Unlink } from 'lucide-react';
 import { useGoogleSyncViewModel } from '../../viewmodels/useGoogleSyncViewModel';
 import { useNavigate } from 'react-router-dom';
+import { useModalContext } from '../contexts/ModalContext';
 import { Tutorial } from '../components/Tutorial';
 import { googleSyncSteps } from '../tutorials/googleSyncSteps';
 
 export const GoogleSyncScreen: React.FC = () => {
   const navigate = useNavigate();
+  const { confirm } = useModalContext();
   const {
     currentUser,
     calendars,
@@ -59,7 +61,7 @@ export const GoogleSyncScreen: React.FC = () => {
   }
 
   const handleUnlink = async () => {
-    if (window.confirm('Tem certeza que deseja desvincular sua conta Google? Isso desativará a sincronização automática.')) {
+    if (await confirm('Confirmar Desvinculação', 'Tem certeza que deseja desvincular sua conta Google? Isso desativará a sincronização automática.')) {
       try {
         await unlinkGoogle();
       } catch (err: any) {

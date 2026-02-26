@@ -4,8 +4,10 @@ import { useExpenseViewModel } from '../../viewmodels/useExpenseViewModel';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 import { Plus, Trash2, Pencil, Anchor, Tag } from 'lucide-react';
 import { MoneyInput } from '../components/MoneyInput';
+import { useModalContext } from '../contexts/ModalContext';
 
 export const ExpensesScreen: React.FC = () => {
+  const { showAlert } = useModalContext();
   const { expenses, categories, boats, loading, addExpense, updateExpense, removeExpense } = useExpenseViewModel();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export const ExpensesScreen: React.FC = () => {
 
   const handleSave = async () => {
     if (!description || amount <= 0 || !categoryId || !date) {
-      alert('Por favor, preencha todos os campos obrigatórios.');
+      await showAlert('Campos Obrigatórios', 'Por favor, preencha todos os campos obrigatórios.');
       return;
     }
 

@@ -5,6 +5,7 @@ import { expenseRepository } from '../core/repositories/ExpenseRepository';
 import { expenseCategoryRepository } from '../core/repositories/ExpenseCategoryRepository';
 import { boatRepository } from '../core/repositories/BoatRepository';
 import { useToastContext } from '../ui/contexts/ToastContext';
+import { useModalContext } from '../ui/contexts/ModalContext';
 
 export const useExpenseViewModel = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -12,6 +13,7 @@ export const useExpenseViewModel = () => {
   const [boats, setBoats] = useState<Boat[]>([]);
   const [loading, setLoading] = useState(true);
   const { showToast } = useToastContext();
+  const { confirm } = useModalContext();
 
   useEffect(() => {
     setLoading(true);
@@ -70,7 +72,7 @@ export const useExpenseViewModel = () => {
   };
 
   const removeExpense = async (expenseId: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir esta despesa?')) return;
+    if (!await confirm('Confirmar Exclusão', 'Tem certeza que deseja excluir esta despesa?')) return;
     try {
       await expenseRepository.remove(expenseId);
       showToast('Despesa excluída com sucesso!');
@@ -99,7 +101,7 @@ export const useExpenseViewModel = () => {
   };
 
   const removeCategory = async (categoryId: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir esta categoria?')) return;
+    if (!await confirm('Confirmar Exclusão', 'Tem certeza que deseja excluir esta categoria?')) return;
     try {
       await expenseCategoryRepository.remove(categoryId);
       showToast('Categoria excluída com sucesso!');

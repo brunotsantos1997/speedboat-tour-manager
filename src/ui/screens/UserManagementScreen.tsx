@@ -2,22 +2,18 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import type { User, UserRole, UserStatus } from '../../core/domain/User';
 import { Toast } from '../components/Toast';
-import { ConfirmationModal } from '../components/ConfirmationModal';
-import { InformationModal } from '../components/InformationModal';
 import { Tutorial } from '../components/Tutorial';
 import { userManagementSteps } from '../tutorials/userManagementSteps';
+import { useModalContext } from '../contexts/ModalContext';
 
 export function UserManagementScreen() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [modalAction, setModalAction] = useState<'reset' | 'approve' | null>(null);
   const [temporaryPassword, setTemporaryPassword] = useState<string | undefined>('');
   const { getAllUsers, updateUserStatus, updateUserRole, currentUser, approvePasswordReset } = useAuth();
+  const { confirm, showAlert } = useModalContext();
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -67,28 +63,32 @@ export function UserManagementScreen() {
     }
   };
 
-  const handleApproveReset = (user: User) => {
-    setSelectedUser(user);
-    setModalAction('approve');
-    setIsConfirmModalOpen(true);
-  };
+  const handleApproveReset = async (user: User) => {
+    if (!currentUser) return;
 
-  const confirmModalAction = async () => {
-    if (!selectedUser || !currentUser) return;
+    const isConfirmed = await confirm(
+      'Aprovar Redefinição de Senha',
+      `Tem certeza que deseja aprovar a redefinição de senha para o usuário ${user.name}?`
+    );
 
-    try {
-      let tempPassword;
-      if (modalAction === 'approve') {
-        tempPassword = await approvePasswordReset(currentUser.id, selectedUser.id);
+    if (isConfirmed) {
+      try {
+        const tempPassword = await approvePasswordReset(currentUser.id, user.id);
         setToastMessage('Redefinição de senha aprovada com sucesso!');
+        setTemporaryPassword(tempPassword || '');
+
+        await showAlert(
+          'Senha Resetada com Sucesso',
+          <>
+            <p>A nova senha temporária para <strong>{user.name}</strong> é:</p>
+            <p className="my-2 p-2 bg-gray-100 rounded font-mono text-center">{tempPassword}</p>
+            <p className="text-sm text-gray-500">Por favor, copie esta senha e a envie para o usuário. Ele será solicitado a trocá-la no próximo login.</p>
+          </>
+        );
+        fetchUsers();
+      } catch (err) {
+        setToastMessage(err instanceof Error ? err.message : 'Falha ao executar a ação.');
       }
-      setTemporaryPassword(tempPassword || '');
-      setIsInfoModalOpen(true);
-      fetchUsers();
-    } catch (err) {
-      setToastMessage(err instanceof Error ? err.message : 'Falha ao executar a ação.');
-    } finally {
-      setIsConfirmModalOpen(false);
     }
   };
 
@@ -105,30 +105,6 @@ export function UserManagementScreen() {
           onClose={() => setToastMessage(null)}
         />
       )}
-
-      <ConfirmationModal
-        isOpen={isConfirmModalOpen}
-        onCancel={() => setIsConfirmModalOpen(false)}
-        onConfirm={confirmModalAction}
-        title={modalAction === 'approve' ? 'Aprovar Redefinição de Senha' : 'Confirmar Ação'}
-        message={`Tem certeza que deseja ${modalAction === 'approve' ? 'aprovar a redefinição de senha' : 'executar esta ação'} para o usuário ${selectedUser?.name}?`}
-      />
-
-      <InformationModal
-        isOpen={isInfoModalOpen}
-        onClose={() => {
-          setIsInfoModalOpen(false);
-          setSelectedUser(null);
-        }}
-        title="Senha Resetada com Sucesso"
-        message={
-          <>
-            <p>A nova senha temporária para <strong>{selectedUser?.name}</strong> é:</p>
-            <p className="my-2 p-2 bg-gray-100 rounded font-mono text-center">{temporaryPassword}</p>
-            <p className="text-sm text-gray-500">Por favor, copie esta senha e a envie para o usuário. Ele será solicitado a trocá-la no próximo login.</p>
-          </>
-        }
-      />
 
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Gerenciamento de Usuários</h1>
