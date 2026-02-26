@@ -7,6 +7,7 @@ import { CompanyDataRepository } from '../core/repositories/CompanyDataRepositor
 import { VoucherTermsRepository } from '../core/repositories/VoucherTermsRepository';
 import { VoucherAppearanceRepository } from '../core/repositories/VoucherAppearanceRepository';
 import { paymentRepository } from '../core/repositories/PaymentRepository';
+import { useModalContext } from '../ui/contexts/ModalContext';
 
 interface VoucherDetails extends EventType {
   reservationFee: number;
@@ -20,6 +21,7 @@ interface VoucherDetails extends EventType {
 export const useVoucherViewModel = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const [searchParams] = useSearchParams();
+  const { showAlert } = useModalContext();
   const overrideName = searchParams.get('name');
   const [voucher, setVoucher] = useState<VoucherDetails | null>(null);
   const [companyData, setCompanyData] = useState<CompanyData | null>(null);
@@ -145,7 +147,7 @@ export const useVoucherViewModel = () => {
         await html2pdf().from(element).set(opt).save();
       } catch (err) {
         console.error('Erro ao gerar PDF:', err);
-        alert('Ocorreu um erro ao gerar o PDF. Por favor, tente novamente.');
+        await showAlert('Erro', 'Ocorreu um erro ao gerar o PDF. Por favor, tente novamente.');
       } finally {
         if (button) button.style.display = 'flex';
       }

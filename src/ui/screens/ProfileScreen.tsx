@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Toast } from '../components/Toast';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
+import { useModalContext } from '../contexts/ModalContext';
 
 export function ProfileScreen() {
   const { currentUser, updateProfile, setSecretQuestion, linkGoogle, unlinkGoogle, linkedProviders, resetTours } = useAuth();
+  const { confirm } = useModalContext();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [oldPassword, setOldPassword] = useState('');
@@ -196,7 +198,7 @@ export function ProfileScreen() {
               <button
                 type="button"
                 onClick={async () => {
-                  if (window.confirm('Tem certeza que deseja desvincular sua conta Google?')) {
+                  if (await confirm('Confirmar Desvinculação', 'Tem certeza que deseja desvincular sua conta Google?')) {
                     try {
                       setError(null);
                       await unlinkGoogle();
@@ -236,7 +238,7 @@ export function ProfileScreen() {
           <button
             type="button"
             onClick={async () => {
-                if (window.confirm('Deseja resetar todos os tutoriais? Eles aparecerão novamente quando você acessar cada tela.')) {
+                if (await confirm('Confirmar Reset', 'Deseja resetar todos os tutoriais? Eles aparecerão novamente quando você acessar cada tela.')) {
                     await resetTours(currentUser.id);
                     setToastMessage('Tutoriais resetados! Eles aparecerão ao navegar pelas telas.');
                 }

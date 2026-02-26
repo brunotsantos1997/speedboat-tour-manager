@@ -7,8 +7,8 @@ import { Plus, Edit, Trash2, Package } from 'lucide-react';
 import type { Product } from '../../core/domain/types';
 import IconPicker from '../components/IconPicker';
 import type { IconKey } from '../components/IconPicker';
-import { ConfirmationModal } from '../components/ConfirmationModal';
 import { MoneyInput } from '../components/MoneyInput';
+import { useModalContext } from '../contexts/ModalContext';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 import { Tutorial } from '../components/Tutorial';
 import { productsSteps } from '../tutorials/productsSteps';
@@ -83,6 +83,7 @@ export const ProductsScreen: React.FC = () => {
   const vm = useProductsViewModel();
   const { currentUser } = useAuth();
   const { showToast } = useToastContext();
+  const { confirm } = useModalContext();
   const isAuthorized = currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
 
   const handleSave = async () => {
@@ -94,12 +95,14 @@ export const ProductsScreen: React.FC = () => {
     }
   };
 
-  const confirmDelete = async () => {
-    const result = await vm.confirmDelete();
-    if (result && !result.success) {
-      showToast(result.error || 'Erro ao excluir produto.');
-    } else {
-      showToast('Produto excluído com sucesso!');
+  const handleDelete = async (id: string) => {
+    if (await confirm('Confirmar Exclusão', 'Tem certeza de que deseja excluir este produto? Esta ação não pode ser desfeita.')) {
+        const result = await vm.confirmDeleteExternal(id);
+        if (result && !result.success) {
+            showToast(result.error || 'Erro ao excluir produto.');
+        } else {
+            showToast('Produto excluído com sucesso!');
+        }
     }
   };
 
@@ -153,7 +156,7 @@ export const ProductsScreen: React.FC = () => {
                     <button onClick={() => vm.openEditProductModal(product)} className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Editar" data-tour="btn-edit-product">
                       <Edit size={20} />
                     </button>
-                    <button onClick={() => vm.handleDelete(product.id)} className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Excluir">
+                    <button onClick={() => handleDelete(product.id)} className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Excluir">
                       <Trash2 size={20} />
                     </button>
                   </div>
@@ -175,13 +178,6 @@ export const ProductsScreen: React.FC = () => {
         onSave={handleSave}
         onClose={vm.closeModal}
         onUpdate={vm.updateEditingProduct}
-      />
-      <ConfirmationModal
-        isOpen={vm.isConfirmModalOpen}
-        title="Confirmar Exclusão"
-        message="Tem certeza de que deseja excluir este produto? Esta ação não pode ser desfeita."
-        onConfirm={confirmDelete}
-        onCancel={vm.closeConfirmDeleteModal}
       />
     </div>
   );

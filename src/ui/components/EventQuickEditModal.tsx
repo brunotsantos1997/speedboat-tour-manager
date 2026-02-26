@@ -4,6 +4,7 @@ import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 import { MoneyInput } from './MoneyInput';
 import type { EventType, Payment, EventStatus, PaymentStatus, PaymentMethod, PaymentType } from '../../core/domain/types';
 import { format } from 'date-fns';
+import { useModalContext } from '../contexts/ModalContext';
 
 interface EventQuickEditModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export const EventQuickEditModal: React.FC<EventQuickEditModalProps> = ({
   onDeletePayment,
   onAddPayment
 }) => {
+  const { confirm } = useModalContext();
   const [eventStatus, setEventStatus] = useState<EventStatus>(event.status);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(event.paymentStatus || 'PENDING');
   const [isSaving, setIsSaving] = useState(false);
@@ -245,6 +247,7 @@ export const EventQuickEditModal: React.FC<EventQuickEditModalProps> = ({
                     onDelete={() => onDeletePayment(p.id)}
                     methods={methods}
                     types={types}
+                    confirm={confirm}
                   />
                 ))
               )}
@@ -272,7 +275,8 @@ const PaymentItem: React.FC<{
   onDelete: () => Promise<void>;
   methods: { value: PaymentMethod; label: string; icon: any }[];
   types: { value: PaymentType; label: string }[];
-}> = ({ payment, onUpdate, onDelete, methods, types }) => {
+  confirm: (title: string, message: string) => Promise<boolean>;
+}> = ({ payment, onUpdate, onDelete, methods, types, confirm }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [amount, setAmount] = useState(payment.amount);
   const [method, setMethod] = useState(payment.method);
@@ -291,7 +295,7 @@ const PaymentItem: React.FC<{
   };
 
   const handleDelete = async () => {
-    if (window.confirm('Excluir este pagamento?')) {
+    if (await confirm('Confirmar Exclusão', 'Excluir este pagamento?')) {
       await onDelete();
     }
   };

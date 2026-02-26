@@ -38,34 +38,13 @@ export const useBoardingLocationsViewModel = () => {
     }
   };
 
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [locationToDeleteId, setLocationToDeleteId] = useState<string | null>(null);
-
-  const openConfirmDeleteModal = (locationId: string) => {
-    setLocationToDeleteId(locationId);
-    setIsConfirmModalOpen(true);
-  };
-
-  const closeConfirmDeleteModal = () => {
-    setLocationToDeleteId(null);
-    setIsConfirmModalOpen(false);
-  };
-
-  const confirmDelete = async () => {
-    if (locationToDeleteId) {
-      try {
-        await repository.delete(locationToDeleteId);
-        closeConfirmDeleteModal();
-        return { success: true };
-      } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : 'Erro ao excluir local.' };
-      }
+  const confirmDeleteExternal = async (locationId: string) => {
+    try {
+      await repository.delete(locationId);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Erro ao excluir local.' };
     }
-    return { success: false, error: 'ID do local não encontrado.' };
-  };
-
-  const deleteLocation = async (id: string) => {
-    openConfirmDeleteModal(id);
   };
 
   return {
@@ -73,9 +52,6 @@ export const useBoardingLocationsViewModel = () => {
     isLoading,
     addLocation,
     updateLocation,
-    deleteLocation,
-    isConfirmModalOpen,
-    confirmDelete,
-    closeConfirmDeleteModal,
+    confirmDeleteExternal,
   };
 };

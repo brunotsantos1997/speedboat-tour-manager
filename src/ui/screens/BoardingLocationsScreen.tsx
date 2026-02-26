@@ -3,15 +3,16 @@ import React, { useState } from 'react';
 import { useBoardingLocationsViewModel } from '../../viewmodels/useBoardingLocationsViewModel';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToastContext } from '../contexts/ToastContext';
+import { useModalContext } from '../contexts/ModalContext';
 import type { BoardingLocation } from '../../core/domain/types';
-import { ConfirmationModal } from '../components/ConfirmationModal';
 import { Tutorial } from '../components/Tutorial';
 import { boardingLocationsSteps } from '../tutorials/boardingLocationsSteps';
 
 export const BoardingLocationsScreen: React.FC = () => {
-  const { locations, isLoading, addLocation, updateLocation, deleteLocation, isConfirmModalOpen, confirmDelete, closeConfirmDeleteModal } = useBoardingLocationsViewModel();
+  const { locations, isLoading, addLocation, updateLocation, confirmDeleteExternal } = useBoardingLocationsViewModel();
   const { currentUser } = useAuth();
   const { showToast } = useToastContext();
+  const { confirm } = useModalContext();
   const isAuthorized = currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<Partial<BoardingLocation> | null>(null);
@@ -42,12 +43,14 @@ export const BoardingLocationsScreen: React.FC = () => {
     }
   };
 
-  const handleConfirmDelete = async () => {
-    const result = await confirmDelete();
-    if (result && !result.success) {
-      showToast(result.error || 'Erro ao excluir local.');
-    } else {
-      showToast('Local excluído com sucesso!');
+  const handleDelete = async (id: string) => {
+    if (await confirm('Confirmar Exclusão', 'Tem certeza de que deseja excluir este local de embarque? Esta ação não pode ser desfeita.')) {
+        const result = await confirmDeleteExternal(id);
+        if (result && !result.success) {
+            showToast(result.error || 'Erro ao excluir local.');
+        } else {
+            showToast('Local excluído com sucesso!');
+        }
     }
   };
 
@@ -97,7 +100,7 @@ export const BoardingLocationsScreen: React.FC = () => {
                   <td className="px-6 py-4 md:whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end gap-3">
                         <button onClick={() => openModal(location)} className="flex-1 md:flex-none bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors font-bold text-xs md:text-sm">Editar</button>
-                        <button onClick={() => deleteLocation(location.id)} className="flex-1 md:flex-none border border-red-100 text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 transition-colors font-bold text-xs md:text-sm">Excluir</button>
+                        <button onClick={() => handleDelete(location.id)} className="flex-1 md:flex-none border border-red-100 text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 transition-colors font-bold text-xs md:text-sm">Excluir</button>
                     </div>
                   </td>
                 )}
@@ -114,13 +117,6 @@ export const BoardingLocationsScreen: React.FC = () => {
           onSave={handleSave}
         />
       )}
-      <ConfirmationModal
-        isOpen={isConfirmModalOpen}
-        title="Confirmar Exclusão"
-        message="Tem certeza de que deseja excluir este local de embarque? Esta ação não pode ser desfeita."
-        onConfirm={handleConfirmDelete}
-        onCancel={closeConfirmDeleteModal}
-      />
     </div>
   );
 };

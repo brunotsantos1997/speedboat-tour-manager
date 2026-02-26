@@ -3,9 +3,9 @@ import React from 'react';
 import { useBoatsViewModel } from '../../viewmodels/useBoatsViewModel';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToastContext } from '../contexts/ToastContext';
+import { useModalContext } from '../contexts/ModalContext';
 import { Plus, Edit, Trash2, Anchor, Users, Ruler } from 'lucide-react';
 import type { Boat } from '../../core/domain/types';
-import { ConfirmationModal } from '../components/ConfirmationModal';
 import { MoneyInput } from '../components/MoneyInput';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 import { Tutorial } from '../components/Tutorial';
@@ -72,6 +72,7 @@ export const BoatsScreen: React.FC = () => {
   const vm = useBoatsViewModel();
   const { currentUser } = useAuth();
   const { showToast } = useToastContext();
+  const { confirm } = useModalContext();
   const isAuthorized = currentUser?.role === 'OWNER' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
 
   const handleSave = async () => {
@@ -83,12 +84,14 @@ export const BoatsScreen: React.FC = () => {
     }
   };
 
-  const confirmDelete = async () => {
-    const result = await vm.confirmDelete();
-    if (result && !result.success) {
-      showToast(result.error || 'Erro ao excluir lancha.');
-    } else {
-      showToast('Lancha excluída com sucesso!');
+  const handleDelete = async (id: string) => {
+    if (await confirm('Confirmar Exclusão', 'Tem certeza de que deseja excluir esta embarcação? Esta ação não pode ser desfeita.')) {
+        const result = await vm.confirmDeleteExternal(id);
+        if (result && !result.success) {
+            showToast(result.error || 'Erro ao excluir lancha.');
+        } else {
+            showToast('Lancha excluída com sucesso!');
+        }
     }
   };
 
@@ -148,7 +151,7 @@ export const BoatsScreen: React.FC = () => {
                     <button onClick={() => vm.openEditBoatModal(boat)} className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Editar" data-tour="btn-edit-boat">
                       <Edit size={20} />
                     </button>
-                    <button onClick={() => vm.handleDelete(boat.id)} className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Excluir">
+                    <button onClick={() => handleDelete(boat.id)} className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Excluir">
                       <Trash2 size={20} />
                     </button>
                   </div>
@@ -170,13 +173,6 @@ export const BoatsScreen: React.FC = () => {
         onSave={handleSave}
         onClose={vm.closeModal}
         onUpdate={vm.updateEditingBoat}
-      />
-      <ConfirmationModal
-        isOpen={vm.isConfirmModalOpen}
-        title="Confirmar Exclusão"
-        message="Tem certeza de que deseja excluir esta embarcação? Esta ação não pode ser desfeita."
-        onConfirm={confirmDelete}
-        onCancel={vm.closeConfirmDeleteModal}
       />
     </div>
   );
