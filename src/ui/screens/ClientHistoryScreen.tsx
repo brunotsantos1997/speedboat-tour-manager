@@ -3,12 +3,13 @@
 import React from 'react';
 import { useClientHistoryViewModel } from '../../viewmodels/useClientHistoryViewModel';
 import { useToastContext } from '../contexts/ToastContext';
-import { Search, X, Calendar, Edit, Ban, CheckCircle, Clock, Pencil, FileText, Share2, DollarSign, AlertTriangle, History } from 'lucide-react';
+import { Search, X, Calendar, Edit, Ban, CheckCircle, Clock, Pencil, FileText, Share2, DollarSign, AlertTriangle, History, Settings, Trash2 } from 'lucide-react';
 import type { EventStatus, PaymentStatus, EventType, ClientProfile } from '../../core/domain/types';
 import { useNavigate } from 'react-router-dom';
 import { PaymentModal } from '../components/PaymentModal';
 import { SharedEventModal } from '../components/SharedEventModal';
 import { EventCostModal } from '../components/EventCostModal';
+import { EventQuickEditModal } from '../components/EventQuickEditModal';
 import { useEventCostViewModel } from '../../viewmodels/useEventCostViewModel';
 
 const ClientModal: React.FC<{
@@ -108,7 +109,9 @@ const EventCard: React.FC<{
   onConfirmPayment: (id: string, type: 'DOWN_PAYMENT' | 'BALANCE' | 'FULL') => void;
   onOpenCosts: (event: EventType) => void;
   onRevert?: (id: string) => void;
-}> = ({ eventType, onCancel, onEdit, onConfirmPayment, onOpenCosts, onRevert }) => {
+  onQuickEdit: (event: EventType) => void;
+  onDelete: (id: string) => void;
+}> = ({ eventType, onCancel, onEdit, onConfirmPayment, onOpenCosts, onRevert, onQuickEdit, onDelete }) => {
 
   const shareVoucher = (eventId: string) => {
     const url = `${window.location.origin}/voucher/${eventId}`;
@@ -154,10 +157,11 @@ const EventCard: React.FC<{
         <button onClick={() => shareVoucher(eventType.id)} className="flex-1 md:flex-none justify-center px-4 py-2 text-xs font-bold bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"><Share2 size={14} /> Compartilhar</button>
         <a href={`/voucher/${eventType.id}`} target="_blank" rel="noopener noreferrer" className="flex-1 md:flex-none justify-center px-4 py-2 text-xs font-bold bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-2"><FileText size={14} /> Voucher</a>
 
-        {['SCHEDULED', 'PRE_SCHEDULED', 'COMPLETED', 'ARCHIVED_COMPLETED'].includes(eventType.status) && (
+        {['SCHEDULED', 'PRE_SCHEDULED', 'COMPLETED', 'ARCHIVED_COMPLETED', 'CANCELLED', 'PENDING_REFUND', 'REFUNDED'].includes(eventType.status) && (
           <>
             <button onClick={() => onOpenCosts(eventType)} className="flex-1 md:flex-none justify-center px-4 py-2 text-xs font-bold bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-colors flex items-center gap-2"><DollarSign size={14} /> Custos</button>
-            {eventType.paymentStatus !== 'CONFIRMED' && (
+            <button onClick={() => onQuickEdit(eventType)} className="flex-1 md:flex-none justify-center px-4 py-2 text-xs font-bold bg-gray-900 text-white rounded-lg hover:bg-black transition-colors flex items-center gap-2"><Settings size={14} /> Ajuste Rápido</button>
+            {eventType.paymentStatus !== 'CONFIRMED' && !['CANCELLED', 'REFUNDED'].includes(eventType.status) && (
                 <button onClick={() => onConfirmPayment(eventType.id, eventType.status === 'PRE_SCHEDULED' ? 'DOWN_PAYMENT' : 'BALANCE')} className="flex-1 md:flex-none justify-center px-4 py-2 text-xs font-black bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all shadow-sm active:scale-95 flex items-center gap-2">
                     <CheckCircle size={14} />
                     {eventType.status === 'PRE_SCHEDULED' ? 'Confirmar Reserva' : 'Confirmar Pagamento'}
@@ -170,6 +174,7 @@ const EventCard: React.FC<{
                 <button onClick={() => onCancel(eventType.id)} className="flex-1 md:flex-none justify-center px-4 py-2 text-xs font-bold bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-2"><Ban size={14} /> Cancelar</button>
               </>
             )}
+            <button onClick={() => onDelete(eventType.id)} className="flex-1 md:flex-none justify-center px-4 py-2 text-xs font-bold bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-2" title="Excluir Permanentemente"><Trash2 size={14} /> Excluir</button>
           </>
         )}
 
@@ -276,6 +281,8 @@ export const ClientHistoryScreen: React.FC = () => {
                                           onConfirmPayment={vm.initiatePayment}
                                           onOpenCosts={costVm.openModal}
                                           onRevert={vm.revertCancellation}
+                                          onQuickEdit={vm.openQuickEdit}
+                                          onDelete={vm.deleteEventPermanently}
                                        />
                                     ))
                                 ) : (
@@ -322,6 +329,19 @@ export const ClientHistoryScreen: React.FC = () => {
                         // Success toast is handled by the ViewModel
                     }}
                     eventId={vm.selectedSharedEventId}
+                />
+            )}
+
+            {vm.isQuickEditModalOpen && vm.activeEventForQuickEdit && (
+                <EventQuickEditModal
+                    isOpen={vm.isQuickEditModalOpen}
+                    onClose={() => vm.setIsQuickEditModalOpen(false)}
+                    event={vm.activeEventForQuickEdit}
+                    payments={vm.activeEventPayments}
+                    onUpdateEvent={vm.manualUpdateEvent}
+                    onUpdatePayment={vm.updatePayment}
+                    onDeletePayment={vm.deletePayment}
+                    onAddPayment={vm.addPaymentToEvent}
                 />
             )}
 

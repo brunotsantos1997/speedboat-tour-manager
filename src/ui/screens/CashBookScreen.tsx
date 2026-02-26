@@ -153,25 +153,30 @@ export const CashBookScreen: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {cashBook.length > 0 ? cashBook.map((entry) => (
-                <tr key={entry.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={entry.id} className={`hover:bg-gray-50 transition-colors ${entry.isCancelled ? 'opacity-50' : ''}`}>
                   <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                     {new Date(entry.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
                   </td>
                   <td className="px-6 py-4">
-                    <p className="font-medium text-gray-800">{entry.description}</p>
+                    <div className="flex flex-col">
+                        <p className={`font-medium text-gray-800 ${entry.isCancelled ? 'line-through' : ''}`}>
+                            {entry.description}
+                        </p>
+                        {entry.isCancelled && <span className="text-[10px] text-red-600 font-black uppercase tracking-widest mt-0.5">Estornado (Cancelado)</span>}
+                    </div>
                     <p className="text-[10px] text-gray-400 uppercase font-bold tracking-tight">
                         {entry.type === 'EXPENSE' ? 'Despesa' : entry.type === 'INCOME' ? 'Ganho Avulso' : 'Pagamento Cliente'}
                     </p>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                        entry.type === 'EXPENSE' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
+                        entry.isCancelled ? 'bg-gray-100 text-gray-500' : (entry.type === 'EXPENSE' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700')
                     }`}>
                         {entry.type === 'EXPENSE' ? <ArrowDownCircle size={14}/> : <ArrowUpCircle size={14}/>}
                         {entry.subType === 'BOAT' ? 'Lancha' : entry.subType === 'PRODUCT' ? 'Produto' : entry.subType === 'TAX' ? 'Taxa' : 'Geral'}
                     </span>
                   </td>
-                  <td className={`px-6 py-4 text-right font-bold ${entry.type === 'EXPENSE' ? 'text-red-600' : 'text-green-600'}`}>
+                  <td className={`px-6 py-4 text-right font-bold ${entry.isCancelled ? 'text-gray-400 line-through' : (entry.type === 'EXPENSE' ? 'text-red-600' : 'text-green-600')}`}>
                     {entry.type === 'EXPENSE' ? '-' : '+'} {formatCurrencyBRL(entry.amount)}
                   </td>
                   <td className="px-6 py-4 text-center">
@@ -203,13 +208,14 @@ export const CashBookScreen: React.FC = () => {
       {/* Mobile Card View */}
       <div className="md:hidden space-y-4">
         {cashBook.length > 0 ? cashBook.map((entry) => (
-          <div key={entry.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
+          <div key={entry.id} className={`bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3 ${entry.isCancelled ? 'opacity-60' : ''}`}>
             <div className="flex justify-between items-start">
               <div>
                 <span className="text-xs text-gray-500 font-medium">
                    {new Date(entry.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
                 </span>
-                <p className="font-bold text-gray-900 mt-0.5">{entry.description}</p>
+                <p className={`font-bold text-gray-900 mt-0.5 ${entry.isCancelled ? 'line-through' : ''}`}>{entry.description}</p>
+                {entry.isCancelled && <p className="text-[10px] text-red-600 font-black uppercase tracking-widest">Estornado (Cancelado)</p>}
               </div>
               <button
                 onClick={() => deleteEntry(entry.id, entry.type)}
@@ -222,11 +228,11 @@ export const CashBookScreen: React.FC = () => {
 
             <div className="flex justify-between items-center mt-1">
               <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${
-                  entry.type === 'EXPENSE' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
+                   entry.isCancelled ? 'bg-gray-100 text-gray-500' : (entry.type === 'EXPENSE' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700')
               }`}>
                   {entry.subType === 'BOAT' ? 'Lancha' : entry.subType === 'PRODUCT' ? 'Produto' : entry.subType === 'TAX' ? 'Taxa' : 'Geral'}
               </span>
-              <p className={`text-lg font-black ${entry.type === 'EXPENSE' ? 'text-red-600' : 'text-green-600'}`}>
+              <p className={`text-lg font-black ${entry.isCancelled ? 'text-gray-400 line-through' : (entry.type === 'EXPENSE' ? 'text-red-600' : 'text-green-600')}`}>
                 {entry.type === 'EXPENSE' ? '-' : '+'} {formatCurrencyBRL(entry.amount)}
               </p>
             </div>

@@ -22,6 +22,7 @@ export type CashBookEntry = {
     clientId?: string;
     clientName?: string;
     eventId?: string;
+    isCancelled?: boolean;
 };
 
 export const useCashBookViewModel = () => {
@@ -106,6 +107,7 @@ export const useCashBookViewModel = () => {
                 const ratio = p.amount / event.total;
                 const pEntries: CashBookEntry[] = [];
                 const paymentRatioPct = (ratio * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
+                const isCancelled = ['CANCELLED', 'ARCHIVED_CANCELLED', 'REFUNDED', 'PENDING_REFUND'].includes(event.status);
 
                 // Boat Rental
                 const boatNet = event.rentalRevenue || 0;
@@ -122,7 +124,8 @@ export const useCashBookViewModel = () => {
                         boatId: event.boat.id,
                         eventId: p.eventId,
                         clientId: event.client.id,
-                        clientName: event.client.name
+                        clientName: event.client.name,
+                        isCancelled
                     });
                 }
 
@@ -153,7 +156,8 @@ export const useCashBookViewModel = () => {
                             boatId: event.boat.id,
                             eventId: p.eventId,
                             clientId: event.client.id,
-                            clientName: event.client.name
+                            clientName: event.client.name,
+                            isCancelled
                         });
                     }
                 });
@@ -173,7 +177,8 @@ export const useCashBookViewModel = () => {
                         boatId: event.boat.id,
                         eventId: p.eventId,
                         clientId: event.client.id,
-                        clientName: event.client.name
+                        clientName: event.client.name,
+                        isCancelled
                     });
                 }
 

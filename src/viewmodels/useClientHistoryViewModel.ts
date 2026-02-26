@@ -35,6 +35,11 @@ export const useClientHistoryViewModel = () => {
   const [isSharedModalOpen, setIsSharedModalOpen] = useState(false);
   const [selectedSharedEventId, setSelectedSharedEventId] = useState<string | null>(null);
 
+  // Quick Edit Modal State
+  const [isQuickEditModalOpen, setIsQuickEditModalOpen] = useState(false);
+  const [activeEventForQuickEdit, setActiveEventForQuickEdit] = useState<EventType | null>(null);
+  const [activeEventPayments, setActiveEventPayments] = useState<Payment[]>([]);
+
   const handleSearch = useCallback(async (term: string) => {
     setSearchTerm(term);
     if (term.length > 2) {
@@ -188,7 +193,64 @@ export const useClientHistoryViewModel = () => {
       console.error('Failed to revert cancellation:', error);
       throw error;
     }
-  }, [clientEvents, selectedClient, selectClient]);
+  }, [clientEvents, selectedClient, syncEvent]);
+
+  // --- Quick Edit Handlers ---
+  const openQuickEdit = useCallback(async (event: EventType) => {
+    setActiveEventForQuickEdit(event);
+    const payments = await paymentRepository.getByEventId(event.id);
+    setActiveEventPayments(payments);
+    setIsQuickEditModalOpen(true);
+  }, []);
+
+  const manualUpdateEvent = useCallback(async (data: Partial<EventType>) => {
+    if (!activeEventForQuickEdit) return;
+    const updated = { ...activeEventForQuickEdit, ...data };
+    const saved = await eventRepository.updateEvent(updated);
+    await syncEvent(saved);
+    setActiveEventForQuickEdit(saved);
+  }, [activeEventForQuickEdit, syncEvent]);
+
+  const updatePayment = useCallback(async (paymentId: string, data: Partial<Payment>) => {
+    if (!activeEventForQuickEdit) return;
+    await paymentRepository.update(paymentId, data);
+    const payments = await paymentRepository.getByEventId(activeEventForQuickEdit.id);
+    setActiveEventPayments(payments);
+  }, [activeEventForQuickEdit]);
+
+  const deletePayment = useCallback(async (paymentId: string) => {
+    if (!activeEventForQuickEdit) return;
+    await paymentRepository.remove(paymentId);
+    const payments = await paymentRepository.getByEventId(activeEventForQuickEdit.id);
+    setActiveEventPayments(payments);
+  }, [activeEventForQuickEdit]);
+
+  const addPaymentToEvent = useCallback(async (data: { amount: number; method: any; type: any; date: string }) => {
+    if (!activeEventForQuickEdit) return;
+    await paymentRepository.add({
+      ...data,
+      eventId: activeEventForQuickEdit.id,
+      timestamp: Date.now()
+    });
+    const payments = await paymentRepository.getByEventId(activeEventForQuickEdit.id);
+    setActiveEventPayments(payments);
+  }, [activeEventForQuickEdit]);
+
+  const deleteEventPermanently = useCallback(async (eventId: string) => {
+    if (!window.confirm('TEM CERTEZA? Esta ação é irreversível e apagará o evento e todos os seus pagamentos permanentemente.')) return;
+
+    try {
+      await eventRepository.remove(eventId);
+      const payments = await paymentRepository.getByEventId(eventId);
+      for (const p of payments) {
+        await paymentRepository.remove(p.id);
+      }
+      // UI will update automatically via subscription in useEffect
+    } catch (error) {
+      console.error('Failed to delete event:', error);
+      alert('Erro ao excluir evento.');
+    }
+  }, []);
 
   // --- Client Edit Handlers ---
   const openEditModal = () => {
@@ -263,6 +325,16 @@ export const useClientHistoryViewModel = () => {
     isSharedModalOpen,
     setIsSharedModalOpen,
     selectedSharedEventId,
-    setSelectedSharedEventId
+    setSelectedSharedEventId,
+    isQuickEditModalOpen,
+    setIsQuickEditModalOpen,
+    activeEventForQuickEdit,
+    activeEventPayments,
+    openQuickEdit,
+    manualUpdateEvent,
+    updatePayment,
+    deletePayment,
+    addPaymentToEvent,
+    deleteEventPermanently
   };
 };

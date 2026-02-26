@@ -1,6 +1,6 @@
 // src/viewmodels/useVoucherViewModel.ts
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import type { EventType, CompanyData, VoucherTerms, Payment } from '../core/domain/types';
 import { eventRepository } from '../core/repositories/EventRepository';
 import { CompanyDataRepository } from '../core/repositories/CompanyDataRepository';
@@ -19,6 +19,8 @@ interface VoucherDetails extends EventType {
 
 export const useVoucherViewModel = () => {
   const { eventId } = useParams<{ eventId: string }>();
+  const [searchParams] = useSearchParams();
+  const overrideName = searchParams.get('name');
   const [voucher, setVoucher] = useState<VoucherDetails | null>(null);
   const [companyData, setCompanyData] = useState<CompanyData | null>(null);
   const [voucherTerms, setVoucherTerms] = useState<VoucherTerms | null>(null);
@@ -85,6 +87,10 @@ export const useVoucherViewModel = () => {
 
       setVoucher({
         ...currentEvent,
+        client: {
+          ...currentEvent.client,
+          name: overrideName || currentEvent.client.name
+        },
         reservationFee: displaySignal,
         remainingReservationFee,
         remainingBalance,
@@ -93,8 +99,8 @@ export const useVoucherViewModel = () => {
         isFullyPaid: totalPaid >= currentEvent.total
       });
 
-      if (currentEvent.client?.name) {
-        document.title = `Voucher - ${currentEvent.client.name}`;
+      if (overrideName || currentEvent.client?.name) {
+        document.title = `Voucher - ${overrideName || currentEvent.client.name}`;
       }
       setIsLoading(false);
     };

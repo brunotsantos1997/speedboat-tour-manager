@@ -58,14 +58,19 @@ const formatDuration = (hours: number) => {
 export const VoucherScreen: React.FC = () => {
   const { voucher, companyData, voucherTerms, watermark, isLoading, error, handleDownloadPdf } = useVoucherViewModel();
 
+  const isShared = React.useMemo(() => {
+    return voucher?.tourType?.name.toLowerCase() === 'compartilhado';
+  }, [voucher]);
+
   const boatRentalGross = React.useMemo(() => {
     if (!voucher || !voucher.boat) return 0;
+    if (isShared) return voucher.rentalGross || 0;
     const hours = Math.floor(voucher.durationHours);
     const mins = Math.round((voucher.durationHours - hours) * 60);
     let cost = hours * (voucher.boat.pricePerHour || 0);
     if (mins >= 30) cost += (voucher.boat.pricePerHalfHour || 0);
     return cost;
-  }, [voucher]);
+  }, [voucher, isShared]);
 
   if (isLoading) {
     return (
@@ -197,7 +202,7 @@ export const VoucherScreen: React.FC = () => {
                     <Anchor className="w-6 h-6 mr-4 text-blue-600" />
                     <div>
                       <p className="font-semibold text-gray-800">
-                        Pacote de {formatDuration(voucher.durationHours)} de passeio
+                        {isShared ? `Passeio Compartilhado (${formatDuration(voucher.durationHours)})` : `Pacote de ${formatDuration(voucher.durationHours)} de passeio`}
                       </p>
                       <p className="text-xs text-gray-500">
                         {boat.name}
@@ -208,9 +213,11 @@ export const VoucherScreen: React.FC = () => {
                     <p className="font-semibold text-gray-800">
                       {formatCurrencyBRL(boatRentalGross)}
                     </p>
-                    <p className="text-xs text-gray-500">
-                      ({formatCurrencyBRL(boat.pricePerHour)}/h)
-                    </p>
+                    {!isShared && (
+                      <p className="text-xs text-gray-500">
+                        ({formatCurrencyBRL(boat.pricePerHour)}/h)
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -324,12 +331,6 @@ export const VoucherScreen: React.FC = () => {
                               <span className="line-through opacity-60">{formatCurrencyBRL(voucher.totalPaid)}</span>
                           </div>
 
-                          {voucher.remainingReservationFee > 0 && (
-                            <div className="flex justify-between font-bold text-md text-blue-600 bg-blue-50 p-3 rounded-lg border border-blue-100">
-                                <span>Sinal Pendente (Reserva)</span>
-                                <span>{formatCurrencyBRL(voucher.remainingReservationFee)}</span>
-                            </div>
-                          )}
                         </div>
                       ) : (
                         <div className="flex justify-between font-bold text-lg text-blue-600 bg-blue-50 p-3 rounded-lg border border-blue-100">
@@ -339,7 +340,7 @@ export const VoucherScreen: React.FC = () => {
                       )}
 
                        <div className="flex justify-between text-gray-600 pt-2 mt-2">
-                          <span>Saldo a pagar no dia</span>
+                          <span>Saldo a pagar</span>
                           <div className="flex items-center gap-2">
                             {(voucher.status === 'COMPLETED' || voucher.status === 'ARCHIVED_COMPLETED') && voucher.remainingBalance <= 0 && (
                                 <span className="text-green-600 text-xs font-bold uppercase">Pago</span>

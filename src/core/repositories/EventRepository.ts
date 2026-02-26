@@ -8,6 +8,7 @@ import {
   onSnapshot,
   query,
   getDoc,
+  deleteDoc,
   type Unsubscribe,
   where
 } from 'firebase/firestore';
@@ -21,6 +22,7 @@ export interface IEventRepository {
   getEventsByClient(clientId: string): Promise<EventType[]>;
   add(event: Omit<EventType, 'id'>): Promise<EventType>;
   updateEvent(event: EventType): Promise<EventType>;
+  remove(eventId: string): Promise<void>;
   getAll(): Promise<EventType[]>;
   backfillFinancialData(): Promise<void>;
   dispose(): void;
@@ -223,6 +225,11 @@ class EventRepositoryImpl implements IEventRepository {
     await updateDoc(docRef, data as any);
 
     return updatedEvent;
+  }
+
+  async remove(eventId: string): Promise<void> {
+    const docRef = doc(db, this.collectionName, eventId);
+    await deleteDoc(docRef);
   }
 
   async backfillFinancialData(): Promise<void> {
