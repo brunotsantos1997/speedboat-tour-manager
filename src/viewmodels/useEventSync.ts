@@ -7,6 +7,26 @@ import type { EventType } from '../core/domain/types';
 export const useEventSync = () => {
   const { currentUser, googleAccessToken } = useAuth();
 
+  const deleteFromGoogle = useCallback(async (googleEventId: string) => {
+    if (
+      !currentUser?.calendarSettings?.autoSync ||
+      !currentUser?.calendarSettings?.calendarId ||
+      !googleAccessToken
+    ) {
+      return;
+    }
+
+    try {
+      await googleCalendarRepository.deleteEvent(
+        googleAccessToken,
+        currentUser.calendarSettings.calendarId,
+        googleEventId
+      );
+    } catch (error) {
+      console.error('Google Calendar Deletion failed:', error);
+    }
+  }, [currentUser, googleAccessToken]);
+
   const syncEvent = useCallback(async (event: EventType) => {
     if (
       !currentUser?.calendarSettings?.autoSync ||
@@ -64,5 +84,5 @@ export const useEventSync = () => {
     }
   }, [currentUser, googleAccessToken]);
 
-  return { syncEvent };
+  return { syncEvent, deleteFromGoogle };
 };

@@ -1,6 +1,7 @@
 // src/viewmodels/useClientHistoryViewModel.ts
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import type { ClientProfile, EventType, Payment } from '../core/domain/types';
 import { clientRepository } from '../core/repositories/ClientRepository';
 import { eventRepository } from '../core/repositories/EventRepository';
@@ -10,10 +11,11 @@ import { useEventSync } from './useEventSync';
 import { useModalContext } from '../ui/contexts/ModalContext';
 
 export const useClientHistoryViewModel = () => {
+  const { currentUser } = useAuth();
   const [searchParams] = useSearchParams();
   const clientIdParam = searchParams.get('clientId');
   const [searchTerm, setSearchTerm] = useState('');
-  const { syncEvent } = useEventSync();
+  const { syncEvent, deleteFromGoogle } = useEventSync();
   const { confirm, showAlert } = useModalContext();
   const [searchResults, setSearchResults] = useState<ClientProfile[]>([]);
   const [selectedClient, setSelectedClient] = useState<ClientProfile | null>(null);
@@ -242,6 +244,13 @@ export const useClientHistoryViewModel = () => {
     if (!await confirm('Excluir Permanentemente', 'TEM CERTEZA? Esta ação é irreversível e apagará o evento e todos os seus pagamentos permanentemente.')) return;
 
     try {
+      const eventToDelete = clientEvents.find(e => e.id === eventId);
+      const googleEventId = eventToDelete?.googleCalendarEventIds?.[currentUser?.id || ''];
+
+      if (googleEventId) {
+        await deleteFromGoogle(googleEventId);
+      }
+
       await eventRepository.remove(eventId);
       const payments = await paymentRepository.getByEventId(eventId);
       for (const p of payments) {
