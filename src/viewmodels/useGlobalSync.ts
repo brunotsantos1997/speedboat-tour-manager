@@ -9,8 +9,9 @@ import { eventRepository } from '../core/repositories/EventRepository';
  */
 export const useGlobalSync = () => {
   const { currentUser } = useAuth();
-  const { syncEvent } = useEventSync();
-  const lastSyncedRef = useRef<Record<string, string>>({});
+  const { syncEvent, deleteFromGoogle } = useEventSync();
+  const lastSyncedRef = useRef<Record<string, { data: string; googleId?: string }>>({});
+  const isFirstLoad = useRef(true);
 
   useEffect(() => {
     // Only run if autoSync is enabled and configured
@@ -20,6 +21,20 @@ export const useGlobalSync = () => {
     }
 
     const unsubscribe = eventRepository.subscribe((events) => {
+      const currentIds = new Set(events.map(e => e.id));
+
+      // 1. Handle Deletions
+      Object.keys(lastSyncedRef.current).forEach(id => {
+        if (!currentIds.has(id)) {
+          const { googleId } = lastSyncedRef.current[id];
+          if (googleId) {
+            deleteFromGoogle(googleId);
+          }
+          delete lastSyncedRef.current[id];
+        }
+      });
+
+      // 2. Handle Updates and Additions
       events.forEach((event) => {
         // Data that affects the calendar event content
         const relevantData = JSON.stringify({
@@ -32,23 +47,37 @@ export const useGlobalSync = () => {
           locationName: event.boardingLocation?.name,
           observations: event.observations,
           passengerCount: event.passengerCount,
-          tourTypeName: event.tourType?.name
+          tourTypeName: event.tourType?.name,
+          products: event.products?.map(p => ({ name: p.name, isCourtesy: p.isCourtesy }))
         });
 
-        const prevData = lastSyncedRef.current[event.id];
+        const prev = lastSyncedRef.current[event.id];
+        const googleId = event.googleCalendarEventIds?.[currentUser.id];
 
-        // On first load or when a new event appears, just record its state
-        if (prevData === undefined) {
-          lastSyncedRef.current[event.id] = relevantData;
-          return;
-        }
+        if (isFirstLoad.current) {
+          // On startup, sync upcoming events (next 30 days) to catch up with changes made offline
+          const eventDate = new Date(event.date + 'T00:00');
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const thirtyDaysFromNow = new Date();
+          thirtyDaysFromNow.setDate(today.getDate() + 30);
 
-        // If the relevant data changed, synchronize it
-        if (prevData !== relevantData) {
-          lastSyncedRef.current[event.id] = relevantData;
+          if (eventDate >= today && eventDate <= thirtyDaysFromNow) {
+            syncEvent(event);
+          }
+        } else if (!prev) {
+          // New event appeared while the system is open
+          syncEvent(event);
+        } else if (prev.data !== relevantData) {
+          // Relevant data changed while the system is open
           syncEvent(event);
         }
+
+        // Always update the ref with latest state
+        lastSyncedRef.current[event.id] = { data: relevantData, googleId };
       });
+
+      isFirstLoad.current = false;
     });
 
     return () => {
@@ -58,6 +87,7 @@ export const useGlobalSync = () => {
     currentUser?.id,
     currentUser?.calendarSettings?.autoSync,
     currentUser?.calendarSettings?.calendarId,
-    syncEvent
+    syncEvent,
+    deleteFromGoogle
   ]);
 };
