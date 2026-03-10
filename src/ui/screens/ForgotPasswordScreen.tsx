@@ -1,32 +1,27 @@
 
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 export function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const { requestPasswordReset } = useAuth();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setMessage(null);
     try {
-      const user = await requestPasswordReset(email);
-      if (user?.role === 'OWNER') {
-        if (!user.secretQuestion) {
-          setError('A conta do proprietário não tem uma pergunta secreta definida.');
-          return;
+      await requestPasswordReset(email);
+      setMessage('Um e-mail de redefinição de senha foi enviado. Verifique sua caixa de entrada.');
+    } catch (err: any) {
+        if (err.code === 'auth/user-not-found') {
+            setMessage('Um e-mail de redefinição de senha foi enviado. Verifique sua caixa de entrada.'); // Security best practice: don't reveal if email exists
+        } else {
+            setError(err instanceof Error ? err.message : 'Falha ao solicitar a redefinição de senha.');
         }
-        navigate(`/reset-password-secret?email=${email}&question=${encodeURIComponent(user.secretQuestion)}`);
-      } else {
-        setMessage('Se existir uma conta com esse e-mail, uma solicitação de redefinição de senha foi enviada aos administradores.');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao solicitar a redefinição de senha.');
     }
   };
 
@@ -57,6 +52,11 @@ export function ForgotPasswordScreen() {
             Solicitar Redefinição
           </button>
         </form>
+        <div className="text-sm text-center">
+            <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+                Voltar para o Login
+            </Link>
+        </div>
       </div>
     </div>
   );

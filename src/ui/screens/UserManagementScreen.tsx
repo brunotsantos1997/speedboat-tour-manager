@@ -4,15 +4,13 @@ import type { User, UserRole, UserStatus } from '../../core/domain/User';
 import { Toast } from '../components/Toast';
 import { Tutorial } from '../components/Tutorial';
 import { userManagementSteps } from '../tutorials/userManagementSteps';
-import { useModalContext } from '../contexts/ModalContext';
 
 export function UserManagementScreen() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const { getAllUsers, updateUserStatus, updateUserRole, currentUser, approvePasswordReset } = useAuth();
-  const { confirm, showAlert } = useModalContext();
+  const { getAllUsers, updateUserStatus, updateUserRole, currentUser } = useAuth();
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -62,33 +60,6 @@ export function UserManagementScreen() {
     }
   };
 
-  const handleApproveReset = async (user: User) => {
-    if (!currentUser) return;
-
-    const isConfirmed = await confirm(
-      'Aprovar Redefinição de Senha',
-      `Tem certeza que deseja aprovar a redefinição de senha para o usuário ${user.name}?`
-    );
-
-    if (isConfirmed) {
-      try {
-        const tempPassword = await approvePasswordReset(currentUser.id, user.id);
-        setToastMessage('Redefinição de senha aprovada com sucesso!');
-
-        await showAlert(
-          'Senha Resetada com Sucesso',
-          <>
-            <p>A nova senha temporária para <strong>{user.name}</strong> é:</p>
-            <p className="my-2 p-2 bg-gray-100 rounded font-mono text-center">{tempPassword}</p>
-            <p className="text-sm text-gray-500">Por favor, copie esta senha e a envie para o usuário. Ele será solicitado a trocá-la no próximo login.</p>
-          </>
-        );
-        fetchUsers();
-      } catch (err) {
-        setToastMessage(err instanceof Error ? err.message : 'Falha ao executar a ação.');
-      }
-    }
-  };
 
 
   if (loading) return <div>Carregando...</div>;
@@ -180,18 +151,6 @@ export function UserManagementScreen() {
                         Reativar
                       </button>
                     )}
-                    {user.status === 'PASSWORD_RESET_REQUESTED' && (
-                      <button
-                        onClick={() => handleApproveReset(user)}
-                        className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
-                        disabled={
-                          (currentUser?.role === 'ADMIN' && user.role !== 'ADMIN') ||
-                          (currentUser?.role === 'SUPER_ADMIN' && user.role === 'OWNER')
-                        }
-                      >
-                        Aprovar Redefinição
-                      </button>
-                    )}
                   </div>
                 </td>
               </tr>
@@ -270,18 +229,6 @@ export function UserManagementScreen() {
                     className="w-full border border-green-200 text-green-600 px-4 py-2 rounded-lg font-bold text-sm"
                   >
                     Reativar Usuário
-                  </button>
-                )}
-                {user.status === 'PASSWORD_RESET_REQUESTED' && (
-                  <button
-                    onClick={() => handleApproveReset(user)}
-                    className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm disabled:opacity-50"
-                    disabled={
-                      (currentUser?.role === 'ADMIN' && user.role !== 'ADMIN') ||
-                      (currentUser?.role === 'SUPER_ADMIN' && user.role === 'OWNER')
-                    }
-                  >
-                    Aprovar Redefinição de Senha
                   </button>
                 )}
               </div>

@@ -28,8 +28,6 @@ const ExpensesScreen = lazy(() => import('./ui/screens/ExpensesScreen').then(m =
 const ExpenseCategoriesScreen = lazy(() => import('./ui/screens/ExpenseCategoriesScreen').then(m => ({ default: m.ExpenseCategoriesScreen })));
 const ProfileScreen = lazy(() => import('./ui/screens/ProfileScreen').then(m => ({ default: m.ProfileScreen })));
 const ForgotPasswordScreen = lazy(() => import('./ui/screens/ForgotPasswordScreen').then(m => ({ default: m.ForgotPasswordScreen })));
-const ResetPasswordSecretScreen = lazy(() => import('./ui/screens/ResetPasswordSecretScreen').then(m => ({ default: m.ResetPasswordSecretScreen })));
-const SetNewPasswordScreen = lazy(() => import('./ui/screens/SetNewPasswordScreen').then(m => ({ default: m.SetNewPasswordScreen })));
 const GoogleSyncScreen = lazy(() => import('./ui/screens/GoogleSyncScreen').then(m => ({ default: m.GoogleSyncScreen })));
 const PrivacyPolicyScreen = lazy(() => import('./ui/screens/PrivacyPolicyScreen').then(m => ({ default: m.PrivacyPolicyScreen })));
 const TermsOfServiceScreen = lazy(() => import('./ui/screens/TermsOfServiceScreen').then(m => ({ default: m.TermsOfServiceScreen })));
@@ -53,8 +51,6 @@ function App() {
           <Route path="/signup" element={<SignupScreen />} />
           <Route path="/pending-approval" element={<PendingApprovalScreen />} />
           <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
-          <Route path="/reset-password-secret" element={<ResetPasswordSecretScreen />} />
-          <Route path="/set-new-password" element={<SetNewPasswordScreen />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyScreen />} />
           <Route path="/terms-of-service" element={<TermsOfServiceScreen />} />
 

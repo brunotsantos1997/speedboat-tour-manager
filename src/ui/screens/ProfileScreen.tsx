@@ -5,15 +5,13 @@ import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
 import { useModalContext } from '../contexts/ModalContext';
 
 export function ProfileScreen() {
-  const { currentUser, updateProfile, setSecretQuestion, linkGoogle, unlinkGoogle, linkedProviders, resetTours } = useAuth();
+  const { currentUser, updateProfile, linkGoogle, unlinkGoogle, linkedProviders, resetTours } = useAuth();
   const { confirm } = useModalContext();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [secretQuestion, setSecretQuestionState] = useState('');
-  const [secretAnswer, setSecretAnswer] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,7 +19,6 @@ export function ProfileScreen() {
     if (currentUser) {
       setName(currentUser.name);
       setEmail(currentUser.email);
-      setSecretQuestionState(currentUser.secretQuestion || '');
     }
   }, [currentUser]);
 
@@ -55,13 +52,7 @@ export function ProfileScreen() {
         setOldPassword('');
         setNewPassword('');
         setConfirmPassword('');
-      }
-
-      if (currentUser.role === 'OWNER' && secretQuestion && secretAnswer) {
-        await setSecretQuestion(currentUser.id, secretQuestion, secretAnswer);
-        setToastMessage('Perfil e pergunta secreta atualizados com sucesso!');
-        setSecretAnswer('');
-      } else if (Object.keys(updates).length === 0) {
+      } else {
         setToastMessage('Nenhuma alteração para salvar.');
       }
     } catch (err) {
@@ -134,32 +125,6 @@ export function ProfileScreen() {
           </div>
         </div>
 
-        {currentUser.role === 'OWNER' && (
-          <div className="bg-white shadow-md rounded-lg p-6 mt-6">
-            <h2 className="text-xl font-bold mb-4">Pergunta Secreta</h2>
-            <p className="text-sm text-gray-500 mb-4">Usada para recuperação de conta. Preencha a resposta apenas se desejar alterá-la.</p>
-            <div className="mb-4">
-              <label htmlFor="secretQuestion" className="block text-gray-700 font-medium mb-2">Pergunta</label>
-              <input
-                id="secretQuestion"
-                type="text"
-                value={secretQuestion}
-                onChange={(e) => setSecretQuestionState(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="mb-6">
-              <label htmlFor="secretAnswer" className="block text-gray-700 font-medium mb-2">Resposta</label>
-              <input
-                id="secretAnswer"
-                type="password"
-                value={secretAnswer}
-                onChange={(e) => setSecretAnswer(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-        )}
 
         {error && <p className="text-red-600 my-4 text-center">{error}</p>}
 

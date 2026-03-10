@@ -1,4 +1,4 @@
-export type UserStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PASSWORD_RESET_REQUESTED';
+export type UserStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type UserRole = 'OWNER' | 'SUPER_ADMIN' | 'ADMIN' | 'SELLER';
 
 export interface UserCommissionSettings {
@@ -25,8 +25,6 @@ export interface User {
   commissionPercentage?: number;
   commissionSettings?: UserCommissionSettings;
   mustChangePassword?: boolean;
-  secretQuestion?: string;
-  secretAnswerHash?: string;
   calendarSettings?: {
     calendarId?: string;
     autoSync: boolean;
