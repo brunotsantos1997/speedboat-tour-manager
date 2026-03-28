@@ -28,6 +28,7 @@ export const useCreateEventViewModel = () => {
 
   // Event State
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('13:00');
   const [scheduledEvents, setScheduledEvents] = useState<EventType[]>([]);
@@ -59,7 +60,7 @@ export const useCreateEventViewModel = () => {
   const [clientSearchTerm, setClientSearchTerm] = useState('');
   const [clientSearchResults, setClientSearchResults] = useState<ClientProfile[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [loyaltySuggestion, setLoyaltySuggestion] = useState<string | null>(null);
+  const [loyaltySuggestion] = useState<string | null>(null);
 
   // New Client Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -73,12 +74,79 @@ export const useCreateEventViewModel = () => {
   // Company Data
   const [companyData, setCompanyData] = useState<CompanyData | null>(null);
 
+  // --- Helpers ---
+  const dayOfWeek = useMemo(() => {
+    if (!selectedDate) return null;
+    return format(selectedDate, 'EEEE').toLowerCase() as DayOfWeek;
+  }, [selectedDate]);
+
+  const isBusinessClosed = useMemo(() => {
+    if (!companyData?.businessHours || !dayOfWeek) return true;
+    const dayConfig = companyData.businessHours[dayOfWeek];
+    return dayConfig.isClosed || !dayConfig.startTime || !dayConfig.endTime;
+  }, [companyData, dayOfWeek]);
+
+  const availableTimeSlots = useMemo(() => {
+    const allDaySlots = Array.from({ length: 1440 }, (_, i) => minutesToTime(i));
+    if (!companyData || isBusinessClosed || !dayOfWeek) return [];
+    const { startTime: businessStartTime, endTime: businessEndTime } = companyData.businessHours[dayOfWeek];
+    const businessStartMin = timeToMinutes(businessStartTime);
+    let businessEndMin = timeToMinutes(businessEndTime);
+
+    // If end time is 00:00 and it's not closed, it likely means end of day (24h)
+    if (businessEndMin === 0 && businessStartMin === 0) {
+      businessEndMin = 1440;
+    } else if (businessEndMin <= businessStartMin) {
+      // Handle cases where end time is on the next day or meant to be 24h
+      businessEndMin = 1440;
+    }
+
+    const validSlots = allDaySlots.filter(slot => {
+      const min = timeToMinutes(slot);
+      return min >= businessStartMin && min <= (businessEndMin - 30);
+    });
+    if (!selectedBoat) return validSlots;
+    const orgTime = selectedBoat.organizationTimeMinutes || 0;
+    const otherBoatEvents = scheduledEvents.filter(event => event.boat?.id === selectedBoat.id && event.id !== editingEventId);
+    return validSlots.filter(slot => {
+      const slotMin = timeToMinutes(slot);
+      const slotEndMin = slotMin + 30;
+      return !otherBoatEvents.some(event => {
+        const eventStartMin = timeToMinutes(event.startTime);
+        const eventEndMin = timeToMinutes(event.endTime);
+        const isBefore = slotEndMin <= (eventStartMin - 2 * orgTime);
+        const isAfter = slotMin >= (eventEndMin + 2 * orgTime);
+        return !isBefore && !isAfter;
+      });
+    });
+  }, [scheduledEvents, selectedBoat, editingEventId, companyData, dayOfWeek, isBusinessClosed]);
+
+  const availableEndTimeSlots = useMemo(() => {
+    if (!startTime || !selectedBoat || !selectedDate) return [];
+    const startDateTime = new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${startTime}:00`).getTime();
+    const orgTimeMs = (selectedBoat.organizationTimeMinutes || 0) * 60 * 1000;
+    const options: { time: string, date: Date }[] = [];
+    for (let n = 1; n <= 48; n++) {
+      const currentDateTime = new Date(startDateTime + (n * 30 * 60 * 1000));
+      const endTimeStr = format(currentDateTime, 'HH:mm');
+      const hasConflict = scheduledEvents
+        .filter(event => event.boat?.id === selectedBoat.id && event.id !== editingEventId)
+        .some(event => {
+          const eventStartDateTime = new Date(`${event.date}T${event.startTime}:00`).getTime();
+          const eventEndDateTime = new Date(`${event.endDate}T${event.endTime}:00`).getTime();
+          return (startDateTime - orgTimeMs) < (eventEndDateTime + orgTimeMs) && (currentDateTime.getTime() + orgTimeMs) > (eventStartDateTime - orgTimeMs);
+        });
+      if (hasConflict) break;
+      options.push({ time: endTimeStr, date: currentDateTime });
+    }
+    return options;
+  }, [startTime, selectedDate, scheduledEvents, selectedBoat, editingEventId]);
+
   // Unified Data Loading
   useEffect(() => {
     const loadAllData = async () => {
       setIsLoading(true);
       try {
-        // Load event if editing
         let initialEvent: EventType | null = null;
         if (editingEventId) {
           const event = await eventRepository.getById(editingEventId);
@@ -93,7 +161,6 @@ export const useCreateEventViewModel = () => {
           setOriginalEvent(null);
         }
 
-        // Load reference data
         const [products, boats, boardingLocations, tourTypes, companyDataResponse] = await Promise.all([
           productRepository.getAll(),
           boatRepository.getAll(),
@@ -109,10 +176,11 @@ export const useCreateEventViewModel = () => {
         setAvailableTourTypes(tourTypes);
 
         if (initialEvent) {
-          // Set state from event
           const eventDate = new Date(initialEvent.date);
+          const eventEndDate = new Date(initialEvent.endDate || initialEvent.date);
           const userTimezoneOffset = eventDate.getTimezoneOffset() * 60000;
           setSelectedDate(new Date(eventDate.getTime() + userTimezoneOffset));
+          setEndDate(new Date(eventEndDate.getTime() + userTimezoneOffset));
           setStartTime(initialEvent.startTime);
           setEndTime(initialEvent.endTime);
           setSelectedBoat(initialEvent.boat);
@@ -128,7 +196,6 @@ export const useCreateEventViewModel = () => {
           setTax(initialEvent.tax || 0);
           setTaxDescription(initialEvent.taxDescription || '');
         } else {
-          // Set defaults for new event
           if (boats.length > 0) setSelectedBoat(boats[0]);
           if (boardingLocations.length > 0) setSelectedBoardingLocation(boardingLocations[0]);
           if (tourTypes.length > 0) {
@@ -144,11 +211,9 @@ export const useCreateEventViewModel = () => {
         setIsLoading(false);
       }
     };
-
     loadAllData();
   }, [editingEventId]);
 
-  // Fetch scheduled events when selected date changes
   useEffect(() => {
     if (selectedDate) {
       const dateString = format(selectedDate, 'yyyy-MM-dd');
@@ -171,15 +236,11 @@ export const useCreateEventViewModel = () => {
   }, [startTime, endTime]);
 
   const toggleCourtesy = useCallback((productId: string) => {
-    setSelectedProducts(prev =>
-      prev.map(p => p.id === productId ? { ...p, isCourtesy: !p.isCourtesy } : p)
-    );
+    setSelectedProducts(prev => prev.map(p => p.id === productId ? { ...p, isCourtesy: !p.isCourtesy } : p));
   }, []);
 
   const updateProductDiscount = useCallback((productId: string, discount: Discount) => {
-    setSelectedProducts(prev =>
-      prev.map(p => p.id === productId ? { ...p, discount } : p)
-    );
+    setSelectedProducts(prev => prev.map(p => p.id === productId ? { ...p, discount } : p));
   }, []);
 
   const updateDiscountType = useCallback((type: 'FIXED' | 'PERCENTAGE', category: 'rental') => {
@@ -193,18 +254,11 @@ export const useCreateEventViewModel = () => {
 
   const updatePassengerCount = useCallback((count: number) => {
     const newCount = Math.max(1, count);
-    if (!isNaN(newCount)) {
-      setPassengerCount(newCount);
-    }
+    if (!isNaN(newCount)) setPassengerCount(newCount);
   }, []);
 
-  const updateTax = useCallback((value: number) => {
-    setTax(isNaN(value) || value < 0 ? 0 : value);
-  }, []);
-
-  const updateTaxDescription = useCallback((desc: string) => {
-    setTaxDescription(desc);
-  }, []);
+  const updateTax = useCallback((value: number) => setTax(isNaN(value) || value < 0 ? 0 : value), []);
+  const updateTaxDescription = useCallback((desc: string) => setTaxDescription(desc), []);
 
   const handleBoatSelection = useCallback((boatId: string) => {
     const boat = availableBoats.find(b => b.id === boatId);
@@ -242,6 +296,14 @@ export const useCreateEventViewModel = () => {
       })
     );
   }, []);
+
+  const updateEndDateFromTime = useCallback((time: string) => {
+    const selectedOption = availableEndTimeSlots.find(opt => opt.time === time);
+    if (selectedOption) {
+      setEndTime(time);
+      setEndDate(selectedOption.date);
+    }
+  }, [availableEndTimeSlots]);
 
   const handleClientSearch = useCallback(async (term: string) => {
     setClientSearchTerm(term);
@@ -294,7 +356,6 @@ export const useCreateEventViewModel = () => {
 
   const handleSaveClient = useCallback(async () => {
     if (!newClientName || !newClientPhone) return;
-
     try {
       if (editingClient) {
         const updatedClient = { ...editingClient, name: newClientName, phone: newClientPhone };
@@ -307,24 +368,20 @@ export const useCreateEventViewModel = () => {
         const newClient = await clientRepository.add({ name: newClientName, phone: newClientPhone });
         selectClient(newClient);
       }
-
       handleCloseModal();
     } catch (error) {
       console.error('Erro ao salvar cliente:', error);
-      throw error; // Re-throw to be handled by the UI (toast)
+      throw error;
     }
-  }, [editingClient, newClientName, newClientPhone, selectedClient, clientSearchTerm, handleCloseModal, selectClient]);
+  }, [editingClient, newClientName, newClientPhone, selectedClient, handleCloseModal, selectClient]);
 
   const handleDeleteClient = useCallback(async (clientId: string) => {
     if (await confirm('Confirmar Exclusão', 'Tem certeza que deseja excluir este cliente?')) {
       await clientRepository.delete(clientId);
-      if (selectedClient?.id === clientId) {
-        clearClientSelection();
-      }
-       handleClientSearch(clientSearchTerm);
+      if (selectedClient?.id === clientId) clearClientSelection();
+      handleClientSearch(clientSearchTerm);
     }
-  }, [selectedClient, clientSearchTerm, handleClientSearch, clearClientSelection]);
-
+  }, [selectedClient, clientSearchTerm, handleClientSearch, clearClientSelection, confirm]);
 
   // Calculations
   const isCapacityExceeded = useMemo(() => {
@@ -333,49 +390,33 @@ export const useCreateEventViewModel = () => {
   }, [passengerCount, selectedBoat]);
 
   const boatRentalCost = useMemo(() => {
-    if (!selectedBoat || !startTime || !endTime) return 0;
-
-    const startMin = timeToMinutes(startTime);
-    const endMin = timeToMinutes(endTime);
-    const durationInMinutes = endMin - startMin;
-
+    if (!selectedBoat || !startTime || !endTime || !selectedDate || !endDate) return 0;
+    const startDateTime = new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${startTime}:00`).getTime();
+    const endDateTime = new Date(`${format(endDate, 'yyyy-MM-dd')}T${endTime}:00`).getTime();
+    const durationInMinutes = (endDateTime - startDateTime) / (60 * 1000);
     if (durationInMinutes <= 0) return 0;
-
     const hours = Math.floor(durationInMinutes / 60);
     const remainingMinutes = durationInMinutes % 60;
-
     let cost = hours * (selectedBoat.pricePerHour || 0);
-    if (remainingMinutes >= 30) {
-      cost += (selectedBoat.pricePerHalfHour || 0);
-    }
-
+    if (remainingMinutes >= 30) cost += (selectedBoat.pricePerHalfHour || 0);
     return cost;
-  }, [startTime, endTime, selectedBoat]);
+  }, [startTime, endTime, selectedBoat, selectedDate, endDate]);
 
   const productsCost = useMemo(() => {
     return selectedProducts.reduce((acc, product) => {
-      if (product.isCourtesy) {
-        return acc;
-      }
-
+      if (product.isCourtesy) return acc;
       switch (product.pricingType) {
-        case 'PER_PERSON':
-          return acc + (product.price || 0) * passengerCount;
+        case 'PER_PERSON': return acc + (product.price || 0) * passengerCount;
         case 'HOURLY':
           if (product.startTime && product.endTime && product.hourlyPrice) {
             const startMin = timeToMinutes(product.startTime);
             const endMin = timeToMinutes(product.endTime);
-            const durationInMinutes = endMin - startMin;
-            const durationInHours = durationInMinutes / 60;
-
-            if (durationInHours > 0) {
-              return acc + durationInHours * product.hourlyPrice;
-            }
+            const durationInHours = (endMin - startMin) / 60;
+            if (durationInHours > 0) return acc + durationInHours * product.hourlyPrice;
           }
           return acc;
         case 'FIXED':
-        default:
-          return acc + (product.price || 0);
+        default: return acc + (product.price || 0);
       }
     }, 0);
   }, [selectedProducts, passengerCount]);
@@ -390,61 +431,49 @@ export const useCreateEventViewModel = () => {
   const totalDiscount = useMemo(() => {
     const productDiscountsTotal = selectedProducts.reduce((acc, p) => {
       if (p.isCourtesy || !p.discount || p.discount.value <= 0) return acc;
-
       let itemGross = 0;
       if (p.pricingType === 'PER_PERSON') itemGross = (p.price || 0) * passengerCount;
       else if (p.pricingType === 'HOURLY' && p.startTime && p.endTime && p.hourlyPrice) {
            const duration = (timeToMinutes(p.endTime) - timeToMinutes(p.startTime)) / 60;
            itemGross = duration > 0 ? duration * p.hourlyPrice : 0;
       } else itemGross = p.price || 0;
-
       if (p.discount.type === 'FIXED') return acc + p.discount.value;
       return acc + (itemGross * (p.discount.value / 100));
     }, 0);
-
     return rentalDiscountValue + productDiscountsTotal;
   }, [rentalDiscountValue, selectedProducts, passengerCount]);
 
   const total = useMemo(() => Math.max(0, subtotal - totalDiscount + tax), [subtotal, totalDiscount, tax]);
 
   const createEvent = useCallback(async () => {
-    if (!selectedDate || !selectedClient || !selectedBoat || !selectedBoardingLocation || !selectedTourType) {
+    if (!selectedDate || !selectedClient || !selectedBoat || !selectedBoardingLocation || !selectedTourType || !endDate) {
       throw new Error('Campos obrigatórios ausentes.');
     }
-
     const productDiscountsTotal = selectedProducts.reduce((acc, p) => {
         if (p.isCourtesy || !p.discount || p.discount.value <= 0) return acc;
-
         let itemGross = 0;
         if (p.pricingType === 'PER_PERSON') itemGross = (p.price || 0) * passengerCount;
         else if (p.pricingType === 'HOURLY' && p.startTime && p.endTime && p.hourlyPrice) {
              const duration = (timeToMinutes(p.endTime) - timeToMinutes(p.startTime)) / 60;
              itemGross = duration > 0 ? duration * p.hourlyPrice : 0;
         } else itemGross = p.price || 0;
-
         if (p.discount.type === 'FIXED') return acc + p.discount.value;
         return acc + (itemGross * (p.discount.value / 100));
     }, 0);
-
     const productsRevenue = productsCost - productDiscountsTotal;
     const rentalRevenue = boatRentalCost - rentalDiscountValue;
-
-    // Calculate Costs
     let rentalCost = 0;
-    if (selectedBoat && startTime && endTime) {
-      const startMin = timeToMinutes(startTime);
-      const endMin = timeToMinutes(endTime);
-      const durationInMinutes = endMin - startMin;
-      if (durationInMinutes > 0) {
-        const hours = Math.floor(durationInMinutes / 60);
-        const remainingMinutes = durationInMinutes % 60;
-        rentalCost = hours * (selectedBoat.costPerHour || 0);
-        if (remainingMinutes >= 30) {
-          rentalCost += (selectedBoat.costPerHalfHour || 0);
+    if (selectedBoat && startTime && endTime && selectedDate && endDate) {
+        const startDateTime = new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${startTime}:00`).getTime();
+        const endDateTime = new Date(`${format(endDate, 'yyyy-MM-dd')}T${endTime}:00`).getTime();
+        const durationInMinutes = (endDateTime - startDateTime) / (60 * 1000);
+        if (durationInMinutes > 0) {
+            const hours = Math.floor(durationInMinutes / 60);
+            const remainingMinutes = durationInMinutes % 60;
+            rentalCost = hours * (selectedBoat.costPerHour || 0);
+            if (remainingMinutes >= 30) rentalCost += (selectedBoat.costPerHalfHour || 0);
         }
-      }
     }
-
     const productsCostValue = selectedProducts.reduce((acc, p) => {
       if (p.isCourtesy) return acc;
       if (p.pricingType === 'PER_PERSON') return acc + (p.cost || 0) * passengerCount;
@@ -454,13 +483,12 @@ export const useCreateEventViewModel = () => {
       }
       return acc + (p.cost || 0);
     }, 0);
-
     const eventStatus = isPreScheduled ? 'PRE_SCHEDULED' : 'SCHEDULED';
-
     const eventData: any = {
       date: format(selectedDate, 'yyyy-MM-dd'),
-      startTime: startTime,
-      endTime: endTime,
+      endDate: format(endDate, 'yyyy-MM-dd'),
+      startTime,
+      endTime,
       status: eventStatus as EventType['status'],
       paymentStatus: (editingEventId && originalPaymentStatus === 'CONFIRMED' ? 'CONFIRMED' : 'PENDING') as PaymentStatus,
       boat: selectedBoat,
@@ -468,7 +496,6 @@ export const useCreateEventViewModel = () => {
       tourType: selectedTourType,
       products: selectedProducts.map(p => ({ ...p, snapshotCost: p.cost })),
       rentalDiscount,
-      // For editing legacy events, we want to clear the old discount fields upon saving
       discount: { type: 'FIXED', value: 0 },
       productsDiscount: { type: 'FIXED', value: 0 },
       client: selectedClient,
@@ -487,251 +514,36 @@ export const useCreateEventViewModel = () => {
       taxCost: originalEvent?.taxCost || 0,
       additionalCosts: originalEvent?.additionalCosts || [],
     };
-
-    if (isPreScheduled) {
-      // Use existing timestamp if editing, otherwise set now
-      eventData.preScheduledAt = originalEvent?.preScheduledAt || Date.now();
-    }
-
+    if (isPreScheduled) eventData.preScheduledAt = originalEvent?.preScheduledAt || Date.now();
     let savedEvent: EventType;
     if (editingEventId) {
-      const updatedEvent = sanitizeObject({
-        ...eventData,
-        id: editingEventId,
-        createdByUserId: originalEvent?.createdByUserId,
-      }) as EventType;
+      const updatedEvent = sanitizeObject({ ...eventData, id: editingEventId, createdByUserId: originalEvent?.createdByUserId }) as EventType;
       savedEvent = await eventRepository.updateEvent(updatedEvent);
     } else {
-      const newEventData = sanitizeObject({
-        ...eventData,
-        createdByUserId: currentUser?.id,
-      }) as Omit<EventType, 'id'>;
+      const newEventData = sanitizeObject({ ...eventData, createdByUserId: currentUser?.id }) as Omit<EventType, 'id'>;
       savedEvent = await eventRepository.add(newEventData);
     }
-
-    // Auto-sync
     await syncEvent(savedEvent);
-
     return selectedClient;
-  }, [
-    selectedDate,
-    startTime,
-    endTime,
-    selectedBoat,
-    selectedBoardingLocation,
-    selectedTourType,
-    selectedProducts,
-    rentalDiscount,
-    passengerCount,
-    boatRentalCost,
-    productsCost,
-    subtotal,
-    rentalDiscountValue,
-    total,
-    tax,
-    taxDescription,
-    observations,
-    selectedClient,
-    editingEventId,
-    isPreScheduled,
-    currentUser,
-    originalEvent,
-    originalPaymentStatus,
-  ]);
+  }, [selectedDate, endDate, startTime, endTime, selectedBoat, selectedBoardingLocation, selectedTourType, selectedProducts, rentalDiscount, passengerCount, boatRentalCost, productsCost, subtotal, rentalDiscountValue, total, tax, taxDescription, observations, selectedClient, editingEventId, isPreScheduled, currentUser, originalEvent, originalPaymentStatus, syncEvent]);
 
-  useEffect(() => {
-    if (!selectedClient) {
-      setLoyaltySuggestion(null);
-      return;
-    }
-    setLoyaltySuggestion(null);
-  }, [selectedClient]);
-
-  const dayOfWeek = useMemo(() => {
-    if (!selectedDate) return null;
-    return format(selectedDate, 'EEEE').toLowerCase() as DayOfWeek;
-  }, [selectedDate]);
-
-  const isBusinessClosed = useMemo(() => {
-    if (!companyData?.businessHours || !dayOfWeek) return true;
-    const dayConfig = companyData.businessHours[dayOfWeek];
-    return dayConfig.isClosed || !dayConfig.startTime || !dayConfig.endTime;
-  }, [companyData, dayOfWeek]);
-
-  const availableTimeSlots = useMemo(() => {
-    // Generate all minutes of the day (1440 slots)
-    const allDaySlots = Array.from({ length: 1440 }, (_, i) => minutesToTime(i));
-
-    if (!companyData || isBusinessClosed || !dayOfWeek) {
-      return [];
-    }
-    const { startTime: businessStartTime, endTime: businessEndTime } = companyData.businessHours[dayOfWeek];
-    const businessStartMin = timeToMinutes(businessStartTime);
-    const businessEndMin = timeToMinutes(businessEndTime);
-
-    // Initial filter by business hours (start time must be within business hours)
-    // and must allow at least 30 min before closing.
-    const validSlots = allDaySlots.filter(slot => {
-      const min = timeToMinutes(slot);
-      return min >= businessStartMin && min <= (businessEndMin - 30);
-    });
-
-    if (!selectedBoat) {
-      return validSlots;
-    }
-
-    const orgTime = selectedBoat.organizationTimeMinutes || 0;
-    const otherBoatEvents = scheduledEvents.filter(event => event.boat?.id === selectedBoat.id && event.id !== editingEventId);
-
-    return validSlots.filter(slot => {
-      const slotMin = timeToMinutes(slot);
-      const slotEndMin = slotMin + 30; // Minimum duration
-
-      return !otherBoatEvents.some(event => {
-        const eventStartMin = timeToMinutes(event.startTime);
-        const eventEndMin = timeToMinutes(event.endTime);
-
-        // An event starting at slotMin is valid if its blocked window [slotMin - org, slotEndMin + org]
-        // doesn't overlap with existing event's blocked window [eventStart - org, eventEnd + org].
-        // This is equivalent to:
-        // slotEndMin + org <= eventStartMin - org  => slotEndMin <= eventStartMin - 2*org
-        // OR
-        // slotMin - org >= eventEndMin + org  => slotMin >= eventEndMin + 2*org
-
-        const isBefore = slotEndMin <= (eventStartMin - 2 * orgTime);
-        const isAfter = slotMin >= (eventEndMin + 2 * orgTime);
-
-        return !isBefore && !isAfter;
-      });
-    });
-  }, [scheduledEvents, selectedBoat, editingEventId, companyData, dayOfWeek, isBusinessClosed]);
-
-  const availableEndTimeSlots = useMemo(() => {
-    if (!startTime || !selectedBoat) {
-      return [];
-    }
-
-    const startMin = timeToMinutes(startTime);
-    const orgTime = selectedBoat.organizationTimeMinutes || 0;
-
-    // Generate options: startTime + n * 30
-    const options: string[] = [];
-    for (let n = 1; ; n++) {
-      const endMin = startMin + n * 30;
-      if (endMin > 1440) break; // End of day
-
-      const endTimeStr = minutesToTime(endMin);
-
-      // Check if this endTime exceeds business hours (if we want to enforce it)
-      if (companyData && dayOfWeek) {
-        const { endTime: businessEndTime } = companyData.businessHours[dayOfWeek];
-        if (endMin > timeToMinutes(businessEndTime)) break;
-      }
-
-      // Check for conflicts with next events
-      const hasConflict = scheduledEvents
-        .filter(event => event.boat?.id === selectedBoat.id && event.id !== editingEventId)
-        .some(event => {
-          const eventStartMin = timeToMinutes(event.startTime);
-          // Gap must be at least 2 * orgTime
-          return endMin > (eventStartMin - 2 * orgTime) && startMin < (timeToMinutes(event.endTime) + 2 * orgTime);
-        });
-
-      if (hasConflict) break; // Cannot go further if we hit a conflict
-
-      options.push(endTimeStr);
-    }
-
-    return options;
-  }, [startTime, scheduledEvents, selectedBoat, editingEventId, companyData, dayOfWeek]);
-
-
-  // Reset endTime when startTime changes
+  // Reset endTime and endDate when startTime changes
   useEffect(() => {
     if (availableEndTimeSlots.length > 0) {
-      // If current endTime is not in the new available list, or if it's invalid, reset it.
-      if (!availableEndTimeSlots.includes(endTime)) {
-        setEndTime(availableEndTimeSlots[0]);
+      const currentSelectionValid = availableEndTimeSlots.some(opt => opt.time === endTime && endDate && format(opt.date, 'yyyy-MM-dd') === format(endDate, 'yyyy-MM-dd'));
+      if (!currentSelectionValid) {
+        setEndTime(availableEndTimeSlots[0].time);
+        setEndDate(availableEndTimeSlots[0].date);
       }
-    } else {
-      setEndTime('');
-    }
-  }, [availableEndTimeSlots]);
+    } else setEndTime('');
+  }, [availableEndTimeSlots, endTime, endDate]);
 
   // Initial validation for startTime
   useEffect(() => {
-    if (availableTimeSlots.length > 0 && !availableTimeSlots.includes(startTime)) {
-      // Find closest available time or just pick first
-       setStartTime(availableTimeSlots[0]);
-    }
-  }, [availableTimeSlots]);
-
+    if (availableTimeSlots.length > 0 && !availableTimeSlots.includes(startTime)) setStartTime(availableTimeSlots[0]);
+  }, [availableTimeSlots, startTime]);
 
   return {
-    isLoading,
-    editingEventId,
-    selectedDate,
-    startTime,
-    endTime,
-    scheduledEvents,
-    isPreScheduled,
-    availableBoats,
-    selectedBoat,
-    isCapacityExceeded,
-    isBusinessClosed,
-    availableBoardingLocations,
-    selectedBoardingLocation,
-    availableTourTypes,
-    selectedTourType,
-    availableProducts,
-    selectedProducts,
-    rentalDiscount,
-    passengerCount,
-    boatRentalCost,
-    subtotal,
-    totalDiscount,
-    total,
-    tax,
-    taxDescription,
-    observations,
-    setObservations,
-    selectedClient,
-    clientSearchTerm,
-    clientSearchResults,
-    isSearching,
-    loyaltySuggestion,
-    availableTimeSlots,
-    availableEndTimeSlots,
-    isModalOpen,
-    editingClient,
-    newClientName,
-    newClientPhone,
-    setSelectedDate,
-    setStartTime,
-    setEndTime,
-    setIsPreScheduled,
-    handleBoatSelection,
-    handleBoardingLocationSelection,
-    handleTourTypeSelection,
-    handleSaveTourType,
-    updateHourlyProductTime,
-    toggleProduct,
-    toggleCourtesy,
-    updateProductDiscount,
-    updateDiscountType,
-    updateDiscountValue,
-    updatePassengerCount,
-    updateTax,
-    updateTaxDescription,
-    handleClientSearch,
-    selectClient,
-    clearClientSelection,
-    setNewClientName,
-    setNewClientPhone,
-    handleOpenModal,
-    handleCloseModal,
-    handleSaveClient,
-    handleDeleteClient,
-    createEvent,
+    isLoading, editingEventId, selectedDate, endDate, startTime, endTime, scheduledEvents, isPreScheduled, availableBoats, selectedBoat, isCapacityExceeded, isBusinessClosed, availableBoardingLocations, selectedBoardingLocation, availableTourTypes, selectedTourType, availableProducts, selectedProducts, rentalDiscount, passengerCount, boatRentalCost, subtotal, totalDiscount, total, tax, taxDescription, observations, setObservations, selectedClient, clientSearchTerm, clientSearchResults, isSearching, loyaltySuggestion, availableTimeSlots, availableEndTimeSlots, isModalOpen, editingClient, newClientName, newClientPhone, setSelectedDate, setEndDate, setStartTime, setEndTime, setIsPreScheduled, handleBoatSelection, handleBoardingLocationSelection, handleTourTypeSelection, handleSaveTourType, updateHourlyProductTime, updateEndDateFromTime, toggleProduct, toggleCourtesy, updateProductDiscount, updateDiscountType, updateDiscountValue, updatePassengerCount, updateTax, updateTaxDescription, handleClientSearch, selectClient, clearClientSelection, setNewClientName, setNewClientPhone, handleOpenModal, handleCloseModal, handleSaveClient, handleDeleteClient, createEvent,
   };
 };

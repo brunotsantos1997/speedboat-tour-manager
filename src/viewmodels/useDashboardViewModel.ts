@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { EventType } from '../core/domain/types';
 import { eventRepository } from '../core/repositories/EventRepository';
 import { paymentRepository } from '../core/repositories/PaymentRepository';
-import { startOfDay, isWithinInterval, startOfWeek, endOfWeek, getMonth, isSameDay, format } from 'date-fns';
+import { startOfDay, startOfWeek, endOfWeek, getMonth, format } from 'date-fns';
 import { useToastContext } from '../ui/contexts/ToastContext';
 import { useEventSync } from './useEventSync';
 
@@ -196,7 +196,8 @@ export const useDashboardViewModel = () => {
       if (event.status !== 'SCHEDULED' && event.status !== 'PRE_SCHEDULED') return false;
 
       // Combine date and time correctly into a local Date object
-      const eventEndDateTimeString = `${event.date}T${event.endTime}`;
+      const eventEndDate = event.endDate || event.date;
+      const eventEndDateTimeString = `${eventEndDate}T${event.endTime}`;
       const eventEndTime = new Date(eventEndDateTimeString);
 
       return eventEndTime > now;
@@ -208,15 +209,23 @@ export const useDashboardViewModel = () => {
       (event.status === 'COMPLETED' || event.status === 'CANCELLED' || event.status === 'PENDING_REFUND')
     ), [allEvents]);
 
-  const eventsForSelectedDate = useMemo(() =>
-    upcomingEvents.filter(event => isSameDay(parseLocalDate(event.date), selectedDate)),
-    [upcomingEvents, selectedDate]
-  );
+  const eventsForSelectedDate = useMemo(() => {
+    const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+    return upcomingEvents.filter(event => {
+        const endDate = event.endDate || event.date;
+        return selectedDateStr >= event.date && selectedDateStr <= endDate;
+    });
+  }, [upcomingEvents, selectedDate]);
 
   const eventsThisWeek = useMemo(() => {
-    const start = startOfWeek(today); // Sunday is the default
-    const end = endOfWeek(today);
-    return upcomingEvents.filter(event => isWithinInterval(parseLocalDate(event.date), { start, end }));
+    const start = format(startOfWeek(today), 'yyyy-MM-dd');
+    const end = format(endOfWeek(today), 'yyyy-MM-dd');
+    return upcomingEvents.filter(event => {
+        const endDate = event.endDate || event.date;
+        // Event overlaps with the week interval [start, end]
+        // [event.date, endDate] overlaps with [start, end]
+        return event.date <= end && endDate >= start;
+    });
   }, [upcomingEvents, today]);
 
   const pendingPayments = useMemo(() =>
@@ -247,9 +256,19 @@ export const useDashboardViewModel = () => {
     return { realizedRevenue, pendingRevenue, totalEvents };
   }, [allEvents, allPayments, today]);
 
-  const calendarEvents = useMemo(() =>
-    upcomingEvents.map(event => parseLocalDate(event.date)),
-  [upcomingEvents]);
+  const calendarEvents = useMemo(() => {
+    const dates: Date[] = [];
+    upcomingEvents.forEach(event => {
+        let current = parseLocalDate(event.date);
+        const endStr = event.endDate || event.date;
+        const end = parseLocalDate(endStr);
+        while (current <= end) {
+            dates.push(new Date(current));
+            current.setDate(current.getDate() + 1);
+        }
+    });
+    return dates;
+  }, [upcomingEvents]);
 
   return {
     isLoading,

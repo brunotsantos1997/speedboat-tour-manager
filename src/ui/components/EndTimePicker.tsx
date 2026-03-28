@@ -1,15 +1,22 @@
 // src/ui/components/EndTimePicker.tsx
 import React, { useState } from 'react';
-import { Clock } from 'lucide-react';
+import { Clock, Calendar } from 'lucide-react';
+import { format } from 'date-fns';
+
+interface EndTimeOption {
+  time: string;
+  date: Date;
+}
 
 interface EndTimePickerProps {
   value: string;
   onChange: (value: string) => void;
-  options: string[];
+  options: EndTimeOption[];
   disabled?: boolean;
+  selectedDate?: Date;
 }
 
-export const EndTimePicker: React.FC<EndTimePickerProps> = ({ value, onChange, options, disabled }) => {
+export const EndTimePicker: React.FC<EndTimePickerProps> = ({ value, onChange, options, disabled, selectedDate }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleSelect = (time: string) => {
@@ -45,18 +52,26 @@ export const EndTimePicker: React.FC<EndTimePickerProps> = ({ value, onChange, o
 
             <div className="flex-grow overflow-y-auto p-2">
               <div className="grid grid-cols-2 gap-2">
-                {options.map((time) => (
+                {options.map((opt) => (
                   <button
-                    key={time}
+                    key={`${opt.date.getTime()}-${opt.time}`}
                     type="button"
-                    onClick={() => handleSelect(time)}
-                    className={`p-3 rounded-xl text-center font-medium transition-all ${
-                      value === time
+                    onClick={() => handleSelect(opt.time)}
+                    className={`p-3 rounded-xl text-center font-medium transition-all relative ${
+                      value === opt.time && selectedDate && format(opt.date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')
                         ? 'bg-blue-600 text-white shadow-md'
                         : 'hover:bg-blue-50 text-gray-700 border border-transparent hover:border-blue-200'
                     }`}
                   >
-                    {time}
+                    <div className="flex flex-col">
+                        <span>{opt.time}</span>
+                        {selectedDate && format(opt.date, 'yyyy-MM-dd') !== format(selectedDate, 'yyyy-MM-dd') && (
+                            <span className="text-[10px] opacity-80 flex items-center justify-center">
+                                <Calendar size={10} className="mr-0.5" />
+                                {format(opt.date, 'dd/MM')}
+                            </span>
+                        )}
+                    </div>
                   </button>
                 ))}
               </div>

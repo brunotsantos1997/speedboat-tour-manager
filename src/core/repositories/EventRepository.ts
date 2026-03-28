@@ -116,7 +116,11 @@ class EventRepositoryImpl implements IEventRepository {
 
   async getEventsByDate(date: string): Promise<EventType[]> {
     const all = await this.getAll();
-    return all.filter(e => e.date === date);
+    return all.filter(e => {
+        // Event spans across multiple days: date is between date and endDate inclusive
+        const endDate = e.endDate || e.date;
+        return date >= e.date && date <= endDate;
+    });
   }
 
   async getEventsByClient(clientId: string): Promise<EventType[]> {
@@ -137,21 +141,22 @@ class EventRepositoryImpl implements IEventRepository {
   }
 
   private isTimeConflict(eventA: Omit<EventType, 'id'>, eventB: EventType): boolean {
-    if (eventA.date !== eventB.date || eventA.boat?.id !== eventB.boat?.id) {
+    if (eventA.boat?.id !== eventB.boat?.id) {
       return false;
     }
 
     const orgTime = eventA.boat?.organizationTimeMinutes || 0;
 
-    const startA = timeToMinutes(eventA.startTime);
-    const endA = timeToMinutes(eventA.endTime);
-    const startB = timeToMinutes(eventB.startTime);
-    const endB = timeToMinutes(eventB.endTime);
+    const startDateTimeA = new Date(`${eventA.date}T${eventA.startTime}:00`).getTime();
+    const endDateTimeA = new Date(`${eventA.endDate || eventA.date}T${eventA.endTime}:00`).getTime();
+    const startDateTimeB = new Date(`${eventB.date}T${eventB.startTime}:00`).getTime();
+    const endDateTimeB = new Date(`${eventB.endDate || eventB.date}T${eventB.endTime}:00`).getTime();
 
-    // Overlap considering organization time on both ends for both events
+    const orgTimeMs = orgTime * 60 * 1000;
+
     // Busy window for A: [startA - orgTime, endA + orgTime]
     // Busy window for B: [startB - orgTime, endB + orgTime]
-    return (startA - orgTime) < (endB + orgTime) && (endA + orgTime) > (startB - orgTime);
+    return (startDateTimeA - orgTimeMs) < (endDateTimeB + orgTimeMs) && (endDateTimeA + orgTimeMs) > (startDateTimeB - orgTimeMs);
   }
 
   async add(eventData: Omit<EventType, 'id'>): Promise<EventType> {
@@ -245,9 +250,9 @@ class EventRepositoryImpl implements IEventRepository {
 
     for (const event of confirmedEvents) {
       try {
-        const startMin = timeToMinutes(event.startTime);
-        const endMin = timeToMinutes(event.endTime);
-        const durationInMinutes = endMin - startMin;
+        const startDateTime = new Date(`${event.date}T${event.startTime}:00`).getTime();
+        const endDateTime = new Date(`${event.endDate || event.date}T${event.endTime}:00`).getTime();
+        const durationInMinutes = (endDateTime - startDateTime) / (60 * 1000);
 
         let rentalRevenue = 0;
         const hours = durationInMinutes > 0 ? Math.floor(durationInMinutes / 60) : 0;

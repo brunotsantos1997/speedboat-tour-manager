@@ -370,9 +370,10 @@ export const CreateEventScreen: React.FC = () => {
                           <label className="block text-sm font-medium text-gray-700 mb-1">Término</label>
                           <EndTimePicker
                             value={vm.endTime}
-                            onChange={vm.setEndTime}
+                            onChange={vm.updateEndDateFromTime}
                             options={vm.availableEndTimeSlots}
                             disabled={vm.isBusinessClosed}
+                            selectedDate={vm.selectedDate}
                           />
                         </div>
                       </>

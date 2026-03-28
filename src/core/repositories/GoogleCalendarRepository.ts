@@ -80,7 +80,7 @@ class GoogleCalendarRepository {
 
   private convertToGoogleEvent(event: EventType) {
     const startDateTime = `${event.date}T${event.startTime}:00`;
-    const endDateTime = `${event.date}T${event.endTime}:00`;
+    const endDateTime = `${event.endDate}T${event.endTime}:00`;
 
     // Try to determine timezone from browser or use default
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo';

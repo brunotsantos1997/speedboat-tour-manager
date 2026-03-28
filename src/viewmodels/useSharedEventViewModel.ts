@@ -9,7 +9,6 @@ import { eventRepository } from '../core/repositories/EventRepository';
 import { paymentRepository } from '../core/repositories/PaymentRepository';
 import { CompanyDataRepository } from '../core/repositories/CompanyDataRepository';
 import { format } from 'date-fns';
-import { timeToMinutes, minutesToTime } from '../core/utils/timeUtils';
 import { boardingLocationRepository } from '../core/repositories/BoardingLocationRepository';
 import { sanitizeObject } from '../core/utils/objectUtils';
 import { useToastContext } from '../ui/contexts/ToastContext';
@@ -67,9 +66,9 @@ export const useSharedEventViewModel = (editingEventId?: string | null) => {
             setPassengerCount(event.passengerCount);
             setObservations(event.observations || '');
 
-            const startMin = timeToMinutes(event.startTime);
-            const endMin = timeToMinutes(event.endTime);
-            setDurationHours(Math.max(1, (endMin - startMin) / 60));
+            const startDateTime = new Date(`${event.date}T${event.startTime}:00`).getTime();
+            const endDateTime = new Date(`${event.endDate || event.date}T${event.endTime}:00`).getTime();
+            setDurationHours(Math.max(1, (endDateTime - startDateTime) / (60 * 60 * 1000)));
 
             if (event.passengerCount > 0) {
               setCostPerPerson((event.rentalGross || 0) / event.passengerCount);
@@ -94,11 +93,17 @@ export const useSharedEventViewModel = (editingEventId?: string | null) => {
     }
   }, [selectedDate]);
 
-  const endTime = useMemo(() => {
-    const startMin = timeToMinutes(startTime);
-    const endMin = startMin + (durationHours * 60);
-    return minutesToTime(endMin % 1440);
-  }, [startTime, durationHours]);
+  const endInfo = useMemo(() => {
+    const startDateTime = new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${startTime}:00`);
+    const endDateTime = new Date(startDateTime.getTime() + (durationHours * 60 * 60 * 1000));
+    return {
+        time: format(endDateTime, 'HH:mm'),
+        date: format(endDateTime, 'yyyy-MM-dd')
+    };
+  }, [selectedDate, startTime, durationHours]);
+
+  const endTime = endInfo.time;
+  const endDate = endInfo.date;
 
   const subtotal = useMemo(() => {
     return passengerCount * costPerPerson;
@@ -121,6 +126,7 @@ export const useSharedEventViewModel = (editingEventId?: string | null) => {
     if (!selectedBoat) return slots;
 
     const orgTime = selectedBoat.organizationTimeMinutes || 0;
+    const orgTimeMs = orgTime * 60 * 1000;
     const otherEvents = scheduledEvents.filter(e =>
         e.id !== editingEventId &&
         e.boat.id === selectedBoat.id &&
@@ -130,19 +136,15 @@ export const useSharedEventViewModel = (editingEventId?: string | null) => {
     );
 
     return slots.filter(slot => {
-      const slotMin = timeToMinutes(slot);
-      const slotEndMin = slotMin + (durationHours * 60);
-
-      if (slotEndMin > 1440) return false;
+      const startDateTime = new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${slot}:00`).getTime();
+      const endDateTime = startDateTime + (durationHours * 60 * 60 * 1000);
 
       return !otherEvents.some(event => {
-        const eventStartMin = timeToMinutes(event.startTime);
-        const eventEndMin = timeToMinutes(event.endTime);
+        const eventStartDateTime = new Date(`${event.date}T${event.startTime}:00`).getTime();
+        const eventEndDateTime = new Date(`${event.endDate || event.date}T${event.endTime}:00`).getTime();
 
-        const isBefore = slotEndMin <= (eventStartMin - 2 * orgTime);
-        const isAfter = slotMin >= (eventEndMin + 2 * orgTime);
-
-        return !isBefore && !isAfter;
+        const isConflict = (startDateTime - orgTimeMs) < (eventEndDateTime + orgTimeMs) && (endDateTime + orgTimeMs) > (eventStartDateTime - orgTimeMs);
+        return isConflict;
       });
     });
   }, [selectedBoat, scheduledEvents, durationHours]);
@@ -196,6 +198,7 @@ export const useSharedEventViewModel = (editingEventId?: string | null) => {
         const updatedEvent: EventType = {
           ...originalEvent,
           date: format(selectedDate, 'yyyy-MM-dd'),
+          endDate,
           startTime,
           endTime,
           boat: selectedBoat!,
@@ -260,6 +263,7 @@ export const useSharedEventViewModel = (editingEventId?: string | null) => {
 
       const eventData: Partial<EventType> = {
         date: format(selectedDate, 'yyyy-MM-dd'),
+        endDate,
         startTime,
         endTime,
         status: 'SCHEDULED',

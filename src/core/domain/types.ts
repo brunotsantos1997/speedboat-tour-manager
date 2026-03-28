@@ -115,7 +115,8 @@ export interface Payment {
  */
 export interface EventType {
   id: string;
-  date: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD (Start Date)
+  endDate: string; // YYYY-MM-DD (End Date)
   startTime: string; // HH:MM
   endTime: string; // HH:MM
   status: EventStatus;

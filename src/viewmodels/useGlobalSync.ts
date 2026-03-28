@@ -39,6 +39,7 @@ export const useGlobalSync = () => {
         // Data that affects the calendar event content
         const relevantData = JSON.stringify({
           date: event.date,
+          endDate: event.endDate || event.date,
           startTime: event.startTime,
           endTime: event.endTime,
           status: event.status,

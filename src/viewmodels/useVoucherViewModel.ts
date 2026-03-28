@@ -81,11 +81,9 @@ export const useVoucherViewModel = () => {
       const remainingReservationFee = Math.max(0, reservationFee - totalPaid);
       const remainingBalance = Math.max(0, currentEvent.total - totalPaid);
 
-      const parseTime = (time: string) => {
-        const [h, m] = time.split(':').map(Number);
-        return h + m / 60;
-      };
-      const durationHours = parseTime(currentEvent.endTime) - parseTime(currentEvent.startTime);
+      const startDateTime = new Date(`${currentEvent.date}T${currentEvent.startTime}:00`).getTime();
+      const endDateTime = new Date(`${currentEvent.endDate || currentEvent.date}T${currentEvent.endTime}:00`).getTime();
+      const durationHours = (endDateTime - startDateTime) / (60 * 60 * 1000);
 
       setVoucher({
         ...currentEvent,
