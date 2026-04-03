@@ -479,7 +479,7 @@ O nome da aplicação pode ser configurado através da variável de ambiente `VI
 
 ## 📄 **Licença**
 
-Este projeto está licenciado sob a **MIT License**.
+Este projeto está licenciado sob licença privada. Todos os direitos reservados.
 
 ## 📞 **Suporte**
 
