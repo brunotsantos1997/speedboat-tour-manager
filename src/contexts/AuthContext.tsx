@@ -64,11 +64,8 @@ interface AuthContextType {
   updateCalendarSettings: (userId: string, settings: { calendarId?: string; autoSync: boolean }) => Promise<void>;
   updateCompletedTours: (userId: string, tourId: string) => Promise<void>;
   resetTours: (userId: string) => Promise<void>;
-  requestPasswordReset: (email: string) => Promise<User | null>;
+  requestPasswordReset: (email: string) => Promise<void>;
   approvePasswordReset: (approverId: string, targetUserId: string) => Promise<string>;
-  setSecretQuestion: (userId: string, question: string, answer: string) => Promise<void>;
-  verifySecretAnswer: (email: string, answer: string) => Promise<User | null>;
-  resetPasswordAfterVerification: (userId: string, newPassword: string) => Promise<void>;
   linkedProviders: string[];
   googleAccessToken: string | null;
   setGoogleAccessToken: (token: string | null) => void;
@@ -150,7 +147,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     });
     return unsubscribe;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = async (email: string, password: string): Promise<User | null> => {
@@ -265,9 +261,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const updateUserCommissionSettings = async (userId: string, settings: UserCommissionSettings) => { if (!currentUser) throw new Error('Usuário não autenticado.'); await userMgmt.updateUserCommissionSettings(currentUser, userId, settings); };
   const requestPasswordReset = (email: string) => passwordReset.requestPasswordReset(email);
   const approvePasswordReset = (approverId: string, targetUserId: string) => passwordReset.approvePasswordReset(approverId, targetUserId);
-  const setSecretQuestion = async (userId: string, question: string, answer: string) => { if (!currentUser) throw new Error('Usuário não autenticado.'); await passwordReset.setSecretQuestion(currentUser.id, userId, question, answer); };
-  const verifySecretAnswer = (email: string, answer: string) => passwordReset.verifySecretAnswer(email, answer);
-  const resetPasswordAfterVerification = (userId: string, newPassword: string) => passwordReset.resetPasswordAfterVerification(userId, newPassword);
   const updateProfile = async (userId: string, data: { name?: string; email?: string; newPassword?: string; oldPassword?: string }) => { if (!currentUser) throw new Error('Usuário não autenticado.'); await profileVm.updateProfile(currentUser, userId, data, handleUserUpdated); };
   const updateCalendarSettings = async (userId: string, settings: { calendarId?: string; autoSync: boolean }) => { if (!currentUser) throw new Error('Usuário não autenticado.'); await profileVm.updateCalendarSettings(currentUser, userId, settings, handleUserUpdated); };
   const updateCompletedTours = async (_userId: string, tourId: string) => { if (!currentUser) return; await profileVm.updateCompletedTours(currentUser, tourId, handleUserUpdated); };
@@ -277,7 +270,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     currentUser, loading, login, loginWithGoogle, linkGoogle, unlinkGoogle, signup, logout,
     updateUserStatus, updateUserRole, updateUserCommissionSettings, getAllUsers,
     updateProfile, updateCalendarSettings, updateCompletedTours, resetTours,
-    requestPasswordReset, approvePasswordReset, setSecretQuestion, verifySecretAnswer, resetPasswordAfterVerification,
+    requestPasswordReset, approvePasswordReset,
     linkedProviders, googleAccessToken, setGoogleAccessToken,
   };
 
