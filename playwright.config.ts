@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
+
+const globalSetupPath = fileURLToPath(new URL('./tests/global-setup.ts', import.meta.url));
+const globalTeardownPath = fileURLToPath(new URL('./tests/global-teardown.ts', import.meta.url));
 
 export default defineConfig({
   testDir: './tests',
@@ -37,6 +41,27 @@ export default defineConfig({
       },
     },
     {
+      name: 'accessibility-tests',
+      testMatch: '**/accessibility/**/*.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+    {
+      name: 'security-tests',
+      testMatch: '**/security/**/*.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+    {
+      name: 'performance-tests',
+      testMatch: '**/performance/**/*.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+    {
       name: 'script-tests',
       testMatch: '**/scripts/**/*.spec.ts',
       use: { 
@@ -52,6 +77,6 @@ export default defineConfig({
     timeout: 120 * 1000, // 2 minutes startup timeout
   },
   // Add global setup/teardown for test isolation
-  globalSetup: require.resolve('./tests/global-setup.ts'),
-  globalTeardown: require.resolve('./tests/global-teardown.ts'),
+  globalSetup: globalSetupPath,
+  globalTeardown: globalTeardownPath,
 });

@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [react()],
   test: {
     globals: true,
-    environment: 'node',
+    environment: 'happy-dom',
+    pool: 'threads',
     setupFiles: ['./tests/setup.ts'],
     coverage: {
       provider: 'v8',

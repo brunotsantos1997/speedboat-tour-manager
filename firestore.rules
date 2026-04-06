@@ -1,27 +1,27 @@
-rules_version = '2';
+﻿rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
     // =================================================================
-    // FUNÇÕES AUXILIARES
+    // FUNÃ‡Ã•ES AUXILIARES
     // =================================================================
     
-    // Verifica se o usuário está autenticado
+    // Verifica se o usuÃ¡rio estÃ¡ autenticado
     function isAuthenticated() {
       return request.auth != null;
     }
     
-    // Obtém dados do perfil do usuário
+    // ObtÃ©m dados do perfil do usuÃ¡rio
     function getUserData() {
       return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data;
     }
     
-    // Verifica se o usuário está aprovado
+    // Verifica se o usuÃ¡rio estÃ¡ aprovado
     function isApproved() {
       return isAuthenticated() && getUserData().status == 'APPROVED';
     }
     
-    // Verifica se o usuário tem permissão de staff
+    // Verifica se o usuÃ¡rio tem permissÃ£o de staff
     function hasStaffPermission(allowAdmin) {
       return isApproved() && (
         getUserData().role == 'OWNER' ||
@@ -30,12 +30,12 @@ service cloud.firestore {
       );
     }
     
-    // Verifica se o usuário pode gerenciar usuários
+    // Verifica se o usuÃ¡rio pode gerenciar usuÃ¡rios
     function canManageUsers() {
       return hasStaffPermission(true);
     }
     
-    // Verifica hierarquia para alterações de status/role
+    // Verifica hierarquia para alteraÃ§Ãµes de status/role
     function canModifyTargetUser(targetRole) {
       let currentUser = getUserData();
       
@@ -52,31 +52,31 @@ service cloud.firestore {
         return targetRole == 'SELLER';
       }
       
-      // SELLER não pode modificar ninguém
+      // SELLER nÃ£o pode modificar ninguÃ©m
       return false;
     }
     
-    // Verifica se o usuário pode acessar eventos
+    // Verifica se o usuÃ¡rio pode acessar eventos
     function canAccessEvents() {
       return isApproved();
     }
     
-    // Verifica se o usuário pode gerenciar finanças
+    // Verifica se o usuÃ¡rio pode gerenciar finanÃ§as
     function canManageFinance() {
       return hasStaffPermission(true);
     }
     
-    // Verifica se o usuário pode gerenciar configurações
+    // Verifica se o usuÃ¡rio pode gerenciar configuraÃ§Ãµes
     function canManageSettings() {
       return getUserData().role == 'OWNER' || getUserData().role == 'SUPER_ADMIN';
     }
     
-    // Verifica se o usuário é dono do recurso
+    // Verifica se o usuÃ¡rio Ã© dono do recurso
     function isOwner(resource) {
       return resource.data.createdByUserId == request.auth.uid;
     }
     
-    // Valida campos obrigatórios para eventos
+    // Valida campos obrigatÃ³rios para eventos
     function validateEventFields(data) {
       return data.keys().hasAll([
         'date', 'startTime', 'endTime', 'status', 
@@ -84,7 +84,7 @@ service cloud.firestore {
       ]);
     }
     
-    // Valida campos obrigatórios para usuários
+    // Valida campos obrigatÃ³rios para usuÃ¡rios
     function validateUserFields(data) {
       return data.keys().hasAll([
         'name', 'email', 'status', 'role'
@@ -92,15 +92,15 @@ service cloud.firestore {
     }
     
     // =================================================================
-    // COLEÇÃO: profiles
+    // COLEÃ‡ÃƒO: profiles
     // =================================================================
     
     match /profiles/{userId} {
-      // Leitura: próprio usuário ou staff
+      // Leitura: prÃ³prio usuÃ¡rio ou staff
       allow read: if (isAuthenticated() && 
         (request.auth.uid == userId || hasStaffPermission(true)));
       
-      // Criação: apenas próprio usuário
+      // CriaÃ§Ã£o: apenas prÃ³prio usuÃ¡rio
       allow create: if isAuthenticated() && 
         request.auth.uid == userId &&
         validateUserFields(request.resource.data) &&
@@ -108,7 +108,7 @@ service cloud.firestore {
         request.resource.data.status == 'PENDING' &&
         request.resource.data.role in ['OWNER', 'SUPER_ADMIN', 'ADMIN', 'SELLER'];
       
-      // Atualização: próprio usuário (campos limitados) ou staff com validação hierárquica
+      // AtualizaÃ§Ã£o: prÃ³prio usuÃ¡rio (campos limitados) ou staff com validaÃ§Ã£o hierÃ¡rquica
       allow update: if isApproved() && (
         (request.auth.uid == userId && 
          !request.resource.data.diff(resource.data).affectedKeys()
@@ -116,263 +116,257 @@ service cloud.firestore {
         (hasStaffPermission(true) && canModifyTargetUser(resource.data.role))
       );
       
-      // Exclusão: apenas staff
+      // ExclusÃ£o: apenas staff
       allow delete: if hasStaffPermission(true);
     }
     
     // =================================================================
-    // COLEÇÃO: events
+    // COLEÃ‡ÃƒO: events
     // =================================================================
     
     match /events/{eventId} {
-      // Leitura: usuários aprovados
+      // Leitura: usuÃ¡rios aprovados
       allow read: if canAccessEvents();
       
-      // Criação: usuários aprovados
+      // CriaÃ§Ã£o: usuÃ¡rios aprovados
       allow create: if canAccessEvents() &&
         validateEventFields(request.resource.data) &&
         request.resource.data.createdByUserId == request.auth.uid &&
         request.resource.data.status in ['SCHEDULED', 'PRE_SCHEDULED'];
       
-      // Atualização: staff ou dono do evento
+      // AtualizaÃ§Ã£o: staff ou dono do evento
       allow update: if canAccessEvents() && 
         (hasStaffPermission(false) || isOwner(resource));
       
-      // Exclusão: apenas staff
+      // ExclusÃ£o: apenas staff
       allow delete: if hasStaffPermission(true);
     }
     
     // =================================================================
-    // COLEÇÃO: boats
+    // COLEÃ‡ÃƒO: boats
     // =================================================================
     
     match /boats/{boatId} {
-      // Leitura: usuários aprovados
+      // Leitura: usuÃ¡rios aprovados
       allow read: if isApproved();
       
-      // Criação: staff
+      // CriaÃ§Ã£o: staff
       allow create: if hasStaffPermission(false) &&
         request.resource.data.keys().hasAll(['name', 'capacity', 'pricePerHour']);
       
-      // Atualização: staff
+      // AtualizaÃ§Ã£o: staff
       allow update: if hasStaffPermission(false);
       
-      // Exclusão: apenas admin+
+      // ExclusÃ£o: apenas admin+
       allow delete: if hasStaffPermission(true);
     }
     
     // =================================================================
-    // COLEÇÃO: products
+    // COLEÃ‡ÃƒO: products
     // =================================================================
     
     match /products/{productId} {
-      // Leitura: usuários aprovados
+      // Leitura: usuÃ¡rios aprovados
       allow read: if isApproved();
       
-      // Criação: staff
+      // CriaÃ§Ã£o: staff
       allow create: if hasStaffPermission(false) &&
         request.resource.data.keys().hasAll(['name', 'pricingType']);
       
-      // Atualização: staff
+      // AtualizaÃ§Ã£o: staff
       allow update: if hasStaffPermission(false);
       
-      // Exclusão: apenas admin+
+      // ExclusÃ£o: apenas admin+
       allow delete: if hasStaffPermission(true);
     }
     
     // =================================================================
-    // COLEÇÃO: clients
+    // COLEÃ‡ÃƒO: clients
     // =================================================================
     
     match /clients/{clientId} {
-      // Leitura: usuários aprovados
+      // Leitura: usuÃ¡rios aprovados
       allow read: if isApproved();
       
-      // Criação: usuários aprovados
+      // CriaÃ§Ã£o: usuÃ¡rios aprovados
       allow create: if isApproved() &&
         request.resource.data.keys().hasAll(['phone', 'name']);
       
-      // Atualização: staff
+      // AtualizaÃ§Ã£o: staff
       allow update: if hasStaffPermission(false);
       
-      // Exclusão: apenas admin+
+      // ExclusÃ£o: apenas admin+
       allow delete: if hasStaffPermission(true);
     }
     
     // =================================================================
-    // COLEÇÃO: payments
+    // COLEÃ‡ÃƒO: payments
     // =================================================================
     
     match /payments/{paymentId} {
-      // Leitura: usuários aprovados
+      // Leitura: usuÃ¡rios aprovados
       allow read: if isApproved();
       
-      // Criação: usuários aprovados
+      // CriaÃ§Ã£o: usuÃ¡rios aprovados
       allow create: if isApproved() &&
         request.resource.data.keys().hasAll(['eventId', 'amount', 'method', 'date']);
       
-      // Atualização: staff ou dono do evento relacionado
+      // AtualizaÃ§Ã£o: staff ou dono do evento relacionado
       allow update: if isApproved() && 
         (hasStaffPermission(false) || 
          get(/databases/$(database)/documents/events/$(resource.data.eventId)).data.createdByUserId == request.auth.uid);
       
-      // Exclusão: apenas admin+
+      // ExclusÃ£o: apenas admin+
       allow delete: if hasStaffPermission(true);
     }
     
     // =================================================================
-    // COLEÇÃO: expenses
+    // COLEÃ‡ÃƒO: expenses
     // =================================================================
     
     match /expenses/{expenseId} {
-      // Leitura: usuários aprovados
+      // Leitura: usuÃ¡rios aprovados
       allow read: if isApproved();
       
-      // Criação: usuários aprovados
+      // CriaÃ§Ã£o: usuÃ¡rios aprovados
       allow create: if isApproved() &&
         request.resource.data.keys().hasAll(['amount', 'description', 'date', 'categoryId']);
       
-      // Atualização: staff ou dono da despesa
+      // AtualizaÃ§Ã£o: staff ou dono da despesa
       allow update: if isApproved() && 
         (hasStaffPermission(false) || resource.data.createdByUserId == request.auth.uid);
       
-      // Exclusão: staff ou dono
+      // ExclusÃ£o: staff ou dono
       allow delete: if isApproved() && 
         (hasStaffPermission(false) || resource.data.createdByUserId == request.auth.uid);
     }
     
     // =================================================================
-    // COLEÇÃO: expenseCategories
+    // COLEÃ‡ÃƒO: expenseCategories
     // =================================================================
     
-    match /expenseCategories/{categoryId} {
-      // Leitura: usuários aprovados
+    match /expense_categories/{categoryId} {
+      // Leitura: usuÃ¡rios aprovados
       allow read: if isApproved();
       
-      // Criação: staff
+      // CriaÃ§Ã£o: staff
       allow create: if hasStaffPermission(false) &&
         request.resource.data.keys().hasAll(['name']);
       
-      // Atualização: staff
+      // AtualizaÃ§Ã£o: staff
       allow update: if hasStaffPermission(false);
       
-      // Exclusão: apenas admin+
+      // ExclusÃ£o: apenas admin+
       allow delete: if hasStaffPermission(true);
     }
     
     // =================================================================
-    // COLEÇÃO: boardingLocations
+    // COLEÃ‡ÃƒO: boardingLocations
     // =================================================================
     
-    match /boardingLocations/{locationId} {
-      // Leitura: usuários aprovados
+    match /boarding_locations/{locationId} {
+      // Leitura: usuÃ¡rios aprovados
       allow read: if isApproved();
       
-      // Criação: staff
+      // CriaÃ§Ã£o: staff
       allow create: if hasStaffPermission(false) &&
         request.resource.data.keys().hasAll(['name']);
       
-      // Atualização: staff
+      // AtualizaÃ§Ã£o: staff
       allow update: if hasStaffPermission(false);
       
-      // Exclusão: apenas admin+
+      // ExclusÃ£o: apenas admin+
       allow delete: if hasStaffPermission(true);
     }
     
     // =================================================================
-    // COLEÇÃO: tourTypes
+    // COLEÃ‡ÃƒO: tourTypes
     // =================================================================
     
-    match /tourTypes/{tourTypeId} {
-      // Leitura: usuários aprovados
+    match /tour_types/{tourTypeId} {
+      // Leitura: usuÃ¡rios aprovados
       allow read: if isApproved();
       
-      // Criação: staff
+      // CriaÃ§Ã£o: staff
       allow create: if hasStaffPermission(false) &&
         request.resource.data.keys().hasAll(['name', 'color']);
       
-      // Atualização: staff
+      // AtualizaÃ§Ã£o: staff
       allow update: if hasStaffPermission(false);
       
-      // Exclusão: apenas admin+
+      // ExclusÃ£o: apenas admin+
       allow delete: if hasStaffPermission(true);
     }
     
     // =================================================================
-    // COLEÇÃO: companyData
+    // COLEÃ‡ÃƒO: companyData
     // =================================================================
     
-    match /companyData/{dataId} {
-      // Leitura: usuários aprovados
+    match /company_data/{dataId} {
+      // Leitura: usuÃ¡rios aprovados
       allow read: if isApproved();
       
-      // Criação: apenas owner/super admin
+      // CriaÃ§Ã£o: apenas owner/super admin
       allow create: if canManageSettings();
       
-      // Atualização: apenas owner/super admin
+      // AtualizaÃ§Ã£o: apenas owner/super admin
       allow update: if canManageSettings();
       
-      // Exclusão: apenas owner
+      // ExclusÃ£o: apenas owner
       allow delete: if getUserData().role == 'OWNER';
     }
     
     // =================================================================
-    // COLEÇÃO: voucherTerms
+    // COLEÃ‡ÃƒO: voucherTerms
     // =================================================================
     
-    match /voucherTerms/{termsId} {
-      // Leitura: usuários aprovados
+    match /voucher_terms/{termsId} {
+      // Leitura: usuÃ¡rios aprovados
       allow read: if isApproved();
       
-      // Criação: staff
-      allow create: if hasStaffPermission(false) &&
-        request.resource.data.keys().hasAll(['content', 'lastUpdated']);
-      
-      // Atualização: staff
-      allow update: if hasStaffPermission(false);
-      
-      // Exclusão: apenas admin+
-      allow delete: if hasStaffPermission(true);
-    }
-    
-    // =================================================================
-    // COLEÇÃO: voucherAppearance
-    // =================================================================
-    
-    match /voucherAppearance/{appearanceId} {
-      // Leitura: usuários aprovados
-      allow read: if isApproved();
-      
-      // Criação: staff
+      // CriaÃ§Ã£o: staff
       allow create: if hasStaffPermission(false);
       
-      // Atualização: staff
+      // AtualizaÃ§Ã£o: staff
       allow update: if hasStaffPermission(false);
       
-      // Exclusão: apenas admin+
+      // ExclusÃ£o: apenas admin+
       allow delete: if hasStaffPermission(true);
     }
     
     // =================================================================
-    // COLEÇÃO: auditLog
+    // COLEÃ‡ÃƒO: voucherAppearance
     // =================================================================
     
-    match /auditLog/{logId} {
-      // Leitura: apenas staff
-      allow read: if hasStaffPermission(true);
+    match /voucher_appearance/{appearanceId} {
+      // Leitura: usuÃ¡rios aprovados
+      allow read: if isApproved();
       
-      // Criação: sistema (não permitido via client)
-      allow create: if false;
+      // CriaÃ§Ã£o: staff
+      allow create: if hasStaffPermission(false);
       
-      // Atualização: não permitido
-      allow update: if false;
+      // AtualizaÃ§Ã£o: staff
+      allow update: if hasStaffPermission(false);
       
-      // Exclusão: apenas owner
-      allow delete: if getUserData().role == 'OWNER';
+      // ExclusÃ£o: apenas admin+
+      allow delete: if hasStaffPermission(true);
+    }
+
+    // =================================================================
+    // COLECAO: public_vouchers
+    // =================================================================
+
+    match /public_vouchers/{voucherId} {
+      // Leitura publica para a rota de voucher
+      allow read: if true;
+
+      // Escrita apenas por usuarios aprovados do sistema
+      allow create, update, delete: if isApproved();
     }
     
+
     // =================================================================
-    // REGRA PADRÃO (NEGAR TUDO)
+    // REGRA PADRÃƒO (NEGAR TUDO)
     // =================================================================
     
     match /{document=**} {
@@ -380,3 +374,4 @@ service cloud.firestore {
     }
   }
 }
+
