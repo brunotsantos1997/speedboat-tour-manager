@@ -1,17 +1,10 @@
 import { test, expect } from '@playwright/test';
 
-test.beforeEach(async ({ page }) => {
-  // Set TEST_MODE to true in localStorage before navigating
-  await page.addInitScript(() => {
-    window.localStorage.setItem('TEST_MODE', 'true');
-  });
-});
-
 test('deve criar um novo cliente com sucesso na tela de criar passeio', async ({ page }) => {
   await page.goto('/');
 
-  // Aguarda o login automático do modo de teste
-  await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+  // Aguarda o login ou navegação direta (sem depender de TEST_MODE)
+  await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible({ timeout: 10000 });
 
   // Navega para Criar Passeio
   await page.getByRole('link', { name: 'Criar Passeio' }).click();
