@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useSharedEventViewModel } from '../../viewmodels/useSharedEventViewModel';
 import { MoneyInput } from './MoneyInput';
-import { X, Anchor, Users, Clock, Calendar, CreditCard, MessageSquare } from 'lucide-react';
+import { X, Anchor, MapPin, Users, Clock, Calendar, CreditCard, MessageSquare } from 'lucide-react';
 import type { PaymentMethod } from '../../core/domain/types';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 
@@ -24,6 +24,9 @@ export const SharedEventModal: React.FC<SharedEventModalProps> = ({ isOpen, onCl
     setDurationHours,
     selectedBoat,
     setSelectedBoat,
+    availableBoardingLocations,
+    selectedBoardingLocation,
+    setSelectedBoardingLocation,
     passengerCount,
     setPassengerCount,
     costPerPerson,
@@ -110,6 +113,26 @@ export const SharedEventModal: React.FC<SharedEventModalProps> = ({ isOpen, onCl
                 >
                   {availableBoats.map(boat => (
                     <option key={boat.id} value={boat.id}>{boat.name} (Cap: {boat.capacity})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="boarding-location-select" className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                  <MapPin size={16} className="mr-2 text-gray-400" /> Local de Embarque
+                </label>
+                <select
+                  id="boarding-location-select"
+                  value={selectedBoardingLocation?.id || ''}
+                  onChange={(e) => {
+                    const location = availableBoardingLocations.find((item) => item.id === e.target.value) || null;
+                    setSelectedBoardingLocation(location);
+                  }}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                >
+                  <option value="" disabled>Selecione um local</option>
+                  {availableBoardingLocations.map((location) => (
+                    <option key={location.id} value={location.id}>{location.name}</option>
                   ))}
                 </select>
               </div>
@@ -269,7 +292,7 @@ export const SharedEventModal: React.FC<SharedEventModalProps> = ({ isOpen, onCl
               </button>
               <button
                 onClick={handleSave}
-                disabled={isSaving || (availableTimeSlots.length === 0 && !existingSharedEvent && !eventId)}
+                disabled={isSaving || !selectedBoardingLocation || (availableTimeSlots.length === 0 && !existingSharedEvent && !eventId)}
                 className={`px-8 py-2 rounded-lg font-bold transition-all shadow-md disabled:bg-gray-400 disabled:shadow-none text-white ${
                   eventId ? 'bg-indigo-600 hover:bg-indigo-700' : (existingSharedEvent ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700')
                 }`}

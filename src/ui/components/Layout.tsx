@@ -14,6 +14,8 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
   const { currentUser, getAllUsers, logout } = useAuth();
   const navigate = useNavigate();
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
+  const [isSettingsSectionOpen, setIsSettingsSectionOpen] = useState(false);
+  const [isAppearanceSectionOpen, setIsAppearanceSectionOpen] = useState(false);
   const { t } = useTranslation();
 
   const handleLogout = () => {
@@ -101,15 +103,13 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
             <div>
               <button
                 className="flex items-center w-full px-4 py-3 text-lg font-semibold text-left text-gray-700 rounded-lg hover:bg-gray-200"
-                onClick={(e) => {
-                  const submenu = e.currentTarget.nextElementSibling;
-                  submenu?.classList.toggle('hidden');
-                }}
+                onClick={() => setIsSettingsSectionOpen(prev => !prev)}
+                aria-expanded={isSettingsSectionOpen}
               >
                 <Settings className="mr-3" />
                 {t('navigation.settings', 'Configurações')}
               </button>
-            <div className="pl-10 space-y-2 hidden">
+            <div className={`pl-10 space-y-2 ${isSettingsSectionOpen ? 'block' : 'hidden'}`}>
               <NavLink to="/dashboard/products" className={navLinkClass} onClick={onClose}>
                 {t('navigation.products', 'Produtos')}
               </NavLink>
@@ -142,15 +142,13 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; appName: string 
             <div>
               <button
                 className="flex items-center w-full px-4 py-3 text-lg font-semibold text-left text-gray-700 rounded-lg hover:bg-gray-200"
-                onClick={(e) => {
-                  const submenu = e.currentTarget.nextElementSibling;
-                  submenu?.classList.toggle('hidden');
-                }}
+                onClick={() => setIsAppearanceSectionOpen(prev => !prev)}
+                aria-expanded={isAppearanceSectionOpen}
               >
                 <Palette className="mr-3" />
                 {t('navigation.appearance', 'Personalização')}
               </button>
-              <div className="pl-10 space-y-2 hidden">
+              <div className={`pl-10 space-y-2 ${isAppearanceSectionOpen ? 'block' : 'hidden'}`}>
                 <NavLink to="/dashboard/company-data" className={navLinkClass} onClick={onClose}>
                   {t('navigation.company', 'Dados da Empresa')}
                 </NavLink>

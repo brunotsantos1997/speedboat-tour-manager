@@ -16,7 +16,7 @@ const weekDays: { key: DayOfWeek; label: string }[] = [
 ];
 
 export const CompanyDataScreen: React.FC = () => {
-  const { companyData, isLoading, error, updateCompanyData } = useCompanyDataViewModel();
+  const { companyData, isLoading, error, needsInitialSetup, updateCompanyData } = useCompanyDataViewModel();
   const [formData, setFormData] = useState(companyData);
   const { showToast } = useToast();
 
@@ -60,10 +60,6 @@ export const CompanyDataScreen: React.FC = () => {
     return <div className="p-6">Carregando...</div>;
   }
 
-  if (error) {
-    return <div className="p-6 text-red-500">{error}</div>;
-  }
-
   return (
     <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
       <div className="max-w-4xl mx-auto">
@@ -71,6 +67,16 @@ export const CompanyDataScreen: React.FC = () => {
             <h1 className="text-3xl font-black text-gray-900 leading-tight">Dados da Empresa</h1>
             <p className="text-gray-500">Configure as informações públicas e regras de negócio</p>
         </div>
+
+        {error && (
+          <div className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
+            needsInitialSetup
+              ? 'border-amber-200 bg-amber-50 text-amber-900'
+              : 'border-red-200 bg-red-50 text-red-700'
+          }`}>
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -68,7 +68,7 @@ const MenuBar: React.FC<{ editor: Editor | null }> = ({ editor }) => {
 };
 
 export const VoucherTermsScreen: React.FC = () => {
-  const { terms, isLoading, saveTerms } = useVoucherTermsViewModel();
+  const { terms, isLoading, error, needsInitialSetup, saveTerms } = useVoucherTermsViewModel();
   const { showToast } = useToast();
 
   const editor = useEditor({
@@ -90,10 +90,14 @@ export const VoucherTermsScreen: React.FC = () => {
     }
   }, [terms, isLoading, editor]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (editor) {
-      saveTerms(editor.getHTML());
-      showToast('Termos salvos com sucesso!');
+      try {
+        await saveTerms(editor.getHTML());
+        showToast('Termos salvos com sucesso!');
+      } catch {
+        showToast('Erro ao salvar os termos.');
+      }
     }
   };
 
@@ -113,6 +117,15 @@ export const VoucherTermsScreen: React.FC = () => {
                 Salvar Termos
             </button>
         </div>
+        {error && (
+          <div className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
+            needsInitialSetup
+              ? 'border-amber-200 bg-amber-50 text-amber-900'
+              : 'border-red-200 bg-red-50 text-red-700'
+          }`}>
+            {error}
+          </div>
+        )}
         <div className="bg-white shadow-sm border border-gray-100 rounded-2xl overflow-hidden">
             <MenuBar editor={editor} />
             <div className="prose prose-sm max-w-none">
