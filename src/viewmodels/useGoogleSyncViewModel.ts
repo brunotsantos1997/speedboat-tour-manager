@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/auth/useAuth';
 import { googleCalendarRepository, type GoogleCalendar } from '../core/repositories/GoogleCalendarRepository';
 import { eventRepository } from '../core/repositories/EventRepository';
 import { logger } from '../core/common/Logger';

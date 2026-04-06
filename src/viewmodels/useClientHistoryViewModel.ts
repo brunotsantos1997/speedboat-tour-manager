@@ -1,14 +1,14 @@
 // src/viewmodels/useClientHistoryViewModel.ts
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/auth/useAuth';
 import type { ClientProfile, EventType, Payment, PaymentMethod, PaymentType } from '../core/domain/types';
 import { clientRepository } from '../core/repositories/ClientRepository';
 import { eventRepository } from '../core/repositories/EventRepository';
 import { paymentRepository } from '../core/repositories/PaymentRepository';
 import { format } from 'date-fns';
 import { useEventSync } from './useEventSync';
-import { useModalContext } from '../ui/contexts/ModalContext';
+import { useModal } from '../ui/contexts/modal/useModal';
 import { logger } from '../core/common/Logger';
 
 export const useClientHistoryViewModel = () => {
@@ -17,7 +17,7 @@ export const useClientHistoryViewModel = () => {
   const clientIdParam = searchParams.get('clientId');
   const [searchTerm, setSearchTerm] = useState('');
   const { syncEvent, deleteFromGoogle } = useEventSync();
-  const { confirm, showAlert } = useModalContext();
+  const { confirm, showAlert } = useModal();
   const [searchResults, setSearchResults] = useState<ClientProfile[]>([]);
   const [selectedClient, setSelectedClient] = useState<ClientProfile | null>(null);
   const [clientEvents, setClientEvents] = useState<EventType[]>([]);

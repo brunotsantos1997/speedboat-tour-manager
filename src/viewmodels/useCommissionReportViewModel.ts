@@ -5,7 +5,7 @@ import { expenseRepository } from '../core/repositories/ExpenseRepository';
 import type { CommissionReportEntry } from '../core/domain/types';
 import type { PaymentMethod } from '../core/domain/types';
 import type { User } from '../core/domain/User';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/auth/useAuth';
 import { subMonths, endOfDay } from 'date-fns';
 
 export const useCommissionReportViewModel = () => {

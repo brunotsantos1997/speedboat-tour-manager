@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useEventSync } from './useEventSync';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/auth/useAuth';
 import { eventRepository } from '../core/repositories/EventRepository';
 import type { EventType } from '../core/domain/types';
 

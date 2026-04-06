@@ -7,7 +7,7 @@ import { CompanyDataRepository } from '../core/repositories/CompanyDataRepositor
 import { VoucherTermsRepository } from '../core/repositories/VoucherTermsRepository';
 import { VoucherAppearanceRepository } from '../core/repositories/VoucherAppearanceRepository';
 import { paymentRepository } from '../core/repositories/PaymentRepository';
-import { useModalContext } from '../ui/contexts/ModalContext';
+import { useModal } from '../ui/contexts/modal/useModal';
 
 interface VoucherDetails extends EventType {
   reservationFee: number;
@@ -21,7 +21,7 @@ interface VoucherDetails extends EventType {
 export const useVoucherViewModel = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const [searchParams] = useSearchParams();
-  const { showAlert } = useModalContext();
+  const { showAlert } = useModal();
   const overrideName = searchParams.get('name');
   const [voucher, setVoucher] = useState<VoucherDetails | null>(null);
   const [companyData, setCompanyData] = useState<CompanyData | null>(null);

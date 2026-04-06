@@ -5,16 +5,16 @@ import { expenseRepository } from '../core/repositories/ExpenseRepository';
 import { expenseCategoryRepository } from '../core/repositories/ExpenseCategoryRepository';
 import { boatRepository } from '../core/repositories/BoatRepository';
 import { logger } from '../core/common/Logger';
-import { useToastContext } from '../ui/contexts/ToastContext';
-import { useModalContext } from '../ui/contexts/ModalContext';
+import { useToast } from '../ui/contexts/toast/useToast';
+import { useModal } from '../ui/contexts/modal/useModal';
 
 export const useExpenseViewModel = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [boats, setBoats] = useState<Boat[]>([]);
   const [loading, setLoading] = useState(true);
-  const { showToast } = useToastContext();
-  const { confirm } = useModalContext();
+  const { showToast } = useToast();
+  const { confirm } = useModal();
 
   useEffect(() => {
     Promise.all([

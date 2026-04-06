@@ -5,7 +5,7 @@ import { logger } from '../core/common/Logger';
 import { eventRepository } from '../core/repositories/EventRepository';
 import { paymentRepository } from '../core/repositories/PaymentRepository';
 import { startOfDay, isWithinInterval, startOfWeek, endOfWeek, getMonth, isSameDay, format, startOfMonth, endOfMonth } from 'date-fns';
-import { useToastContext } from '../ui/contexts/ToastContext';
+import { useToast } from '../ui/contexts/toast/useToast';
 import { useEventSync } from './useEventSync';
 
 const parseLocalDate = (dateString: string) => new Date(`${dateString}T00:00`);
@@ -15,7 +15,7 @@ export const useDashboardViewModel = () => {
   const [notificationEvents, setNotificationEvents] = useState<EventType[]>([]);
   const [allPayments, setAllPayments] = useState<Payment[]>([]);
   const { syncEvent } = useEventSync();
-  const { showToast } = useToastContext();
+  const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [activeEventForPayment, setActiveEventForPayment] = useState<EventType | null>(null);

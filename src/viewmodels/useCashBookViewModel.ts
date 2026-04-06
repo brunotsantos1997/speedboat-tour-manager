@@ -9,7 +9,7 @@ import { boatRepository } from '../core/repositories/BoatRepository';
 import { timeToMinutes } from '../core/utils/timeUtils';
 import { startOfMonth, endOfMonth, format } from 'date-fns';
 import { useEventSync } from './useEventSync';
-import { useModalContext } from '../ui/contexts/ModalContext';
+import { useModal } from '../ui/contexts/modal/useModal';
 
 export type CashBookEntry = {
     id: string;
@@ -28,7 +28,7 @@ export type CashBookEntry = {
 
 export const useCashBookViewModel = () => {
     const { syncEvent } = useEventSync();
-    const { confirm, showAlert } = useModalContext();
+    const { confirm, showAlert } = useModal();
     const [events, setEvents] = useState<EventType[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [payments, setPayments] = useState<Payment[]>([]);

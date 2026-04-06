@@ -1,6 +1,6 @@
 // src/viewmodels/useSharedEventViewModel.ts
 import { useState, useMemo, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/auth/useAuth';
 import type { Boat, EventType, ClientProfile, TourType, PaymentMethod } from '../core/domain/types';
 import { clientRepository } from '../core/repositories/ClientRepository';
 import { boatRepository } from '../core/repositories/BoatRepository';
@@ -12,14 +12,14 @@ import { format } from 'date-fns';
 import { timeToMinutes, minutesToTime } from '../core/utils/timeUtils';
 import { boardingLocationRepository } from '../core/repositories/BoardingLocationRepository';
 import { sanitizeObject } from '../core/utils/objectUtils';
-import { useToastContext } from '../ui/contexts/ToastContext';
+import { useToast } from '../ui/contexts/toast/useToast';
 import { useEventSync } from './useEventSync';
 import { logger } from '../core/common/Logger';
 
 export const useSharedEventViewModel = (editingEventId?: string | null) => {
   const { currentUser } = useAuth();
   const { syncEvent } = useEventSync();
-  const { showToast } = useToastContext();
+  const { showToast } = useToast();
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [startTime, setStartTime] = useState('09:00');

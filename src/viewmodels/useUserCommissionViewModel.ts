@@ -1,6 +1,6 @@
 // src/viewmodels/useUserCommissionViewModel.ts
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/auth/useAuth';
 import type { User, UserCommissionSettings } from '../core/domain/User';
 
 export const useUserCommissionViewModel = () => {
@@ -15,7 +15,7 @@ export const useUserCommissionViewModel = () => {
       const allUsers = await getAllUsers();
       // Filter out current user and owner if needed, though management usually includes them
       // For commission, usually we manage sellers and admins.
-      setUsers(allUsers.filter(u => u.id !== currentUser?.id));
+      setUsers(allUsers.filter((u: User) => u.id !== currentUser?.id));
       setError(null);
     } catch (err) {
       setError('Falha ao carregar usuários.');

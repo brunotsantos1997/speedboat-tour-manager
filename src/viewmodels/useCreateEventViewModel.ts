@@ -1,7 +1,7 @@
 // src/viewmodels/useCreateEventViewModel.ts
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/auth/useAuth';
 import type { DayOfWeek, Product, Discount, SelectedProduct, ClientProfile, Boat, EventType, PaymentStatus, CompanyData } from '../core/domain/types';
 import { clientRepository } from '../core/repositories/ClientRepository';
 import { productRepository } from '../core/repositories/ProductRepository';
@@ -15,12 +15,12 @@ import type { BoardingLocation, TourType } from '../core/domain/types';
 import { boardingLocationRepository } from '../core/repositories/BoardingLocationRepository';
 import { sanitizeObject } from '../core/utils/objectUtils';
 import { useEventSync } from './useEventSync';
-import { useModalContext } from '../ui/contexts/ModalContext';
+import { useModal } from '../ui/contexts/modal/useModal';
 
 export const useCreateEventViewModel = () => {
   const { currentUser } = useAuth();
   const { syncEvent } = useEventSync();
-  const { confirm } = useModalContext();
+  const { confirm } = useModal();
   const [searchParams] = useSearchParams();
   const [editingEventId, setEditingEventId] = useState<string | null>(searchParams.get('eventId'));
   const [originalEvent, setOriginalEvent] = useState<EventType | null>(null);
