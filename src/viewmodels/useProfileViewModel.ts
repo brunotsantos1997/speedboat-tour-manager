@@ -5,6 +5,8 @@ import {
   updateProfile as firebaseUpdateProfile,
   updatePassword as firebaseUpdatePassword,
   updateEmail as firebaseUpdateEmail,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
 } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import DOMPurify from 'dompurify';
@@ -64,6 +66,12 @@ export const useProfileViewModel = () => {
       if (data.email) {
         const sanitizedEmail = DOMPurify.sanitize(data.email);
         if (auth.currentUser) {
+          // Reautenticação obrigatória para mudança de email
+          if (!data.oldPassword) {
+            throw new Error('Senha atual é obrigatória para alterar o e-mail.');
+          }
+          const credential = EmailAuthProvider.credential(auth.currentUser.email!, data.oldPassword);
+          await reauthenticateWithCredential(auth.currentUser, credential);
           await firebaseUpdateEmail(auth.currentUser, sanitizedEmail);
         }
         updates.email = sanitizedEmail;
@@ -72,6 +80,12 @@ export const useProfileViewModel = () => {
       if (data.newPassword) {
         validatePassword(data.newPassword);
         if (auth.currentUser) {
+          // Reautenticação obrigatória para mudança de senha
+          if (!data.oldPassword) {
+            throw new Error('Senha atual é obrigatória para alterar a senha.');
+          }
+          const credential = EmailAuthProvider.credential(auth.currentUser.email!, data.oldPassword);
+          await reauthenticateWithCredential(auth.currentUser, credential);
           await firebaseUpdatePassword(auth.currentUser, data.newPassword);
         }
       }
