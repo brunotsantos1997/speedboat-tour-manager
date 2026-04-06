@@ -1,5 +1,6 @@
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { logger } from '../common/Logger';
 
 export interface AuditLogEntry {
   userId: string;
@@ -26,7 +27,7 @@ export const auditLogRepository = {
 
       await addDoc(collection(db, 'auditLog'), auditEntry);
     } catch (error) {
-      console.error('Failed to write audit log:', error);
+      logger.error('Failed to write audit log', error as Error, { entry });
       // Continue execution - audit failure shouldn't break the main flow
     }
   }
