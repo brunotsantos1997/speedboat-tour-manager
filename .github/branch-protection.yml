@@ -1,0 +1,43 @@
+# Branch Protection Rules for ERP Speedboat Tour
+# 
+# Este arquivo documenta as regras de proteção de branch que devem ser configuradas no GitHub
+# para garantir a qualidade e segurança do código durante a refatoração.
+#
+# Para aplicar estas regras:
+# 1. Vá para Settings > Branches no repositório GitHub
+# 2. Clique em "Add rule" para o branch main
+# 3. Configure as seguintes opções:
+
+main_branch_protection:
+  require_status_checks:
+    enabled: true
+    strict: true  # Require PR to be up to date before merging
+    contexts:
+      - "CI"  # Nome do job no GitHub Actions
+  
+  require_pull_request_reviews:
+    enabled: true
+    required_approving_review_count: 1
+    dismiss_stale_reviews: true
+    require_code_owner_reviews: false
+    require_last_push_approval: false
+  
+  enforce_admins:
+    enabled: false  # Admins podem override se necessário durante refatoração
+  
+  restrictions:
+    enabled: false  # Quem pode push para main
+  
+  allow_force_pushes:
+    enabled: false
+  
+  allow_deletions:
+    enabled: false
+
+# Regras adicionais durante a refatoração:
+refactoring_rules:
+  - Nenhum merge sem build verde
+  - Nenhum merge sem lint verde  
+  - Nenhum merge sem smoke tests passando
+  - PRs grandes devem ter checklist de regressão
+  - Fluxos sensíveis alterados precisam smoke test específico
