@@ -9,7 +9,7 @@ export enum ErrorType {
 
 export class AppError extends Error {
   public readonly type: ErrorType;
-  public readonly context?: Record<string, any>;
+  public readonly context?: Record<string, unknown>;
   public readonly userMessage: string;
   public readonly originalError?: Error;
 
@@ -17,7 +17,7 @@ export class AppError extends Error {
     type: ErrorType,
     userMessage: string,
     message?: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
     originalError?: Error
   ) {
     super(message || userMessage);
@@ -27,11 +27,11 @@ export class AppError extends Error {
     this.originalError = originalError;
   }
 
-  static validation(message: string, context?: Record<string, any>): AppError {
+  static validation(message: string, context?: Record<string, unknown>): AppError {
     return new AppError(ErrorType.VALIDATION, message, message, context);
   }
 
-  static network(message: string, originalError?: Error, context?: Record<string, any>): AppError {
+  static network(message: string, originalError?: Error, context?: Record<string, unknown>): AppError {
     return new AppError(ErrorType.NETWORK, 'Falha de conexão. Verifique sua internet.', message, context, originalError);
   }
 
@@ -39,11 +39,11 @@ export class AppError extends Error {
     return new AppError(ErrorType.PERMISSION, message);
   }
 
-  static business(message: string, context?: Record<string, any>): AppError {
+  static business(message: string, context?: Record<string, unknown>): AppError {
     return new AppError(ErrorType.BUSINESS, message, message, context);
   }
 
-  static system(message: string, originalError?: Error, context?: Record<string, any>): AppError {
+  static system(message: string, originalError?: Error, context?: Record<string, unknown>): AppError {
     return new AppError(ErrorType.SYSTEM, 'Erro interno do sistema. Tente novamente.', message, context, originalError);
   }
 

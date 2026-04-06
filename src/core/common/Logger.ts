@@ -9,7 +9,7 @@ export enum LogLevel {
 export interface LogEntry {
   level: LogLevel;
   message: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   timestamp: Date;
   error?: Error;
 }
@@ -28,7 +28,7 @@ class Logger {
     return Logger.instance;
   }
 
-  private log(level: LogLevel, message: string, error?: Error, context?: Record<string, any>) {
+  private log(level: LogLevel, message: string, error?: Error, context?: Record<string, unknown>) {
     const entry: LogEntry = {
       level,
       message,
@@ -45,7 +45,7 @@ class Logger {
     }
 
     // Console output for development
-    if (typeof window !== 'undefined' && (window as any).__DEV__) {
+    if (typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).__DEV__) {
       const timestamp = entry.timestamp.toISOString();
       const contextStr = context ? ` | Context: ${JSON.stringify(context)}` : '';
       const errorStr = error ? ` | Error: ${error.message}` : '';
@@ -67,19 +67,19 @@ class Logger {
     }
   }
 
-  error(message: string, error?: Error, context?: Record<string, any>) {
+  error(message: string, error?: Error, context?: Record<string, unknown>) {
     this.log(LogLevel.ERROR, message, error, context);
   }
 
-  warn(message: string, context?: Record<string, any>) {
+  warn(message: string, context?: Record<string, unknown>) {
     this.log(LogLevel.WARN, message, undefined, context);
   }
 
-  info(message: string, context?: Record<string, any>) {
+  info(message: string, context?: Record<string, unknown>) {
     this.log(LogLevel.INFO, message, undefined, context);
   }
 
-  debug(message: string, context?: Record<string, any>) {
+  debug(message: string, context?: Record<string, unknown>) {
     this.log(LogLevel.DEBUG, message, undefined, context);
   }
 
