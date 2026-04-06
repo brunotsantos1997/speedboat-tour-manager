@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { googleCalendarRepository, type GoogleCalendar } from '../core/repositories/GoogleCalendarRepository';
 import { eventRepository } from '../core/repositories/EventRepository';
+import { googleTokenStore } from '../core/utils/googleTokenStore';
 
 export const useGoogleSyncViewModel = () => {
   const {
@@ -30,7 +31,7 @@ export const useGoogleSyncViewModel = () => {
     } catch (err: any) {
       if (err.message === 'UNAUTHORIZED') {
         setGoogleAccessToken(null);
-        localStorage.removeItem('google_access_token');
+        googleTokenStore.clear();
         setError('Sessão do Google expirada. Por favor, vincule novamente ou faça login com Google.');
       } else {
         setError('Falha ao buscar calendários.');
