@@ -1,308 +1,184 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
-import { useClientEventActions } from '../../../src/viewmodels/client/useClientEventActions'
+import { renderHook, act, waitFor } from '@testing-library/react'
+import { useClientEventActions } from '@/viewmodels/client/useClientEventActions'
 
-describe('useClientEventActions - Testes Unitários', () => {
+const mocks = vi.hoisted(() => ({
+  getByEventId: vi.fn(),
+  getById: vi.fn(),
+  updateEvent: vi.fn(),
+  remove: vi.fn(),
+  confirm: vi.fn(),
+  showToast: vi.fn(),
+  syncEvent: vi.fn(),
+  deleteFromGoogle: vi.fn(),
+  confirmPaymentAndUpdateStatus: vi.fn()
+}))
+
+vi.mock('@/core/repositories/PaymentRepository', () => ({
+  paymentRepository: {
+    getByEventId: mocks.getByEventId
+  }
+}))
+
+vi.mock('@/core/repositories/EventRepository', () => ({
+  eventRepository: {
+    getById: mocks.getById,
+    updateEvent: mocks.updateEvent,
+    remove: mocks.remove
+  }
+}))
+
+vi.mock('@/ui/contexts/modal/useModal', () => ({
+  useModal: () => ({
+    confirm: mocks.confirm
+  })
+}))
+
+vi.mock('@/ui/contexts/toast/useToast', () => ({
+  useToast: () => ({
+    showToast: mocks.showToast
+  })
+}))
+
+vi.mock('@/viewmodels/useEventSync', () => ({
+  useEventSync: () => ({
+    syncEvent: mocks.syncEvent,
+    deleteFromGoogle: mocks.deleteFromGoogle
+  })
+}))
+
+vi.mock('@/core/domain/TransactionService', () => ({
+  TransactionService: {
+    confirmPaymentAndUpdateStatus: mocks.confirmPaymentAndUpdateStatus
+  }
+}))
+
+const buildEvent = (overrides: Record<string, unknown> = {}) => ({
+  id: 'event-1',
+  date: '2026-04-07',
+  startTime: '09:00',
+  endTime: '10:00',
+  status: 'PRE_SCHEDULED',
+  paymentStatus: 'PENDING',
+  total: 1000,
+  boat: { id: 'boat-1', name: 'Alpha', capacity: 10, size: 30, pricePerHour: 100, pricePerHalfHour: 50, organizationTimeMinutes: 15 },
+  boardingLocation: { id: 'loc-1', name: 'Pier' },
+  tourType: { id: 'tour-1', name: 'Passeio', color: '#000000' },
+  products: [],
+  client: { id: 'client-1', name: 'Joao', phone: '11999999999', totalTrips: 0 },
+  passengerCount: 2,
+  subtotal: 1000,
+  createdByUserId: 'user-1',
+  ...overrides
+})
+
+describe('useClientEventActions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.getByEventId.mockResolvedValue([])
+    mocks.getById.mockResolvedValue(buildEvent())
+    mocks.updateEvent.mockImplementation(async (event) => event)
+    mocks.remove.mockResolvedValue(undefined)
+    mocks.confirm.mockResolvedValue(true)
+    mocks.showToast.mockImplementation(() => {})
+    mocks.syncEvent.mockResolvedValue(undefined)
+    mocks.deleteFromGoogle.mockResolvedValue(undefined)
+    mocks.confirmPaymentAndUpdateStatus.mockResolvedValue({
+      success: true,
+      eventId: 'event-1'
+    })
   })
 
-  it('deve importar o hook corretamente', () => {
-    expect(typeof useClientEventActions).toBe('function')
-  })
+  it('sugere o valor correto ao iniciar um pagamento', async () => {
+    mocks.getByEventId.mockResolvedValue([{ id: 'payment-1', amount: 100 }])
+    const onOpenPaymentModal = vi.fn()
+    const event = buildEvent()
 
-  it('deve retornar estado inicial correto', () => {
     const { result } = renderHook(() => useClientEventActions())
-    
-    expect(result.current.loading).toBe(false)
-    expect(result.current.error).toBe(null)
-    expect(result.current.events).toEqual([])
-  })
-
-  it('deve criar evento para cliente', async () => {
-    const { result } = renderHook(() => useClientEventActions())
-    
-    const eventData = {
-      clientId: 'client-1',
-      tourTypeId: 'tour-1',
-      boatId: 'boat-1',
-      date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      time: '14:30',
-      duration: 120,
-      passengerCount: 4
-    }
 
     await act(async () => {
-      const response = await result.current.createClientEvent(eventData)
-      expect(response.success).toBe(true)
-      expect(response.event).toHaveProperty('id')
-      expect(response.event.status).toBe('SCHEDULED')
+      await result.current.initiatePayment('event-1', 'DOWN_PAYMENT', [event], onOpenPaymentModal)
     })
 
-    expect(result.current.events).toHaveLength(1)
+    expect(onOpenPaymentModal).toHaveBeenCalledWith(event, 'DOWN_PAYMENT', 200)
   })
 
-  it('deve cancelar evento', async () => {
+  it('confirma pagamento usando a transacao centralizada', async () => {
+    const updatedEvent = buildEvent({ status: 'SCHEDULED', paymentStatus: 'CONFIRMED' })
+    mocks.getById.mockResolvedValue(updatedEvent)
+    const onUpdateEvent = vi.fn().mockResolvedValue(undefined)
+
     const { result } = renderHook(() => useClientEventActions())
-    
-    // Primeiro criar um evento
-    const eventData = {
-      clientId: 'client-1',
-      tourTypeId: 'tour-1',
-      boatId: 'boat-1',
-      date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      time: '14:30',
-      duration: 120,
-      passengerCount: 4
-    }
 
     await act(async () => {
-      await result.current.createClientEvent(eventData)
+      await result.current.confirmPayment('event-1', 1000, 'PIX', 'FULL', onUpdateEvent)
     })
 
-    const eventId = result.current.events[0].id
-    const reason = 'Cliente cancelou'
-
-    await act(async () => {
-      const response = await result.current.cancelClientEvent(eventId, reason)
-      expect(response.success).toBe(true)
-    })
-
-    expect(result.current.events[0].status).toBe('CANCELLED')
-    expect(result.current.events[0].cancelReason).toBe(reason)
-  })
-
-  it('deve reagendar evento', async () => {
-    const { result } = renderHook(() => useClientEventActions())
-    
-    // Criar evento
-    const eventData = {
-      clientId: 'client-1',
-      tourTypeId: 'tour-1',
-      boatId: 'boat-1',
-      date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      time: '14:30',
-      duration: 120,
-      passengerCount: 4
-    }
-
-    await act(async () => {
-      await result.current.createClientEvent(eventData)
-    })
-
-    const eventId = result.current.events[0].id
-    const newDate = new Date(Date.now() + 172800000).toISOString().split('T')[0]
-    const newTime = '16:00'
-
-    await act(async () => {
-      const response = await result.current.rescheduleClientEvent(eventId, newDate, newTime)
-      expect(response.success).toBe(true)
-    })
-
-    expect(result.current.events[0].date).toBe(newDate)
-    expect(result.current.events[0].time).toBe(newTime)
-    expect(result.current.events[0].status).toBe('RESCHEDULED')
-  })
-
-  it('deve verificar disponibilidade', () => {
-    const { result } = renderHook(() => useClientEventActions())
-    
-    // Adicionar evento existente
-    act(() => {
-      result.current.events = [
-        {
-          id: 'event-1',
-          boatId: 'boat-1',
-          date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-          time: '14:30',
-          duration: 120
-        }
-      ]
-    })
-
-    // Testar horário disponível
-    const availableCheck = result.current.checkAvailability(
-      'boat-1',
-      new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      '10:00',
-      60
+    expect(mocks.confirmPaymentAndUpdateStatus).toHaveBeenCalledWith(
+      'event-1',
+      expect.objectContaining({ amount: 1000, method: 'PIX', type: 'FULL' }),
+      'system',
+      'ClientEventActions'
     )
-    expect(availableCheck.isAvailable).toBe(true)
-    expect(availableCheck.conflicts).toHaveLength(0)
+    expect(onUpdateEvent).toHaveBeenCalledWith(updatedEvent)
+    expect(mocks.syncEvent).toHaveBeenCalledWith(updatedEvent)
+    expect(mocks.showToast).toHaveBeenCalledWith('Pagamento confirmado com sucesso!')
+  })
 
-    // Testar horário conflitante
-    const conflictCheck = result.current.checkAvailability(
-      'boat-1',
-      new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      '14:30',
-      120
+  it('cancela eventos pagos como pendentes de reembolso', async () => {
+    const event = buildEvent({ status: 'SCHEDULED', paymentStatus: 'CONFIRMED' })
+    const onUpdateEvent = vi.fn().mockResolvedValue(undefined)
+
+    const { result } = renderHook(() => useClientEventActions())
+
+    await act(async () => {
+      await result.current.cancelEvent('event-1', [event], onUpdateEvent)
+    })
+
+    expect(mocks.updateEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'event-1',
+        status: 'PENDING_REFUND'
+      })
     )
-    expect(conflictCheck.isAvailable).toBe(false)
-    expect(conflictCheck.conflicts).toHaveLength(1)
+    expect(mocks.syncEvent).toHaveBeenCalled()
+    expect(onUpdateEvent).toHaveBeenCalled()
   })
 
-  it('deve calcular preço final', () => {
+  it('reverte cancelamentos automaticos para scheduled', async () => {
+    const event = buildEvent({ status: 'CANCELLED', autoCancelled: true })
+    const onUpdateEvent = vi.fn().mockResolvedValue(undefined)
+
     const { result } = renderHook(() => useClientEventActions())
-    
-    const priceCalculation = result.current.calculateFinalPrice(100, 4, [
-      { type: 'percentage', value: 10, description: 'Desconto de grupo' }
-    ])
-
-    expect(priceCalculation.basePrice).toBe(100)
-    expect(priceCalculation.passengerCount).toBe(4)
-    expect(priceCalculation.finalPrice).toBe(360)
-    expect(priceCalculation.totalDiscount).toBe(40)
-  })
-
-  it('deve validar dados do evento', () => {
-    const { result } = renderHook(() => useClientEventActions())
-    
-    // Evento válido
-    const validEvent = {
-      clientId: 'client-1',
-      tourTypeId: 'tour-1',
-      boatId: 'boat-1',
-      date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      time: '14:30',
-      duration: 120,
-      passengerCount: 4
-    }
-
-    const isValid = result.current.validateEventData(validEvent)
-    expect(isValid).toBe(true)
-    expect(result.current.errors).toHaveLength(0)
-
-    // Evento inválido - data passada
-    const invalidEventPast = {
-      clientId: 'client-1',
-      tourTypeId: 'tour-1',
-      boatId: 'boat-1',
-      date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
-      time: '14:30',
-      duration: 120,
-      passengerCount: 4
-    }
-
-    const isInvalidPast = result.current.validateEventData(invalidEventPast)
-    expect(isInvalidPast).toBe(false)
-    expect(result.current.errors).toContain('Data do evento deve ser futura')
-
-    // Evento inválido - sem campos obrigatórios
-    const invalidEventMissing = {
-      date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      time: '14:30',
-      duration: 120,
-      passengerCount: 4
-    }
-
-    const isInvalidMissing = result.current.validateEventData(invalidEventMissing)
-    expect(isInvalidMissing).toBe(false)
-    expect(result.current.errors.length).toBeGreaterThan(2)
-  })
-
-  it('deve adicionar passageiros', async () => {
-    const { result } = renderHook(() => useClientEventActions())
-    
-    // Criar evento
-    const eventData = {
-      clientId: 'client-1',
-      tourTypeId: 'tour-1',
-      boatId: 'boat-1',
-      date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      time: '14:30',
-      duration: 120,
-      passengerCount: 2
-    }
 
     await act(async () => {
-      await result.current.createClientEvent(eventData)
+      await result.current.revertCancellation('event-1', [event], onUpdateEvent)
     })
 
-    const eventId = result.current.events[0].id
-    const passengers = [
-      { name: 'João Silva', document: '123456789', phone: '11987654321' },
-      { name: 'Maria Santos', document: '987654321', phone: '11912345678' }
-    ]
-
-    await act(async () => {
-      const response = await result.current.addPassengers(eventId, passengers)
-      expect(response.success).toBe(true)
-    })
-
-    expect(result.current.events[0].passengers).toHaveLength(2)
-    expect(result.current.events[0].passengerCount).toBe(4)
-  })
-
-  it('deve gerar horários alternativos', () => {
-    const { result } = renderHook(() => useClientEventActions())
-    
-    // Adicionar evento existente
-    act(() => {
-      result.current.events = [
-        {
-          id: 'event-1',
-          boatId: 'boat-1',
-          date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-          time: '14:30',
-          duration: 120
-        }
-      ]
-    })
-
-    const alternatives = result.current.generateAlternativeTimes(
-      'boat-1',
-      new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      120
+    expect(mocks.updateEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'event-1',
+        status: 'SCHEDULED',
+        autoCancelled: false
+      })
     )
-
-    expect(alternatives.length).toBeGreaterThan(0)
-    expect(alternatives.length).toBeLessThanOrEqual(3)
+    expect(mocks.showToast).toHaveBeenCalledWith('Cancelamento revertido com sucesso!')
   })
 
-  it('deve lidar com estados de erro', async () => {
+  it('exclui o evento apos confirmar e sincroniza dependencias externas', async () => {
+    const event = buildEvent({ id: 'event-99' })
+    const onUpdateEvent = vi.fn().mockResolvedValue(undefined)
+
     const { result } = renderHook(() => useClientEventActions())
-    
-    // Tentar criar evento inválido
-    const invalidEvent = {
-      clientId: '', // Inválido
-      tourTypeId: 'tour-1',
-      boatId: 'boat-1',
-      date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      time: '14:30',
-      duration: 120,
-      passengerCount: 4
-    }
 
     await act(async () => {
-      const response = await result.current.createClientEvent(invalidEvent)
-      expect(response.success).toBe(false)
-      expect(response.error).toBeDefined()
+      await result.current.deleteEvent('event-99', [event], onUpdateEvent)
     })
 
-    expect(result.current.error).toBeDefined()
-    expect(result.current.loading).toBe(false)
-  })
-
-  it('deve resetar estado', () => {
-    const { result } = renderHook(() => useClientEventActions())
-    
-    // Adicionar eventos e erro
-    act(() => {
-      result.current.events = [{ id: 'event-1', status: 'SCHEDULED' }]
-      result.current.error = 'Erro de teste'
+    await waitFor(() => {
+      expect(mocks.deleteFromGoogle).toHaveBeenCalledWith('event-99')
+      expect(mocks.remove).toHaveBeenCalledWith('event-99')
+      expect(onUpdateEvent).toHaveBeenCalled()
     })
-
-    expect(result.current.events).toHaveLength(1)
-    expect(result.current.error).toBe('Erro de teste')
-
-    // Resetar estado
-    act(() => {
-      if (result.current.reset) {
-        result.current.reset()
-      }
-    })
-
-    expect(result.current.events).toEqual([])
-    expect(result.current.error).toBe(null)
   })
 })

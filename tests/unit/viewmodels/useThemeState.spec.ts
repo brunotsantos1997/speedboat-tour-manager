@@ -245,7 +245,7 @@ describe('useThemeState - Testes Unitários', () => {
 
     // Funções de cores
     const updateColor = (colorKey: string, value: string) => {
-      if (!colorState.customColors.hasOwnProperty(colorKey)) {
+      if (!Object.prototype.hasOwnProperty.call(colorState.customColors, colorKey)) {
         throw new Error('Cor inválida')
       }
 
@@ -320,7 +320,7 @@ describe('useThemeState - Testes Unitários', () => {
 
     // Funções de fontes
     const updateFont = (fontKey: string, value: string) => {
-      if (!fontState.customFonts.hasOwnProperty(fontKey)) {
+      if (!Object.prototype.hasOwnProperty.call(fontState.customFonts, fontKey)) {
         throw new Error('Fonte inválida')
       }
 

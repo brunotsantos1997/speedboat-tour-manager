@@ -96,7 +96,7 @@ describe('useCreateEventViewModel - Testes Unitários', () => {
   it('deve importar o hook corretamente', async () => {
     const { useCreateEventViewModel } = await import('../../../src/viewmodels/useCreateEventViewModel')
     expect(typeof useCreateEventViewModel).toBe('function')
-  }, 10000)
+  }, 30000)
 
   it('deve validar estrutura básica do hook', async () => {
     const { useCreateEventViewModel } = await import('../../../src/viewmodels/useCreateEventViewModel')

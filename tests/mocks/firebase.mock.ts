@@ -1,14 +1,19 @@
-import { vi } from 'vitest'
+﻿import { vi } from 'vitest'
 
-// Mock base para Firestore - versão simplificada
+type MockRecord = Record<string, unknown>
+type SubscriberCallback = (snapshot: unknown) => void
+type TransactionHandler = (transaction: MockRecord) => Promise<unknown> | unknown
+
+
+// Mock base para Firestore - versÃ£o simplificada
 export const createMockFirestore = () => {
   const collections = new Map<string, any[]>()
-  const subscribers = new Map<string, Set<Function>>()
+  const subscribers = new Map<string, Set<SubscriberCallback>>()
 
   return {
     collection: vi.fn((path: string) => createMockCollectionReference(path, collections, subscribers)),
     doc: vi.fn((path: string) => createMockDocumentReference(path, collections, subscribers)),
-    runTransaction: vi.fn((updateFunction: (transaction: any) => Promise<any>) => {
+    runTransaction: vi.fn((updateFunction: TransactionHandler) => {
       const mockTransaction = createMockTransaction()
       return updateFunction(mockTransaction)
     }),
@@ -28,7 +33,7 @@ export const createMockFirestore = () => {
 export const createMockCollectionReference = (
   path: string, 
   collections: Map<string, any[]>,
-  subscribers: Map<string, Set<Function>>
+  subscribers: Map<string, Set<SubscriberCallback>>
 ) => {
   const collectionData = collections.get(path) || []
   
@@ -54,7 +59,7 @@ export const createMockCollectionReference = (
       subs.add(callback)
       subscribers.set(path, subs)
       
-      // Simular notificação inicial
+      // Simular notificaÃ§Ã£o inicial
       callback(createMockQuerySnapshot(collectionData))
       
       return vi.fn(() => {
@@ -68,7 +73,7 @@ export const createMockCollectionReference = (
 export const createMockDocumentReference = (
   path: string,
   collections: Map<string, any[]>,
-  subscribers: Map<string, Set<Function>>
+  subscribers: Map<string, Set<SubscriberCallback>>
 ) => {
   const pathParts = path.split('/')
   const id = pathParts[pathParts.length - 1]
@@ -129,7 +134,7 @@ export const createMockDocumentReference = (
       subs.add(callback)
       subscribers.set(path, subs)
       
-      // Simular notificação inicial
+      // Simular notificaÃ§Ã£o inicial
       callback({
         exists: !!documentData,
         data: () => documentData || null,
@@ -149,7 +154,7 @@ export const createMockDocumentReference = (
 export const createMockQuery = (
   path: string,
   collections: Map<string, any[]>,
-  subscribers: Map<string, Set<Function>>
+  subscribers: Map<string, Set<SubscriberCallback>>
 ) => {
   const collectionData = collections.get(path) || []
   
@@ -258,7 +263,7 @@ export const createMockGeoPoint = (latitude: number, longitude: number) => ({
 const notifySubscribers = (
   collectionPath: string,
   collectionData: any[],
-  subscribers: Map<string, Set<Function>>
+  subscribers: Map<string, Set<SubscriberCallback>>
 ) => {
   const subs = subscribers.get(collectionPath)
   if (subs) {
@@ -301,7 +306,7 @@ export const createMockAuth = () => ({
   updatePassword: vi.fn(async (user: any, newPassword: string) => void 0),
   reauthenticateWithCredential: vi.fn(async (user: any, credential: any) => void 0),
   onAuthStateChanged: vi.fn((callback: (user: any) => void) => {
-    // Simular usuário não autenticado inicialmente
+    // Simular usuÃ¡rio nÃ£o autenticado inicialmente
     callback(null)
     
     return vi.fn(() => {
@@ -380,10 +385,11 @@ export const createMockStorage = () => ({
   }))
 })
 
-// Exportar instâncias globais para uso nos testes
+// Exportar instÃ¢ncias globais para uso nos testes
 export const mockFirestore = createMockFirestore()
 export const mockAuth = createMockAuth()
 export const mockStorage = createMockStorage()
 export const mockTimestamp = createMockTimestamp
 export const mockFieldValue = createMockFieldValue
 export const mockGeoPoint = createMockGeoPoint
+

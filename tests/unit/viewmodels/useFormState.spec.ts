@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock do React hooks
 vi.mock('react', () => ({
@@ -8,7 +8,7 @@ vi.mock('react', () => ({
   useCallback: vi.fn((fn) => fn)
 }))
 
-describe('useFormState - Testes Unitários', () => {
+describe('useFormState - Testes UnitÃ¡rios', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -18,7 +18,7 @@ describe('useFormState - Testes Unitários', () => {
     expect(typeof useFormState).toBe('function')
   })
 
-  it('deve validar estrutura básica do hook', async () => {
+  it('deve validar estrutura bÃ¡sica do hook', async () => {
     const { useFormState } = await import('../../../src/viewmodels/useFormState')
     
     expect(() => {
@@ -28,7 +28,7 @@ describe('useFormState - Testes Unitários', () => {
     }).not.toThrow()
   })
 
-  it('deve validar lógica de estado inicial do formulário', () => {
+  it('deve validar lÃ³gica de estado inicial do formulÃ¡rio', () => {
     // Mock de estado inicial
     const formState = {
       values: {},
@@ -51,8 +51,8 @@ describe('useFormState - Testes Unitários', () => {
     expect(formState.lastSubmittedAt).toBe(null)
   })
 
-  it('deve validar lógica de inicialização com valores iniciais', () => {
-    // Mock de inicialização
+  it('deve validar lÃ³gica de inicializaÃ§Ã£o com valores iniciais', () => {
+    // Mock de inicializaÃ§Ã£o
     const initialValues = {
       name: '',
       email: '',
@@ -76,7 +76,7 @@ describe('useFormState - Testes Unitários', () => {
       lastSubmittedAt: null
     }
 
-    // Função de inicialização
+    // FunÃ§Ã£o de inicializaÃ§Ã£o
     const initializeForm = (values: any) => {
       formState = {
         ...formState,
@@ -89,21 +89,21 @@ describe('useFormState - Testes Unitários', () => {
       return formState
     }
 
-    // Testar inicialização
+    // Testar inicializaÃ§Ã£o
     const initialized = initializeForm(initialValues)
     expect(initialized.values).toEqual(initialValues)
     expect(initialized.errors).toEqual({})
     expect(initialized.dirty).toBe(false)
 
-    // Testar inicialização com valores existentes
+    // Testar inicializaÃ§Ã£o com valores existentes
     const existingValues = { name: 'John', email: 'john@example.com' }
     const withExisting = initializeForm(existingValues)
     expect(withExisting.values.name).toBe('John')
     expect(withExisting.values.email).toBe('john@example.com')
   })
 
-  it('deve validar lógica de atualização de valores', () => {
-    // Mock de estado do formulário
+  it('deve validar lÃ³gica de atualizaÃ§Ã£o de valores', () => {
+    // Mock de estado do formulÃ¡rio
     let formState = {
       values: { name: '', email: '', age: '' },
       errors: {},
@@ -112,7 +112,7 @@ describe('useFormState - Testes Unitários', () => {
       isValid: false
     }
 
-    // Função de atualizar valor
+    // FunÃ§Ã£o de atualizar valor
     const updateValue = (field: string, value: any) => {
       const newValues = { ...formState.values, [field]: value }
       const newTouched = { ...formState.touched, [field]: true }
@@ -127,30 +127,30 @@ describe('useFormState - Testes Unitários', () => {
       return formState
     }
 
-    // Testar atualização de campo simples
+    // Testar atualizaÃ§Ã£o de campo simples
     const updated1 = updateValue('name', 'John Doe')
     expect(updated1.values.name).toBe('John Doe')
     expect(updated1.touched.name).toBe(true)
     expect(updated1.dirty).toBe(true)
 
-    // Testar atualização de campo aninhado
-    const updated2 = updateValue('address.city', 'São Paulo')
-    expect(updated2.values['address.city']).toBe('São Paulo')
+    // Testar atualizaÃ§Ã£o de campo aninhado
+    const updated2 = updateValue('address.city', 'SÃ£o Paulo')
+    expect(updated2.values['address.city']).toBe('SÃ£o Paulo')
     expect(updated2.touched['address.city']).toBe(true)
 
-    // Testar atualização múltipla
+    // Testar atualizaÃ§Ã£o mÃºltipla
     updateValue('email', 'john@example.com')
     updateValue('age', '30')
     expect(formState.values).toEqual({
       name: 'John Doe',
       email: 'john@example.com',
       age: '30',
-      'address.city': 'São Paulo'
+      'address.city': 'SÃ£o Paulo'
     })
   })
 
-  it('deve validar lógica de validação de campos', () => {
-    // Mock de regras de validação
+  it('deve validar lÃ³gica de validaÃ§Ã£o de campos', () => {
+    // Mock de regras de validaÃ§Ã£o
     const validationRules = {
       name: {
         required: true,
@@ -177,46 +177,47 @@ describe('useFormState - Testes Unitários', () => {
       touched: {}
     }
 
-    // Função de validar campo
+    // FunÃ§Ã£o de validar campo
     const validateField = (field: string, value: any) => {
       const rules = validationRules[field as keyof typeof validationRules]
       if (!rules) return null
 
       const errors: string[] = []
 
-      // Validação required
+      // ValidaÃ§Ã£o required
       if (rules.required && (!value || value.toString().trim() === '')) {
-        errors.push(`${field} é obrigatório`)
+        errors.push(`${field} Ã© obrigatÃ³rio`)
+        return errors
       }
 
-      // Validação minLength
+      // ValidaÃ§Ã£o minLength
       if (rules.minLength && value.toString().length < rules.minLength) {
         errors.push(`${field} deve ter pelo menos ${rules.minLength} caracteres`)
       }
 
-      // Validação maxLength
+      // ValidaÃ§Ã£o maxLength
       if (rules.maxLength && value.toString().length > rules.maxLength) {
-        errors.push(`${field} deve ter no máximo ${rules.maxLength} caracteres`)
+        errors.push(`${field} deve ter no mÃ¡ximo ${rules.maxLength} caracteres`)
       }
 
-      // Validação pattern
+      // ValidaÃ§Ã£o pattern
       if (rules.pattern && !rules.pattern.test(value.toString())) {
-        errors.push(`${field} tem formato inválido`)
+        errors.push(`${field} tem formato invÃ¡lido`)
       }
 
-      // Validação min/max para números
+      // ValidaÃ§Ã£o min/max para nÃºmeros
       if (rules.min !== undefined && Number(value) < rules.min) {
         errors.push(`${field} deve ser pelo menos ${rules.min}`)
       }
 
       if (rules.max !== undefined && Number(value) > rules.max) {
-        errors.push(`${field} deve ser no máximo ${rules.max}`)
+        errors.push(`${field} deve ser no mÃ¡ximo ${rules.max}`)
       }
 
       return errors.length > 0 ? errors : null
     }
 
-    // Função de atualizar erros
+    // FunÃ§Ã£o de atualizar erros
     const updateErrors = (field: string, errors: string[] | null) => {
       formState.errors = {
         ...formState.errors,
@@ -225,24 +226,24 @@ describe('useFormState - Testes Unitários', () => {
       return formState
     }
 
-    // Testar validação de campo obrigatório vazio
+    // Testar validaÃ§Ã£o de campo obrigatÃ³rio vazio
     const nameErrors = validateField('name', '')
-    expect(nameErrors).toEqual(['name é obrigatório'])
+    expect(nameErrors).toEqual(['name Ã© obrigatÃ³rio'])
     updateErrors('name', nameErrors)
 
-    // Testar validação de campo muito curto
+    // Testar validaÃ§Ã£o de campo muito curto
     const shortNameErrors = validateField('name', 'J')
     expect(shortNameErrors).toEqual(['name deve ter pelo menos 2 caracteres'])
 
-    // Testar validação de email inválido
+    // Testar validaÃ§Ã£o de email invÃ¡lido
     const emailErrors = validateField('email', 'invalid-email')
-    expect(emailErrors).toEqual(['email tem formato inválido'])
+    expect(emailErrors).toEqual(['email tem formato invÃ¡lido'])
 
-    // Testar validação de idade abaixo do mínimo
+    // Testar validaÃ§Ã£o de idade abaixo do mÃ­nimo
     const ageErrors = validateField('age', '16')
     expect(ageErrors).toEqual(['age deve ser pelo menos 18'])
 
-    // Testar validação de campo válido
+    // Testar validaÃ§Ã£o de campo vÃ¡lido
     const validName = validateField('name', 'John Doe')
     expect(validName).toBe(null)
 
@@ -253,8 +254,8 @@ describe('useFormState - Testes Unitários', () => {
     expect(validAge).toBe(null)
   })
 
-  it('deve validar lógica de validação do formulário completo', () => {
-    // Mock de estado do formulário
+  it('deve validar lÃ³gica de validaÃ§Ã£o do formulÃ¡rio completo', () => {
+    // Mock de estado do formulÃ¡rio
     let formState = {
       values: {
         name: 'John Doe',
@@ -267,7 +268,7 @@ describe('useFormState - Testes Unitários', () => {
       isValid: false
     }
 
-    // Mock de regras de validação
+    // Mock de regras de validaÃ§Ã£o
     const validationRules = {
       name: { required: true, minLength: 2 },
       email: { required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
@@ -275,7 +276,7 @@ describe('useFormState - Testes Unitários', () => {
       phone: { pattern: /^\d{11}$/ }
     }
 
-    // Função de validar formulário completo
+    // FunÃ§Ã£o de validar formulÃ¡rio completo
     const validateForm = () => {
       const errors: Record<string, string[]> = {}
       let isValid = true
@@ -299,7 +300,7 @@ describe('useFormState - Testes Unitários', () => {
       return { isValid, errors }
     }
 
-    // Função auxiliar de validação de campo
+    // FunÃ§Ã£o auxiliar de validaÃ§Ã£o de campo
     const validateField = (field: string, value: any, rules: any) => {
       const fieldRules = rules[field]
       if (!fieldRules) return null
@@ -307,11 +308,11 @@ describe('useFormState - Testes Unitários', () => {
       const errors: string[] = []
 
       if (fieldRules.required && !value) {
-        errors.push(`${field} é obrigatório`)
+        errors.push(`${field} Ã© obrigatÃ³rio`)
       }
 
       if (fieldRules.pattern && !fieldRules.pattern.test(value)) {
-        errors.push(`${field} tem formato inválido`)
+        errors.push(`${field} tem formato invÃ¡lido`)
       }
 
       if (fieldRules.minLength && value.length < fieldRules.minLength) {
@@ -325,23 +326,23 @@ describe('useFormState - Testes Unitários', () => {
       return errors.length > 0 ? errors : null
     }
 
-    // Testar validação de formulário válido
+    // Testar validaÃ§Ã£o de formulÃ¡rio vÃ¡lido
     const validResult = validateForm()
     expect(validResult.isValid).toBe(true)
     expect(Object.keys(validResult.errors)).toHaveLength(0)
 
-    // Testar validação com erros
+    // Testar validaÃ§Ã£o com erros
     formState.values.email = 'invalid-email'
     formState.values.age = '16'
 
     const invalidResult = validateForm()
     expect(invalidResult.isValid).toBe(false)
-    expect(invalidResult.errors.email).toEqual(['email tem formato inválido'])
+    expect(invalidResult.errors.email).toEqual(['email tem formato invÃ¡lido'])
     expect(invalidResult.errors.age).toEqual(['age deve ser pelo menos 18'])
   })
 
-  it('deve validar lógica de submissão do formulário', () => {
-    // Mock de estado do formulário
+  it('deve validar lÃ³gica de submissÃ£o do formulÃ¡rio', async () => {
+    // Mock de estado do formulÃ¡rio
     let formState = {
       values: { name: 'John', email: 'john@example.com' },
       errors: {},
@@ -353,10 +354,10 @@ describe('useFormState - Testes Unitários', () => {
       lastSubmittedAt: null
     }
 
-    // Função de submeter formulário
-    const submitForm = async (onSubmit: Function) => {
+    // FunÃ§Ã£o de submeter formulÃ¡rio
+    const submitForm = async (onSubmit: (values: typeof formState.values) => Promise<unknown>) => {
       if (!formState.isValid) {
-        throw new Error('Formulário inválido')
+        throw new Error('FormulÃ¡rio invÃ¡lido')
       }
 
       formState = {
@@ -384,7 +385,7 @@ describe('useFormState - Testes Unitários', () => {
       }
     }
 
-    // Testar submissão bem-sucedida
+    // Testar submissÃ£o bem-sucedida
     const mockOnSubmit = vi.fn().mockResolvedValue({ success: true })
     const submitPromise = submitForm(mockOnSubmit)
     
@@ -397,18 +398,18 @@ describe('useFormState - Testes Unitários', () => {
     expect(formState.submitCount).toBe(1)
     expect(formState.lastSubmittedAt).toBeInstanceOf(Date)
 
-    // Testar submissão com erro
-    const mockOnSubmitError = vi.fn().mockRejectedValue(new Error('Erro de conexão'))
+    // Testar submissÃ£o com erro
+    const mockOnSubmitError = vi.fn().mockRejectedValue(new Error('Erro de conexÃ£o'))
     
-    await expect(submitForm(mockOnSubmitError)).rejects.toThrow('Erro de conexão')
+    await expect(submitForm(mockOnSubmitError)).rejects.toThrow('Erro de conexÃ£o')
     expect(formState.isSubmitting).toBe(false)
   })
 
-  it('deve validar lógica de reset do formulário', () => {
-    // Mock de estado do formulário
+  it('deve validar lÃ³gica de reset do formulÃ¡rio', () => {
+    // Mock de estado do formulÃ¡rio
     let formState = {
       values: { name: 'John', email: 'john@example.com' },
-      errors: { name: ['Nome inválido'] },
+      errors: { name: ['Nome invÃ¡lido'] },
       touched: { name: true, email: true },
       dirty: true,
       isValid: false,
@@ -418,7 +419,7 @@ describe('useFormState - Testes Unitários', () => {
 
     const initialValues = { name: '', email: '' }
 
-    // Função de reset
+    // FunÃ§Ã£o de reset
     const resetForm = () => {
       formState = {
         values: { ...initialValues },
@@ -444,23 +445,23 @@ describe('useFormState - Testes Unitários', () => {
     expect(reset.lastSubmittedAt).toBe(null)
   })
 
-  it('deve validar lógica de campos sujos (dirty)', () => {
+  it('deve validar lÃ³gica de campos sujos (dirty)', () => {
     // Mock de estado
     let formState = {
-      values: { name: 'John', email: 'john@example.com' },
+      values: { name: '', email: '' },
       initialValues: { name: '', email: '' },
       touched: {},
       dirty: false
     }
 
-    // Função de verificar se campo está sujo
+    // FunÃ§Ã£o de verificar se campo estÃ¡ sujo
     const isFieldDirty = (field: string) => {
       const currentValue = formState.values[field]
       const initialValue = formState.initialValues[field]
       return currentValue !== initialValue
     }
 
-    // Função de atualizar estado sujo
+    // FunÃ§Ã£o de atualizar estado sujo
     const updateDirtyState = () => {
       const fields = Object.keys(formState.values)
       const hasDirtyFields = fields.some(field => isFieldDirty(field))
@@ -491,14 +492,14 @@ describe('useFormState - Testes Unitários', () => {
     expect(reset.dirty).toBe(false)
   })
 
-  it('deve validar lógica de campos tocados (touched)', () => {
+  it('deve validar lÃ³gica de campos tocados (touched)', () => {
     // Mock de estado
     let formState = {
       touched: {},
       values: { name: '', email: '' }
     }
 
-    // Função de marcar campo como tocado
+    // FunÃ§Ã£o de marcar campo como tocado
     const touchField = (field: string) => {
       formState.touched = {
         ...formState.touched,
@@ -507,7 +508,7 @@ describe('useFormState - Testes Unitários', () => {
       return formState
     }
 
-    // Função de marcar todos os campos como tocados
+    // FunÃ§Ã£o de marcar todos os campos como tocados
     const touchAllFields = () => {
       const touched = Object.keys(formState.values).reduce((acc, field) => {
         acc[field] = true
@@ -518,7 +519,7 @@ describe('useFormState - Testes Unitários', () => {
       return formState
     }
 
-    // Função de limpar campos tocados
+    // FunÃ§Ã£o de limpar campos tocados
     const clearTouched = () => {
       formState.touched = {}
       return formState
@@ -539,7 +540,7 @@ describe('useFormState - Testes Unitários', () => {
     expect(Object.keys(cleared.touched)).toHaveLength(0)
   })
 
-  it('deve validar lógica de transformação de valores', () => {
+  it('deve validar lÃ³gica de transformaÃ§Ã£o de valores', () => {
     // Mock de transformadores
     const transformers = {
       phone: (value: string) => value.replace(/\D/g, '').slice(0, 11),
@@ -552,13 +553,13 @@ describe('useFormState - Testes Unitários', () => {
       values: { name: '', email: '', age: '', phone: '' }
     }
 
-    // Função de transformar valor
+    // FunÃ§Ã£o de transformar valor
     const transformValue = (field: string, value: any) => {
       const transformer = transformers[field as keyof typeof transformers]
       return transformer ? transformer(value) : value
     }
 
-    // Função de atualizar com transformação
+    // FunÃ§Ã£o de atualizar com transformaÃ§Ã£o
     const updateValueWithTransform = (field: string, value: any) => {
       const transformedValue = transformValue(field, value)
       
@@ -573,7 +574,7 @@ describe('useFormState - Testes Unitários', () => {
       return formState
     }
 
-    // Testar transformações
+    // Testar transformaÃ§Ãµes
     const phoneUpdate = updateValueWithTransform('phone', '(11) 98765-4321')
     expect(phoneUpdate.values.phone).toBe('11987654321')
 
@@ -615,3 +616,4 @@ describe('useFormState - Testes Unitários', () => {
     expect(expectedStructure).toBeDefined()
   })
 })
+

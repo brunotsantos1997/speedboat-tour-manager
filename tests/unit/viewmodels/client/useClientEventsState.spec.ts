@@ -1,247 +1,130 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
-import { useClientEventsState } from '../../../src/viewmodels/client/useClientEventsState'
+import { renderHook, waitFor } from '@testing-library/react'
+import { useClientEventsState } from '@/viewmodels/client/useClientEventsState'
 
-// Mock do date-fns para controle de datas
-vi.mock('date-fns', () => ({
-  format: (date: Date, pattern: string) => {
-    if (pattern === 'yyyy-MM-dd') {
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-    }
-    return date.toString()
-  },
-  isSameDay: (date1: Date, date2: Date) => 
-    date1.getFullYear() === date2.getFullYear() &&
-    date1.getMonth() === date2.getMonth() &&
-    date1.getDate() === date2.getDate(),
-  startOfDay: (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()),
-  endOfDay: (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999)
+const mocks = vi.hoisted(() => ({
+  getEventsByClient: vi.fn(),
+  subscribeToClientEvents: vi.fn(),
+  updateEvent: vi.fn(),
+  syncEvent: vi.fn()
 }))
 
-describe('useClientEventsState - Testes Unitários', () => {
+vi.mock('@/core/repositories/EventRepository', () => ({
+  eventRepository: {
+    getEventsByClient: mocks.getEventsByClient,
+    subscribeToClientEvents: mocks.subscribeToClientEvents,
+    updateEvent: mocks.updateEvent
+  }
+}))
+
+vi.mock('@/viewmodels/useEventSync', () => ({
+  useEventSync: () => ({
+    syncEvent: mocks.syncEvent
+  })
+}))
+
+const client = {
+  id: 'client-1',
+  name: 'Joao',
+  phone: '11999999999',
+  totalTrips: 0
+}
+
+const createEvent = (overrides: Record<string, unknown> = {}) => ({
+  id: 'event-1',
+  date: '2026-04-07',
+  startTime: '09:00',
+  endTime: '10:00',
+  status: 'SCHEDULED',
+  paymentStatus: 'PENDING',
+  boat: { id: 'boat-1', name: 'Alpha', capacity: 10, size: 30, pricePerHour: 100, pricePerHalfHour: 50, organizationTimeMinutes: 15 },
+  boardingLocation: { id: 'loc-1', name: 'Pier' },
+  tourType: { id: 'tour-1', name: 'Passeio', color: '#000000' },
+  products: [],
+  client,
+  passengerCount: 2,
+  subtotal: 200,
+  total: 200,
+  ...overrides
+})
+
+describe('useClientEventsState', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.getEventsByClient.mockResolvedValue([])
+    mocks.subscribeToClientEvents.mockImplementation((_clientId, callback) => {
+      callback([])
+      return vi.fn()
+    })
+    mocks.updateEvent.mockImplementation(async (event) => event)
+    mocks.syncEvent.mockResolvedValue(undefined)
   })
 
-  it('deve importar o hook corretamente', () => {
-    expect(typeof useClientEventsState).toBe('function')
-  })
+  it('retorna estado vazio quando nao ha cliente selecionado', async () => {
+    const { result } = renderHook(() => useClientEventsState(null))
 
-  it('deve retornar estado inicial correto', () => {
-    const { result } = renderHook(() => useClientEventsState())
-    
-    expect(result.current.events).toEqual([])
-    expect(result.current.loading).toBe(false)
-    expect(result.current.error).toBe(null)
-    expect(result.current.filters).toEqual({
-      status: 'all',
-      dateRange: null,
-      boatId: null
+    await waitFor(() => {
+      expect(result.current.clientEvents).toEqual([])
+      expect(result.current.isLoading).toBe(false)
     })
   })
 
-  it('deve filtrar eventos por status', () => {
-    const { result } = renderHook(() => useClientEventsState())
-    
-    const mockEvents = [
-      { id: '1', status: 'SCHEDULED', date: '2024-01-15' },
-      { id: '2', status: 'COMPLETED', date: '2024-01-16' },
-      { id: '3', status: 'CANCELLED', date: '2024-01-17' }
-    ]
-
-    act(() => {
-      result.current.setEvents(mockEvents)
+  it('ordena os eventos do cliente por data decrescente', async () => {
+    mocks.subscribeToClientEvents.mockImplementation((_clientId, callback) => {
+      callback([
+        createEvent({ id: 'event-older', date: '2026-04-01' }),
+        createEvent({ id: 'event-newer', date: '2026-04-10' })
+      ])
+      return vi.fn()
     })
 
-    // Filtrar por SCHEDULED
-    act(() => {
-      result.current.setFilters({ ...result.current.filters, status: 'SCHEDULED' })
-    })
+    const { result } = renderHook(() => useClientEventsState(client))
 
-    const filteredEvents = result.current.filteredEvents
-    expect(filteredEvents).toHaveLength(1)
-    expect(filteredEvents[0].status).toBe('SCHEDULED')
+    await waitFor(() => {
+      expect(result.current.clientEvents.map(event => event.id)).toEqual(['event-newer', 'event-older'])
+      expect(result.current.isLoading).toBe(false)
+    })
   })
 
-  it('deve filtrar eventos por período', () => {
-    const { result } = renderHook(() => useClientEventsState())
-    
-    const mockEvents = [
-      { id: '1', status: 'SCHEDULED', date: '2024-01-15' },
-      { id: '2', status: 'COMPLETED', date: '2024-02-16' },
-      { id: '3', status: 'CANCELLED', date: '2024-03-17' }
-    ]
-
-    act(() => {
-      result.current.setEvents(mockEvents)
+  it('auto-cancela eventos pre-agendados expirados na carga inicial', async () => {
+    const expiredEvent = createEvent({
+      id: 'event-expired',
+      status: 'PRE_SCHEDULED',
+      preScheduledAt: Date.now() - (25 * 60 * 60 * 1000)
     })
 
-    // Filtrar por janeiro
-    act(() => {
-      result.current.setFilters({
-        ...result.current.filters,
-        dateRange: { start: '2024-01-01', end: '2024-01-31' }
-      })
-    })
+    mocks.getEventsByClient.mockResolvedValue([expiredEvent])
 
-    const filteredEvents = result.current.filteredEvents
-    expect(filteredEvents).toHaveLength(1)
-    expect(filteredEvents[0].date).toBe('2024-01-15')
+    renderHook(() => useClientEventsState(client))
+
+    await waitFor(() => {
+      expect(mocks.updateEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'event-expired',
+          status: 'CANCELLED',
+          autoCancelled: true
+        })
+      )
+      expect(mocks.syncEvent).toHaveBeenCalled()
+    })
   })
 
-  it('deve calcular estatísticas do cliente', () => {
-    const { result } = renderHook(() => useClientEventsState())
-    
-    const mockEvents = [
-      { id: '1', status: 'COMPLETED', total: 1500, date: '2024-01-15' },
-      { id: '2', status: 'COMPLETED', total: 2000, date: '2024-02-16' },
-      { id: '3', status: 'SCHEDULED', total: 1800, date: '2024-03-17' },
-      { id: '4', status: 'CANCELLED', total: 1200, date: '2024-01-20' }
-    ]
-
-    act(() => {
-      result.current.setEvents(mockEvents)
+  it('nao tenta auto-cancelar eventos ainda dentro da janela de 24 horas', async () => {
+    const pendingEvent = createEvent({
+      id: 'event-pending',
+      status: 'PRE_SCHEDULED',
+      preScheduledAt: Date.now() - (2 * 60 * 60 * 1000)
     })
 
-    const stats = result.current.statistics
-    expect(stats.totalEvents).toBe(4)
-    expect(stats.completedEvents).toBe(2)
-    expect(stats.scheduledEvents).toBe(1)
-    expect(stats.cancelledEvents).toBe(1)
-    expect(stats.totalRevenue).toBe(3500) // 1500 + 2000
-    expect(stats.pendingRevenue).toBe(1800)
-  })
+    mocks.getEventsByClient.mockResolvedValue([pendingEvent])
 
-  it('deve ordenar eventos corretamente', () => {
-    const { result } = renderHook(() => useClientEventsState())
-    
-    const mockEvents = [
-      { id: '1', status: 'SCHEDULED', date: '2024-01-15', createdAt: '2024-01-10T10:00:00Z' },
-      { id: '2', status: 'COMPLETED', date: '2024-01-16', createdAt: '2024-01-11T10:00:00Z' },
-      { id: '3', status: 'CANCELLED', date: '2024-01-14', createdAt: '2024-01-12T10:00:00Z' }
-    ]
+    renderHook(() => useClientEventsState(client))
 
-    act(() => {
-      result.current.setEvents(mockEvents)
+    await waitFor(() => {
+      expect(mocks.getEventsByClient).toHaveBeenCalledWith('client-1')
     })
 
-    // Ordenar por data (mais recente primeiro)
-    act(() => {
-      if (result.current.setSortBy) {
-        result.current.setSortBy('date')
-      }
-    })
-
-    const sortedEvents = result.current.sortedEvents
-    expect(sortedEvents[0].date).toBe('2024-01-16') // Mais recente
-    expect(sortedEvents[2].date).toBe('2024-01-14') // Mais antigo
-  })
-
-  it('deve buscar eventos por texto', () => {
-    const { result } = renderHook(() => useClientEventsState())
-    
-    const mockEvents = [
-      { id: '1', status: 'SCHEDULED', tourName: 'Passeio para Ilha', clientName: 'João Silva' },
-      { id: '2', status: 'COMPLETED', tourName: 'Tour pela Baía', clientName: 'Maria Santos' },
-      { id: '3', status: 'CANCELLED', tourName: 'Passeio Noturno', clientName: 'José Oliveira' }
-    ]
-
-    act(() => {
-      result.current.setEvents(mockEvents)
-    })
-
-    // Buscar por "Passeio"
-    act(() => {
-      if (result.current.setSearchTerm) {
-        result.current.setSearchTerm('Passeio')
-      }
-    })
-
-    const searchResults = result.current.searchResults || result.current.filteredEvents
-    expect(searchResults.length).toBe(2)
-    expect(searchResults[0].tourName).toContain('Passeio')
-    expect(searchResults[1].tourName).toContain('Passeio')
-  })
-
-  it('deve lidar com estado de loading', () => {
-    const { result } = renderHook(() => useClientEventsState())
-    
-    act(() => {
-      if (result.current.setLoading) {
-        result.current.setLoading(true)
-      }
-    })
-
-    expect(result.current.loading).toBe(true)
-
-    act(() => {
-      if (result.current.setLoading) {
-        result.current.setLoading(false)
-      }
-    })
-
-    expect(result.current.loading).toBe(false)
-  })
-
-  it('deve lidar com estado de erro', () => {
-    const { result } = renderHook(() => useClientEventsState())
-    
-    const errorMessage = 'Erro ao carregar eventos'
-    
-    act(() => {
-      if (result.current.setError) {
-        result.current.setError(errorMessage)
-      }
-    })
-
-    expect(result.current.error).toBe(errorMessage)
-    expect(result.current.loading).toBe(false)
-  })
-
-  it('deve limpar erro ao definir novos eventos', () => {
-    const { result } = renderHook(() => useClientEventsState())
-    
-    // Definir erro
-    act(() => {
-      if (result.current.setError) {
-        result.current.setError('Erro inicial')
-      }
-    })
-
-    expect(result.current.error).toBe('Erro inicial')
-
-    // Definir novos eventos deve limpar o erro
-    act(() => {
-      result.current.setEvents([{ id: '1', status: 'SCHEDULED', date: '2024-01-15' }])
-    })
-
-    expect(result.current.error).toBe(null)
-  })
-
-  it('deve resetar filtros', () => {
-    const { result } = renderHook(() => useClientEventsState())
-    
-    // Alterar filtros
-    act(() => {
-      result.current.setFilters({
-        status: 'COMPLETED',
-        dateRange: { start: '2024-01-01', end: '2024-01-31' },
-        boatId: 'boat-1'
-      })
-    })
-
-    expect(result.current.filters.status).toBe('COMPLETED')
-    expect(result.current.filters.boatId).toBe('boat-1')
-
-    // Resetar filtros
-    act(() => {
-      if (result.current.resetFilters) {
-        result.current.resetFilters()
-      }
-    })
-
-    expect(result.current.filters.status).toBe('all')
-    expect(result.current.filters.dateRange).toBe(null)
-    expect(result.current.filters.boatId).toBe(null)
+    expect(mocks.updateEvent).not.toHaveBeenCalled()
+    expect(mocks.syncEvent).not.toHaveBeenCalled()
   })
 })

@@ -490,7 +490,7 @@ describe('useModalState - Testes Unitários', () => {
     }
 
     // Funções de eventos
-    const addEventListener = (modalId: string, event: string, callback: Function) => {
+    const addEventListener = (modalId: string, event: string, callback: () => void) => {
       const key = `${modalId}-${event}`
       if (!modalEvents.listeners.has(key)) {
         modalEvents.listeners.set(key, [])
@@ -498,7 +498,7 @@ describe('useModalState - Testes Unitários', () => {
       modalEvents.listeners.get(key).push(callback)
     }
 
-    const removeEventListener = (modalId: string, event: string, callback: Function) => {
+    const removeEventListener = (modalId: string, event: string, callback: () => void) => {
       const key = `${modalId}-${event}`
       const callbacks = modalEvents.listeners.get(key)
       if (callbacks) {

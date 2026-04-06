@@ -14,6 +14,19 @@ export interface TestFixtures {
   incomes: Income[];
 }
 
+export interface PreparedTestData {
+  fixtures: TestFixtures;
+  createdAt: string;
+  summary: {
+    clients: number;
+    boats: number;
+    events: number;
+    payments: number;
+    expenses: number;
+    incomes: number;
+  };
+}
+
 export const createTestFixtures = (): TestFixtures => {
   const timestamp = Date.now();
   
@@ -220,21 +233,22 @@ export const createTestFixtures = (): TestFixtures => {
   };
 };
 
-// Helper functions for test setup
-export const setupTestData = async (fixtures: TestFixtures) => {
-  // This would be implemented to actually seed the test database
-  // For now, it's a placeholder that shows the intended structure
-  console.log('Setting up test data with fixtures:', {
-    clients: fixtures.clients.length,
-    boats: fixtures.boats.length,
-    events: fixtures.events.length,
-    payments: fixtures.payments.length
-  });
-  
-  return fixtures;
+// Helper functions for deterministic test setup metadata
+export const setupTestData = async (fixtures: TestFixtures): Promise<PreparedTestData> => {
+  return {
+    fixtures,
+    createdAt: new Date().toISOString(),
+    summary: {
+      clients: fixtures.clients.length,
+      boats: fixtures.boats.length,
+      events: fixtures.events.length,
+      payments: fixtures.payments.length,
+      expenses: fixtures.expenses.length,
+      incomes: fixtures.incomes.length
+    }
+  };
 };
 
-export const cleanupTestData = async (fixtures: TestFixtures) => {
-  // This would clean up test data after tests
-  console.log('Cleaning up test data...');
+export const cleanupTestData = async (_fixtures: TestFixtures) => {
+  return undefined;
 };

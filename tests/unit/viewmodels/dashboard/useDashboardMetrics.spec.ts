@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+ï»¿import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useDashboardMetrics } from '../../../src/viewmodels/dashboard/useDashboardMetrics'
+import { useDashboardMetrics } from '@/viewmodels/dashboard/useDashboardMetrics'
 
 // Mock do date-fns para controle de datas
 vi.mock('date-fns', () => ({
@@ -22,7 +22,7 @@ vi.mock('date-fns', () => ({
   }
 }))
 
-describe('useDashboardMetrics - Testes Unitários', () => {
+describe('useDashboardMetrics - Testes UnitÃ¡rios', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -39,7 +39,7 @@ describe('useDashboardMetrics - Testes Unitários', () => {
     expect(result.current.error).toBe(null)
   })
 
-  it('deve calcular métricas financeiras básicas', () => {
+  it('deve calcular mÃ©tricas financeiras bÃ¡sicas', () => {
     const { result } = renderHook(() => useDashboardMetrics())
     
     // Mock de dados financeiros
@@ -62,7 +62,7 @@ describe('useDashboardMetrics - Testes Unitários', () => {
       ]
     }
 
-    // Função de cálculo de métricas financeiras
+    // FunÃ§Ã£o de cÃ¡lculo de mÃ©tricas financeiras
     const calculateFinancialMetrics = (data: any) => {
       const completedEvents = data.events.filter((e: any) => e.status === 'COMPLETED')
       const scheduledEvents = data.events.filter((e: any) => e.status === 'SCHEDULED')
@@ -82,7 +82,7 @@ describe('useDashboardMetrics - Testes Unitários', () => {
       // Calcular saldo a receber
       const outstandingBalance = pendingRevenue
       
-      // Calcular lucro líquido
+      // Calcular lucro lÃ­quido
       const netProfit = realizedRevenue - totalExpenses
       
       // Calcular margem de lucro
@@ -117,7 +117,7 @@ describe('useDashboardMetrics - Testes Unitários', () => {
     expect(metrics.paymentRate).toBe(83) // 4400 / 5300 * 100
   })
 
-  it('deve calcular métricas de performance', () => {
+  it('deve calcular mÃ©tricas de performance', () => {
     // Mock de dados de performance
     const performanceData = {
       events: [
@@ -133,7 +133,7 @@ describe('useDashboardMetrics - Testes Unitários', () => {
       ]
     }
 
-    // Função de cálculo de métricas de performance
+    // FunÃ§Ã£o de cÃ¡lculo de mÃ©tricas de performance
     const calculatePerformanceMetrics = (data: any) => {
       const completedEvents = data.events.filter((e: any) => e.status === 'COMPLETED')
       const cancelledEvents = data.events.filter((e: any) => e.status === 'CANCELLED')
@@ -174,8 +174,8 @@ describe('useDashboardMetrics - Testes Unitários', () => {
     expect(metrics.activeBoats).toBe(2)
   })
 
-  it('deve calcular tendências mensais', () => {
-    // Mock de dados de tendências
+  it('deve calcular tendÃªncias mensais', () => {
+    // Mock de dados de tendÃªncias
     const trendsData = {
       currentMonth: {
         revenue: 21000,
@@ -197,7 +197,7 @@ describe('useDashboardMetrics - Testes Unitários', () => {
       }
     }
 
-    // Função de cálculo de tendências
+    // FunÃ§Ã£o de cÃ¡lculo de tendÃªncias
     const calculateTrends = (data: any) => {
       const monthlyGrowth = {
         revenue: data.previousMonth.revenue > 0 
@@ -260,7 +260,7 @@ describe('useDashboardMetrics - Testes Unitários', () => {
       completionRate: 90
     }
 
-    // Função de comparação com metas
+    // FunÃ§Ã£o de comparaÃ§Ã£o com metas
     const compareWithTargets = (actual: any, targets: any) => {
       const comparisons = {
         revenue: {
@@ -334,15 +334,15 @@ describe('useDashboardMetrics - Testes Unitários', () => {
       }
     }
 
-    // Função de geração de alertas
+    // FunÃ§Ã£o de geraÃ§Ã£o de alertas
     const generateAlerts = (data: any, thresholds: any) => {
       const alerts: any[] = []
 
       if (data.metrics.completionRate < thresholds.minCompletionRate) {
         alerts.push({
           type: 'warning',
-          title: 'Taxa de Conclusão Baixa',
-          message: `Taxa de conclusão de ${data.metrics.completionRate}% está abaixo da meta de ${thresholds.minCompletionRate}%`,
+          title: 'Taxa de ConclusÃ£o Baixa',
+          message: `Taxa de conclusÃ£o de ${data.metrics.completionRate}% estÃ¡ abaixo da meta de ${thresholds.minCompletionRate}%`,
           severity: 'high',
           action: 'review_events'
         })
@@ -382,7 +382,7 @@ describe('useDashboardMetrics - Testes Unitários', () => {
         alerts.push({
           type: 'info',
           title: 'Barcos com Baixa Performance',
-          message: `${data.metrics.lowPerformingBoats.length} barcos com performance abaixo da média`,
+          message: `${data.metrics.lowPerformingBoats.length} barcos com performance abaixo da mÃ©dia`,
           severity: 'low',
           action: 'review_boat_performance'
         })
@@ -404,14 +404,14 @@ describe('useDashboardMetrics - Testes Unitários', () => {
     expect(alerts.highAlerts).toBe(2)
     expect(alerts.mediumAlerts).toBe(1)
     expect(alerts.lowAlerts).toBe(1)
-    expect(alerts.alerts[0].title).toBe('Taxa de Conclusão Baixa')
+    expect(alerts.alerts[0].title).toBe('Taxa de ConclusÃ£o Baixa')
     expect(alerts.alerts[3].type).toBe('critical')
   })
 
-  it('deve atualizar métricas quando dados mudam', () => {
+  it('deve atualizar mÃ©tricas quando dados mudam', () => {
     const { result } = renderHook(() => useDashboardMetrics())
     
-    // Simular atualização de dados
+    // Simular atualizaÃ§Ã£o de dados
     const newMetrics = {
       revenue: 25000,
       expenses: 4000,
@@ -425,7 +425,7 @@ describe('useDashboardMetrics - Testes Unitários', () => {
       }
     })
 
-    // Verificar se as métricas foram atualizadas
+    // Verificar se as mÃ©tricas foram atualizadas
     if (result.current.metrics) {
       expect(result.current.metrics.revenue).toBe(25000)
     }
@@ -445,3 +445,4 @@ describe('useDashboardMetrics - Testes Unitários', () => {
     expect(result.current.loading).toBe(false)
   })
 })
+

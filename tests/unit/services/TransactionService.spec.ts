@@ -19,12 +19,6 @@ vi.mock('../../../src/core/repositories/PaymentRepository', () => ({
   }
 }))
 
-vi.mock('../../../src/core/repositories/AuditLogRepository', () => ({
-  auditLogRepository: {
-    log: vi.fn()
-  }
-}))
-
 // Mock do Logger
 vi.mock('../../../src/core/common/Logger', () => ({
   logger: {

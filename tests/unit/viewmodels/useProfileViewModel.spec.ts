@@ -1,252 +1,113 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { act, renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { User } from '../../../src/core/domain/User';
+import { useProfileViewModel } from '../../../src/viewmodels/useProfileViewModel';
 
-// Mock do Firebase
-vi.mock('../../../src/lib/firebase', () => ({
-  auth: {
-    currentUser: {
-      email: 'test@example.com'
-    }
+const mockUpdateProfile = vi.fn();
+const mockUpdateCalendarSettings = vi.fn();
+const mockUpdateCompletedTours = vi.fn();
+const mockResetTours = vi.fn();
+
+vi.mock('../../../src/core/services/auth/ProfileService', () => ({
+  ProfileService: {
+    updateProfile: (...args: unknown[]) => mockUpdateProfile(...args),
+    updateCalendarSettings: (...args: unknown[]) => mockUpdateCalendarSettings(...args),
+    updateCompletedTours: (...args: unknown[]) => mockUpdateCompletedTours(...args),
+    resetTours: (...args: unknown[]) => mockResetTours(...args),
   },
-  db: {}
-}))
+}));
 
-// Mock do Firebase Auth
-vi.mock('firebase/auth', () => ({
-  updateProfile: vi.fn(),
-  updatePassword: vi.fn(),
-  updateEmail: vi.fn(),
-  reauthenticateWithCredential: vi.fn(),
-  EmailAuthProvider: {
-    credential: vi.fn()
-  }
-}))
+const currentUser: User = {
+  id: 'user-1',
+  name: 'Ana',
+  email: 'ana@example.com',
+  status: 'APPROVED',
+  role: 'SELLER',
+  completedTours: ['tour-1'],
+};
 
-// Mock do Firebase Firestore
-vi.mock('firebase/firestore', () => ({
-  doc: vi.fn(),
-  updateDoc: vi.fn()
-}))
-
-// Mock do DOMPurify
-vi.mock('dompurify', () => ({
-  sanitize: vi.fn((input) => input)
-}))
-
-describe('useProfileViewModel - Testes Unitários', () => {
+describe('useProfileViewModel', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-  })
+    vi.clearAllMocks();
+    mockUpdateProfile.mockResolvedValue({});
+    mockUpdateCalendarSettings.mockResolvedValue({});
+    mockUpdateCompletedTours.mockResolvedValue({ completedTours: ['tour-1', 'tour-2'] });
+    mockResetTours.mockResolvedValue({ completedTours: [] });
+  });
 
-  it('deve importar o hook corretamente', async () => {
-    const { useProfileViewModel } = await import('../../../src/viewmodels/useProfileViewModel')
-    expect(typeof useProfileViewModel).toBe('function')
-  })
+  it('propagates self profile updates back to the session state', async () => {
+    mockUpdateProfile.mockResolvedValue({ name: 'Ana Paula' });
+    const onUserUpdated = vi.fn();
+    const { result } = renderHook(() => useProfileViewModel());
 
-  it('deve validar estrutura básica do hook', async () => {
-    const { useProfileViewModel } = await import('../../../src/viewmodels/useProfileViewModel')
-    
-    // Teste básico para garantir que o hook não quebra na importação
-    expect(() => {
-      // Não vamos executar o hook, apenas validar sua estrutura
-      const hookSource = useProfileViewModel.toString()
-      expect(hookSource).toContain('useCallback')
-      expect(hookSource).toContain('updateProfile')
-      expect(hookSource).toContain('updateCalendarSettings')
-      expect(hookSource).toContain('updateCompletedTours')
-      expect(hookSource).toContain('resetTours')
-    }).not.toThrow()
-  })
+    await act(async () => {
+      await result.current.updateProfile(
+        currentUser,
+        currentUser.id,
+        { name: 'Ana Paula' },
+        onUserUpdated
+      );
+    });
 
-  it('deve validar senha corretamente', () => {
-    // Teste da função validatePassword isoladamente
-    const validatePassword = (password: string) => {
-      if (password.length < 8)
-        throw new Error('A senha deve ter pelo menos 8 caracteres.')
-      if (!/[A-Z]/.test(password))
-        throw new Error('A senha deve conter pelo menos uma letra maiúscula.')
-      if (!/[a-z]/.test(password))
-        throw new Error('A senha deve conter pelo menos uma letra minúscula.')
-      if (!/\d/.test(password))
-        throw new Error('A senha deve conter pelo menos um número.')
-      if (!/[!@#$%^&*(),.?":{}|<>]/.test(password))
-        throw new Error('A senha deve conter pelo menos um caractere especial.')
-    }
+    expect(mockUpdateProfile).toHaveBeenCalledWith(currentUser, currentUser.id, { name: 'Ana Paula' });
+    expect(onUserUpdated).toHaveBeenCalledWith({ name: 'Ana Paula' });
+  });
 
-    // Senha válida
-    expect(() => validatePassword('Senha123!')).not.toThrow()
+  it('does not mutate local session state when editing another profile', async () => {
+    mockUpdateProfile.mockResolvedValue({ name: 'Outro Nome' });
+    const onUserUpdated = vi.fn();
+    const adminUser: User = { ...currentUser, id: 'admin-1', role: 'OWNER' };
+    const { result } = renderHook(() => useProfileViewModel());
 
-    // Senha muito curta
-    expect(() => validatePassword('Curta1!')).toThrow('A senha deve ter pelo menos 8 caracteres.')
+    await act(async () => {
+      await result.current.updateProfile(adminUser, 'user-2', { name: 'Outro Nome' }, onUserUpdated);
+    });
 
-    // Sem letra maiúscula
-    expect(() => validatePassword('senha123!')).toThrow('A senha deve conter pelo menos uma letra maiúscula.')
+    expect(onUserUpdated).not.toHaveBeenCalled();
+  });
 
-    // Sem letra minúscula
-    expect(() => validatePassword('SENHA123!')).toThrow('A senha deve conter pelo menos uma letra minúscula.')
+  it('updates calendar settings for the current user', async () => {
+    mockUpdateCalendarSettings.mockResolvedValue({
+      calendarSettings: { calendarId: 'calendar-123', autoSync: true },
+    });
+    const onUserUpdated = vi.fn();
+    const { result } = renderHook(() => useProfileViewModel());
 
-    // Sem número
-    expect(() => validatePassword('Senha!!!')).toThrow('A senha deve conter pelo menos um número.')
+    await act(async () => {
+      await result.current.updateCalendarSettings(
+        currentUser,
+        currentUser.id,
+        { calendarId: 'calendar-123', autoSync: true },
+        onUserUpdated
+      );
+    });
 
-    // Sem caractere especial
-    expect(() => validatePassword('Senha123')).toThrow('A senha deve conter pelo menos um caractere especial.')
-  })
+    expect(onUserUpdated).toHaveBeenCalledWith({
+      calendarSettings: { calendarId: 'calendar-123', autoSync: true },
+    });
+  });
 
-  it('deve validar permissões de edição', () => {
-    // Teste de lógica de permissões
-    const currentUser = {
-      id: 'user-1',
-      role: 'ADMIN'
-    }
+  it('updates completed tours through the service layer', async () => {
+    const onUserUpdated = vi.fn();
+    const { result } = renderHook(() => useProfileViewModel());
 
-    const targetUserId = 'user-2'
+    await act(async () => {
+      await result.current.updateCompletedTours(currentUser, 'tour-2', onUserUpdated);
+    });
 
-    // Mesmo usuário pode editar
-    const canEditSameUser = currentUser.id === targetUserId
-    expect(canEditSameUser).toBe(false)
+    expect(mockUpdateCompletedTours).toHaveBeenCalledWith(currentUser, 'tour-2');
+    expect(onUserUpdated).toHaveBeenCalledWith({ completedTours: ['tour-1', 'tour-2'] });
+  });
 
-    // OWNER pode editar qualquer um
-    const ownerUser = { ...currentUser, role: 'OWNER' }
-    const canEditOwner = ownerUser.id === targetUserId || ownerUser.role === 'OWNER'
-    expect(canEditOwner).toBe(true)
+  it('resets completed tours through the service layer', async () => {
+    const onUserUpdated = vi.fn();
+    const { result } = renderHook(() => useProfileViewModel());
 
-    // SUPER_ADMIN pode editar qualquer um
-    const superAdminUser = { ...currentUser, role: 'SUPER_ADMIN' }
-    const canEditSuperAdmin = superAdminUser.id === targetUserId || superAdminUser.role === 'SUPER_ADMIN'
-    expect(canEditSuperAdmin).toBe(true)
+    await act(async () => {
+      await result.current.resetTours(currentUser, onUserUpdated);
+    });
 
-    // ADMIN não pode editar outro usuário
-    const canEditAdmin = currentUser.id === targetUserId || currentUser.role === 'OWNER' || currentUser.role === 'SUPER_ADMIN'
-    expect(canEditAdmin).toBe(false)
-  })
-
-  it('deve validar estrutura de retorno esperada', () => {
-    // Validar a estrutura esperada do retorno do hook
-    const expectedStructure = {
-      updateProfile: expect.any(Function),
-      updateCalendarSettings: expect.any(Function),
-      updateCompletedTours: expect.any(Function),
-      resetTours: expect.any(Function)
-    }
-
-    // Validar que a estrutura é a esperada
-    expect(expectedStructure).toBeDefined()
-  })
-
-  it('deve validar lógica de atualização de tours completos', () => {
-    // Teste de lógica de tours completos
-    const currentUser = {
-      id: 'user-1',
-      completedTours: ['tour-1', 'tour-2']
-    }
-
-    const tourId = 'tour-3'
-    const updatedTours = [...(currentUser.completedTours ?? []), tourId]
-
-    expect(updatedTours).toEqual(['tour-1', 'tour-2', 'tour-3'])
-    expect(updatedTours).toHaveLength(3)
-  })
-
-  it('deve validar lógica de reset de tours', () => {
-    // Teste de lógica de reset
-    const currentUser = {
-      id: 'user-1',
-      completedTours: ['tour-1', 'tour-2', 'tour-3']
-    }
-
-    const resetTours = []
-    expect(resetTours).toEqual([])
-    expect(resetTours).toHaveLength(0)
-  })
-
-  it('deve validar sanitização de dados', () => {
-    // Mock do DOMPurify
-    const sanitize = (input: string) => input
-
-    // Teste de sanitização
-    const name = 'John <script>alert("xss")</script> Doe'
-    const sanitized = sanitize(name)
-    expect(sanitized).toBe(name)
-
-    const email = 'test@example.com'
-    const sanitizedEmail = sanitize(email)
-    expect(sanitizedEmail).toBe(email)
-  })
-
-  it('deve validar lógica de reautenticação', () => {
-    // Teste de lógica de reautenticação
-    const currentUser = {
-      email: 'test@example.com'
-    }
-
-    const oldPassword = 'password123'
-    const email = currentUser.email
-
-    expect(email).toBe('test@example.com')
-    expect(oldPassword).toBeTruthy()
-  })
-
-  it('deve validar lógica de atualização de calendário', () => {
-    // Teste de lógica de calendário
-    const settings = {
-      calendarId: 'cal-123',
-      autoSync: true
-    }
-
-    const calendarSettings = { calendarSettings: settings }
-    expect(calendarSettings).toEqual({
-      calendarSettings: {
-        calendarId: 'cal-123',
-        autoSync: true
-      }
-    })
-  })
-
-  it('deve validar estrutura de dados de perfil', () => {
-    // Teste de estrutura de dados
-    const profileData = {
-      name: 'John Doe',
-      email: 'john@example.com',
-      newPassword: 'Senha123!',
-      oldPassword: 'SenhaAnterior123!'
-    }
-
-    const updates: any = {}
-
-    if (profileData.name) {
-      updates.name = profileData.name
-    }
-
-    if (profileData.email) {
-      updates.email = profileData.email
-    }
-
-    expect(updates).toEqual({
-      name: 'John Doe',
-      email: 'john@example.com'
-    })
-    expect(Object.keys(updates)).toHaveLength(2)
-  })
-
-  it('deve validar casos extremos de senha', () => {
-    const validatePassword = (password: string) => {
-      if (password.length < 8)
-        throw new Error('A senha deve ter pelo menos 8 caracteres.')
-      if (!/[A-Z]/.test(password))
-        throw new Error('A senha deve conter pelo menos uma letra maiúscula.')
-      if (!/[a-z]/.test(password))
-        throw new Error('A senha deve conter pelo menos uma letra minúscula.')
-      if (!/\d/.test(password))
-        throw new Error('A senha deve conter pelo menos um número.')
-      if (!/[!@#$%^&*(),.?":{}|<>]/.test(password))
-        throw new Error('A senha deve conter pelo menos um caractere especial.')
-    }
-
-    // Casos extremos
-    expect(() => validatePassword('')).toThrow('A senha deve ter pelo menos 8 caracteres.')
-    expect(() => validatePassword('12345678')).toThrow('A senha deve conter pelo menos uma letra maiúscula.')
-    expect(() => validatePassword('AAAAAAAA')).toThrow('A senha deve conter pelo menos uma letra minúscula.')
-    expect(() => validatePassword('aaaaaaaa')).toThrow('A senha deve conter pelo menos uma letra maiúscula.')
-    expect(() => validatePassword('Senhaaaa')).toThrow('A senha deve conter pelo menos um número.')
-    expect(() => validatePassword('Senha123')).toThrow('A senha deve conter pelo menos um caractere especial.')
-  })
-})
+    expect(mockResetTours).toHaveBeenCalledWith(currentUser);
+    expect(onUserUpdated).toHaveBeenCalledWith({ completedTours: [] });
+  });
+});

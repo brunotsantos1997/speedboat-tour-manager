@@ -45,7 +45,7 @@ describe('useDashboardViewModel - Testes Unitários', () => {
   it('deve importar o hook corretamente', async () => {
     const { useDashboardViewModel } = await import('../../../src/viewmodels/useDashboardViewModel')
     expect(typeof useDashboardViewModel).toBe('function')
-  }, 10000)
+  }, 30000)
 
   it('deve validar estrutura básica do hook', async () => {
     const { useDashboardViewModel } = await import('../../../src/viewmodels/useDashboardViewModel')

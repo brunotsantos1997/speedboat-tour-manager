@@ -567,8 +567,9 @@ describe('useCashBookViewModel - Testes Unitários', () => {
       expect(filtered.every(e => e.boatId === 'boat-1')).toBe(true)
 
       // Testar filtro ALL
+      const allBoatFilter = 'ALL'
       const allFiltered = entries.filter(entry => 
-        'ALL' === 'ALL' || entry.boatId === 'ALL'
+        allBoatFilter === 'ALL' || entry.boatId === allBoatFilter
       )
       expect(allFiltered).toHaveLength(4)
     })

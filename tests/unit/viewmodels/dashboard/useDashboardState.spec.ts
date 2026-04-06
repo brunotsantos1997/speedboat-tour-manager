@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+ï»¿import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useDashboardState } from '../../../src/viewmodels/dashboard/useDashboardState'
+import { useDashboardState } from '@/viewmodels/dashboard/useDashboardState'
 
 // Mock do date-fns para controle de datas
 vi.mock('date-fns', () => ({
@@ -24,7 +24,7 @@ vi.mock('date-fns', () => ({
   endOfMonth: (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0)
 }))
 
-describe('useDashboardState - Testes Unitários', () => {
+describe('useDashboardState - Testes UnitÃ¡rios', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -43,7 +43,7 @@ describe('useDashboardState - Testes Unitários', () => {
     expect(result.current.selectedDate).toBeInstanceOf(Date)
   })
 
-  it('deve calcular períodos corretamente', () => {
+  it('deve calcular perÃ­odos corretamente', () => {
     const { result } = renderHook(() => useDashboardState())
     
     expect(result.current.periodStart).toMatch(/^\d{4}-\d{2}-\d{2}$/)
@@ -54,7 +54,7 @@ describe('useDashboardState - Testes Unitários', () => {
     const { result } = renderHook(() => useDashboardState())
     
     const now = new Date()
-    const futureDate = new Date(now.getTime() + 86400000) // Amanhã
+    const futureDate = new Date(now.getTime() + 86400000) // AmanhÃ£
     const pastDate = new Date(now.getTime() - 86400000) // Ontem
     
     // Adicionar eventos de teste
@@ -135,7 +135,7 @@ describe('useDashboardState - Testes Unitários', () => {
     expect(result.current.isLoading).toBe(false)
   })
 
-  it('deve atualizar eventos de notificação', () => {
+  it('deve atualizar eventos de notificaÃ§Ã£o', () => {
     const { result } = renderHook(() => useDashboardState())
     
     const notificationEvents = [
@@ -226,7 +226,7 @@ describe('useDashboardState - Testes Unitários', () => {
     expect(result.current.weekEvents.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('deve calcular estatísticas básicas', () => {
+  it('deve calcular estatÃ­sticas bÃ¡sicas', () => {
     const { result } = renderHook(() => useDashboardState())
     
     // Adicionar eventos de teste
@@ -261,3 +261,4 @@ describe('useDashboardState - Testes Unitários', () => {
     expect(result.current.cancelledEvents).toBe(1)
   })
 })
+
