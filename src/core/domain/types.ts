@@ -106,6 +106,7 @@ export interface Payment {
   amount: number;
   method: PaymentMethod;
   type: PaymentType;
+  status?: PaymentStatus;
   date: string; // YYYY-MM-DD
   timestamp: number;
 }
