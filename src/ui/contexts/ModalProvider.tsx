@@ -2,7 +2,7 @@
 import React, { useState, useCallback, type ReactNode } from 'react';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { InformationModal } from '../components/InformationModal';
-import { ModalContext } from './ModalContext';
+import { ModalContext } from './modal/ModalContext';
 
 interface ConfirmationState {
   isOpen: boolean;
@@ -71,7 +71,7 @@ export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   return (
-    <ModalContext.Provider value={{ confirm, showAlert }}>
+    <ModalContext.Provider value={{ isModalOpen: confirmation.isOpen || information.isOpen, openModal: () => {}, closeModal: () => {}, confirm, showAlert }}>
       {children}
       <ConfirmationModal
         isOpen={confirmation.isOpen}

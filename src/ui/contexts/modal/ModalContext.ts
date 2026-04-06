@@ -1,7 +1,9 @@
-// src/ui/contexts/ModalContext.ts
-import React, { createContext } from 'react';
+import { createContext } from 'react';
 
 export interface ModalContextType {
+  isModalOpen: boolean;
+  openModal: () => void;
+  closeModal: () => void;
   confirm: (title: string, message: string) => Promise<boolean>;
   showAlert: (title: string, message: React.ReactNode) => Promise<void>;
 }
