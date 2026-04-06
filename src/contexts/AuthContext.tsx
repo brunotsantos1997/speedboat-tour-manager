@@ -1,3 +1,27 @@
+// =================================================================
+// AUTH CONTEXT - RESPONSIBILIDADES E LIMITES
+// =================================================================
+// 
+// O QUE ESTE CONTEXT FAZ:
+// - Autenticação (login, signup, logout)
+// - Gerenciamento de sessão e estado do usuário atual
+// - Wrappers seguros para operações de perfil (delegando para ViewModels)
+// - Bootstrap de repositories (após autenticação aprovada)
+// 
+// O QUE ESTE CONTEXT NÃO FAZ:
+// - Regras de negócio de domínio (delegadas para ViewModels especializados)
+// - Operações diretas de persistência (delegadas para repositories)
+// - Enforcement de autorização (feito pelas regras do Firestore server-side)
+// - Auditoria (delegada para AuditLogRepository, apenas acionada aqui)
+// 
+// OWNERSHIP CLARO:
+// - Auth: login/logout/signup e estado da sessão
+// - Profile: operações de CRUD via ProfileViewModel
+// - Identity: reset de senha via PasswordResetViewModel  
+// - User Management: operações administrativas via UserManagementViewModel
+// - Repository Bootstrap: inicialização pós-autenticação, cleanup no logout
+// =================================================================
+
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { User, UserRole, UserStatus, UserCommissionSettings } from '../core/domain/User';
 import { auth, db } from '../lib/firebase';
@@ -17,11 +41,10 @@ import {
   doc,
   getDoc,
   setDoc,
-  clearIndexedDbPersistence,
-  terminate,
 } from 'firebase/firestore';
 import DOMPurify from 'dompurify';
 import { googleTokenStore } from '../core/utils/googleTokenStore';
+import { auditLogRepository } from '../core/repositories/AuditLogRepository';
 import { productRepository } from '../core/repositories/ProductRepository';
 import { boatRepository } from '../core/repositories/BoatRepository';
 import { boardingLocationRepository } from '../core/repositories/BoardingLocationRepository';
@@ -65,7 +88,6 @@ interface AuthContextType {
   updateCompletedTours: (userId: string, tourId: string) => Promise<void>;
   resetTours: (userId: string) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
-  approvePasswordReset: (approverId: string, targetUserId: string) => Promise<string>;
   linkedProviders: string[];
   googleAccessToken: string | null;
   setGoogleAccessToken: (token: string | null) => void;
@@ -89,6 +111,10 @@ const disposeRepositories = () => {
   CompanyDataRepository.getInstance().dispose();
 };
 
+// Bootstrap de repositories - responsabilidade do AuthContext
+// Inicializa repositories com contexto de usuário após autenticação aprovada
+// Isso é necessário porque repositories precisam saber qual usuário está operando
+// para queries e validações, mas as regras de negócio ficam nos ViewModels
 const initializeRepositories = (user: User) => {
   productRepository.initialize(user);
   boatRepository.initialize(user);
@@ -98,7 +124,7 @@ const initializeRepositories = (user: User) => {
   expenseCategoryRepository.initialize(user);
   expenseRepository.initialize(user);
   incomeRepository.initialize(user);
-  paymentRepository.initialize(user);
+  paymentRepository.initialize(); // PaymentRepository não usa contexto de usuário
   tourTypeRepository.initialize(user);
   VoucherAppearanceRepository.getInstance().initialize(user);
   VoucherTermsRepository.getInstance().initialize(user);
@@ -251,16 +277,67 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setGoogleAccessToken(null);
     disposeRepositories();
     await signOut(auth);
-    try { await terminate(db); await clearIndexedDbPersistence(db); } catch (e) { console.warn('Firestore cleanup failed:', e); }
   };
 
   // Thin wrappers that inject currentUser into the delegated ViewModels
   const getAllUsers = async () => { if (!currentUser) throw new Error('Usuário não autenticado.'); return userMgmt.getAllUsers(currentUser); };
-  const updateUserStatus = async (userId: string, status: UserStatus) => { if (!currentUser) throw new Error('Usuário não autenticado.'); await userMgmt.updateUserStatus(currentUser, userId, status); if (currentUser.id === userId) handleUserUpdated({ status }); };
-  const updateUserRole = async (userId: string, role: UserRole) => { if (!currentUser) throw new Error('Usuário não autenticado.'); await userMgmt.updateUserRole(currentUser, userId, role); };
-  const updateUserCommissionSettings = async (userId: string, settings: UserCommissionSettings) => { if (!currentUser) throw new Error('Usuário não autenticado.'); await userMgmt.updateUserCommissionSettings(currentUser, userId, settings); };
-  const requestPasswordReset = (email: string) => passwordReset.requestPasswordReset(email);
-  const approvePasswordReset = (approverId: string, targetUserId: string) => passwordReset.approvePasswordReset(approverId, targetUserId);
+  const updateUserStatus = async (userId: string, status: UserStatus) => { 
+    if (!currentUser) throw new Error('Usuário não autenticado.'); 
+    await userMgmt.updateUserStatus(currentUser, userId, status); 
+    if (currentUser.id === userId) handleUserUpdated({ status });
+    
+    // Auditoria da operação crítica
+    await auditLogRepository.log({
+      userId: currentUser.id,
+      userName: currentUser.name,
+      targetId: userId,
+      action: 'UPDATE_USER_STATUS',
+      resource: 'user',
+      context: { newStatus: status }
+    });
+  };
+  const updateUserRole = async (userId: string, role: UserRole) => { 
+    if (!currentUser) throw new Error('Usuário não autenticado.'); 
+    await userMgmt.updateUserRole(currentUser, userId, role); 
+    
+    // Auditoria da operação crítica
+    await auditLogRepository.log({
+      userId: currentUser.id,
+      userName: currentUser.name,
+      targetId: userId,
+      action: 'UPDATE_USER_ROLE',
+      resource: 'user',
+      context: { newRole: role }
+    });
+  };
+  const updateUserCommissionSettings = async (userId: string, settings: UserCommissionSettings) => { 
+    if (!currentUser) throw new Error('Usuário não autenticado.'); 
+    await userMgmt.updateUserCommissionSettings(currentUser, userId, settings); 
+    
+    // Auditoria da operação crítica
+    await auditLogRepository.log({
+      userId: currentUser.id,
+      userName: currentUser.name,
+      targetId: userId,
+      action: 'UPDATE_COMMISSION_SETTINGS',
+      resource: 'user',
+      context: { newSettings: settings }
+    });
+  };
+  const requestPasswordReset = async (email: string) => {
+    await passwordReset.requestPasswordReset(email);
+    
+    // Auditoria da operação sensível
+    if (currentUser) {
+      await auditLogRepository.log({
+        userId: currentUser.id,
+        userName: currentUser.name,
+        action: 'PASSWORD_RESET_REQUEST',
+        resource: 'auth',
+        context: { targetEmail: email }
+      });
+    }
+  };
   const updateProfile = async (userId: string, data: { name?: string; email?: string; newPassword?: string; oldPassword?: string }) => { if (!currentUser) throw new Error('Usuário não autenticado.'); await profileVm.updateProfile(currentUser, userId, data, handleUserUpdated); };
   const updateCalendarSettings = async (userId: string, settings: { calendarId?: string; autoSync: boolean }) => { if (!currentUser) throw new Error('Usuário não autenticado.'); await profileVm.updateCalendarSettings(currentUser, userId, settings, handleUserUpdated); };
   const updateCompletedTours = async (_userId: string, tourId: string) => { if (!currentUser) return; await profileVm.updateCompletedTours(currentUser, tourId, handleUserUpdated); };
@@ -270,7 +347,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     currentUser, loading, login, loginWithGoogle, linkGoogle, unlinkGoogle, signup, logout,
     updateUserStatus, updateUserRole, updateUserCommissionSettings, getAllUsers,
     updateProfile, updateCalendarSettings, updateCompletedTours, resetTours,
-    requestPasswordReset, approvePasswordReset,
+    requestPasswordReset,
     linkedProviders, googleAccessToken, setGoogleAccessToken,
   };
 

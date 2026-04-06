@@ -4,7 +4,6 @@ import type { User, UserRole, UserStatus } from '../../core/domain/User';
 import { Toast } from '../components/Toast';
 import { Tutorial } from '../components/Tutorial';
 import { userManagementSteps } from '../tutorials/userManagementSteps';
-import { useModalContext } from '../contexts/ModalContext';
 
 const getStatusBadgeClass = (status: UserStatus) => {
   if (status === 'APPROVED') return 'bg-green-100 text-green-800';
@@ -17,8 +16,7 @@ export function UserManagementScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const { getAllUsers, updateUserStatus, updateUserRole, currentUser, approvePasswordReset } = useAuth();
-  const { confirm, showAlert } = useModalContext();
+  const { getAllUsers, updateUserStatus, updateUserRole, currentUser } = useAuth();
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -68,39 +66,6 @@ export function UserManagementScreen() {
       fetchUsers();
     } catch (err) {
       setToastMessage(err instanceof Error ? err.message : 'Erro ao atualizar cargo.');
-    }
-  };
-
-  const handleApproveReset = async (user: User) => {
-    if (!currentUser) return;
-
-    const isConfirmed = await confirm(
-      'Liberar Fluxo Legado',
-      `Tem certeza que deseja liberar o fluxo legado de redefinicao para ${user.name}?`
-    );
-
-    if (!isConfirmed) return;
-
-    try {
-      const guidanceMessage = await approvePasswordReset(currentUser.id, user.id);
-      setToastMessage('Fluxo legado liberado com sucesso.');
-
-      await showAlert(
-        'Fluxo Legado Liberado',
-        <>
-          <p>
-            O usuario <strong>{user.name}</strong> pode voltar para a tela de login e solicitar a redefinicao por e-mail.
-          </p>
-          <p className="my-2 rounded bg-gray-100 p-2 text-center text-sm font-medium">{guidanceMessage}</p>
-          <p className="text-sm text-gray-500">
-            Nao existe mais senha temporaria nem aprovacao manual para novos resets.
-          </p>
-        </>
-      );
-
-      fetchUsers();
-    } catch (err) {
-      setToastMessage(err instanceof Error ? err.message : 'Falha ao executar a acao.');
     }
   };
 
@@ -219,18 +184,6 @@ export function UserManagementScreen() {
                         Reativar
                       </button>
                     )}
-                    {user.status === 'PASSWORD_RESET_REQUESTED' && (
-                      <button
-                        onClick={() => handleApproveReset(user)}
-                        className="rounded-md bg-blue-600 px-3 py-1 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-                        disabled={
-                          (currentUser?.role === 'ADMIN' && user.role !== 'ADMIN') ||
-                          (currentUser?.role === 'SUPER_ADMIN' && user.role === 'OWNER')
-                        }
-                      >
-                        Liberar Fluxo Legado
-                      </button>
-                    )}
                   </div>
                 </td>
               </tr>
@@ -310,18 +263,6 @@ export function UserManagementScreen() {
                     className="w-full rounded-lg border border-green-200 px-4 py-2 text-sm font-bold text-green-600"
                   >
                     Reativar Usuario
-                  </button>
-                )}
-                {user.status === 'PASSWORD_RESET_REQUESTED' && (
-                  <button
-                    onClick={() => handleApproveReset(user)}
-                    className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
-                    disabled={
-                      (currentUser?.role === 'ADMIN' && user.role !== 'ADMIN') ||
-                      (currentUser?.role === 'SUPER_ADMIN' && user.role === 'OWNER')
-                    }
-                  >
-                    Liberar Fluxo Legado
                   </button>
                 )}
               </div>
