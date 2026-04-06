@@ -3,17 +3,15 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { EventType } from '../core/domain/types';
 import { eventRepository } from '../core/repositories/EventRepository';
 import { paymentRepository } from '../core/repositories/PaymentRepository';
-import { startOfDay, isWithinInterval, startOfWeek, endOfWeek, getMonth, isSameDay, format } from 'date-fns';
+import { startOfDay, isWithinInterval, startOfWeek, endOfWeek, getMonth, isSameDay, format, startOfMonth, endOfMonth } from 'date-fns';
 import { useToastContext } from '../ui/contexts/ToastContext';
 import { useEventSync } from './useEventSync';
 
-// Helper to parse date string as local time to avoid timezone issues.
-// '2023-10-25' would be parsed as UTC midnight, which can be the previous day in some timezones.
-// Appending T00:00 makes it parse as local midnight.
 const parseLocalDate = (dateString: string) => new Date(`${dateString}T00:00`);
 
 export const useDashboardViewModel = () => {
-  const [allEvents, setAllEvents] = useState<EventType[]>([]);
+  const [eventsForPeriod, setEventsForPeriod] = useState<EventType[]>([]);
+  const [notificationEvents, setNotificationEvents] = useState<EventType[]>([]);
   const [allPayments, setAllPayments] = useState<any[]>([]);
   const { syncEvent } = useEventSync();
   const { showToast } = useToastContext();
@@ -25,15 +23,25 @@ export const useDashboardViewModel = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
 
+  // Derived period for listeners: Current month
+  const periodStart = useMemo(() => format(startOfMonth(selectedDate), 'yyyy-MM-dd'), [selectedDate]);
+  const periodEnd = useMemo(() => format(endOfMonth(selectedDate), 'yyyy-MM-dd'), [selectedDate]);
+
   useEffect(() => {
     setIsLoading(true);
-    eventRepository.getAll()
-      .then(async (allFetchedEvents) => {
-        // Auto-cancel logic remains, but we can do it asynchronously and let onSnapshot handle the update
+    
+    // 1. Subscribe to events in the current visible period (month)
+    const unsubscribeEvents = eventRepository.subscribeToDateRange(
+      periodStart,
+      periodEnd,
+      (events) => {
+        setEventsForPeriod(events);
+        setIsLoading(false);
+        
+        // Auto-cancel logic for PRE_SCHEDULED events in this period
         const now = Date.now();
         const twentyFourHours = 24 * 60 * 60 * 1000;
-
-        for (const event of allFetchedEvents) {
+        events.forEach(async (event) => {
           if (event.status === 'PRE_SCHEDULED' && event.preScheduledAt && (now - event.preScheduledAt > twentyFourHours)) {
             const cancelledEvent = { ...event, status: 'CANCELLED' as const, autoCancelled: true };
             try {
@@ -43,33 +51,25 @@ export const useDashboardViewModel = () => {
               console.error(`Failed to auto-cancel event ${event.id}:`, error);
             }
           }
-        }
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        setError('Falha ao buscar passeios.');
-        console.error(err);
-        setIsLoading(false);
-      });
+        });
+      }
+    );
 
-    const unsubscribeEvents = eventRepository.subscribe((events) => {
-      setAllEvents(events);
-      setIsLoading(false);
-    });
+    // 2. Subscribe to notifications (cancelled, completed, pending refund)
+    const unsubscribeNotifications = eventRepository.subscribeToNotifications(setNotificationEvents);
 
-    const unsubscribePayments = paymentRepository.subscribe((payments) => {
-      setAllPayments(payments);
-    });
+    // 3. Subscribe to payments (limited to latest 100 for global context)
+    const unsubscribePayments = paymentRepository.subscribe(setAllPayments);
 
     return () => {
       unsubscribeEvents();
+      unsubscribeNotifications();
       unsubscribePayments();
     };
-  }, [syncEvent]);
+  }, [periodStart, periodEnd, syncEvent]);
 
-  // --- Actions ---
   const initiatePayment = useCallback(async (eventId: string, type: 'DOWN_PAYMENT' | 'BALANCE' | 'FULL') => {
-    const event = allEvents.find(e => e.id === eventId);
+    const event = eventsForPeriod.find(e => e.id === eventId);
     if (event) {
       const payments = await paymentRepository.getByEventId(eventId);
       const totalPaid = payments.reduce((acc, p) => acc + p.amount, 0);
@@ -86,15 +86,13 @@ export const useDashboardViewModel = () => {
       setDefaultPaymentAmount(suggested);
       setIsPaymentModalOpen(true);
     }
-  }, [allEvents]);
+  }, [eventsForPeriod]);
 
   const confirmPaymentRecord = useCallback(async (amount: number, method: any, type: any) => {
     if (!activeEventForPayment) return;
 
     try {
       const eventId = activeEventForPayment.id;
-
-      // Record the payment
       await paymentRepository.add({
         eventId,
         amount,
@@ -104,24 +102,14 @@ export const useDashboardViewModel = () => {
         timestamp: Date.now()
       });
 
-      // Update event status/paymentStatus if necessary
-      let updatedEvent = { ...activeEventForPayment };
-
-      // Calculate total paid including the new payment
       const payments = await paymentRepository.getByEventId(eventId);
       const totalPaid = payments.reduce((acc, p) => acc + p.amount, 0);
 
-      // Logic: If any amount is paid, confirm the reservation
+      let updatedEvent = { ...activeEventForPayment };
       if (totalPaid > 0 && updatedEvent.status === 'PRE_SCHEDULED') {
         updatedEvent.status = 'SCHEDULED';
       }
-
-      // Check if fully paid
-      if (totalPaid >= updatedEvent.total) {
-        updatedEvent.paymentStatus = 'CONFIRMED';
-      } else {
-        updatedEvent.paymentStatus = 'PENDING';
-      }
+      updatedEvent.paymentStatus = totalPaid >= updatedEvent.total ? 'CONFIRMED' : 'PENDING';
 
       const savedEvent = await eventRepository.updateEvent(updatedEvent);
       await syncEvent(savedEvent);
@@ -134,11 +122,11 @@ export const useDashboardViewModel = () => {
       showToast('Erro ao registrar o pagamento.');
       throw error;
     }
-  }, [activeEventForPayment, showToast]);
+  }, [activeEventForPayment, showToast, syncEvent]);
 
   const processNotification = useCallback(async (eventId: string) => {
     try {
-      const eventToUpdate = allEvents.find(e => e.id === eventId);
+      const eventToUpdate = notificationEvents.find(e => e.id === eventId);
       if (!eventToUpdate) return;
 
       let updatedEvent: EventType;
@@ -164,11 +152,11 @@ export const useDashboardViewModel = () => {
       console.error('Failed to process notification:', error);
       showToast('Erro ao processar a notificação.');
     }
-  }, [allEvents, showToast]);
+  }, [notificationEvents, showToast, syncEvent]);
 
   const revertCancellation = useCallback(async (eventId: string) => {
     try {
-      const eventToUpdate = allEvents.find(e => e.id === eventId);
+      const eventToUpdate = notificationEvents.find(e => e.id === eventId);
       if (!eventToUpdate) return;
 
       const updatedEvent: EventType = {
@@ -184,29 +172,19 @@ export const useDashboardViewModel = () => {
       console.error('Failed to revert cancellation:', error);
       showToast(error.message || 'Erro ao reverter cancelamento.');
     }
-  }, [allEvents, showToast]);
-
+  }, [notificationEvents, showToast, syncEvent]);
 
   // --- Derived State ---
   const today = startOfDay(new Date());
 
   const upcomingEvents = useMemo(() => {
     const now = new Date();
-    return allEvents.filter(event => {
+    return eventsForPeriod.filter(event => {
       if (event.status !== 'SCHEDULED' && event.status !== 'PRE_SCHEDULED') return false;
-
-      // Combine date and time correctly into a local Date object
-      const eventEndDateTimeString = `${event.date}T${event.endTime}`;
-      const eventEndTime = new Date(eventEndDateTimeString);
-
+      const eventEndTime = new Date(`${event.date}T${event.endTime}`);
       return eventEndTime > now;
     });
-  }, [allEvents]);
-
-  const notificationEvents = useMemo(() =>
-    allEvents.filter(event =>
-      (event.status === 'COMPLETED' || event.status === 'CANCELLED' || event.status === 'PENDING_REFUND')
-    ), [allEvents]);
+  }, [eventsForPeriod]);
 
   const eventsForSelectedDate = useMemo(() =>
     upcomingEvents.filter(event => isSameDay(parseLocalDate(event.date), selectedDate)),
@@ -214,7 +192,7 @@ export const useDashboardViewModel = () => {
   );
 
   const eventsThisWeek = useMemo(() => {
-    const start = startOfWeek(today); // Sunday is the default
+    const start = startOfWeek(today);
     const end = endOfWeek(today);
     return upcomingEvents.filter(event => isWithinInterval(parseLocalDate(event.date), { start, end }));
   }, [upcomingEvents, today]);
@@ -226,7 +204,7 @@ export const useDashboardViewModel = () => {
 
   const monthlyStats = useMemo(() => {
     const currentMonth = getMonth(today);
-    const monthlyEvents = allEvents.filter(event =>
+    const monthlyEvents = eventsForPeriod.filter(event =>
       getMonth(parseLocalDate(event.date)) === currentMonth &&
       (event.status === 'SCHEDULED' || event.status === 'COMPLETED' || event.status === 'ARCHIVED_COMPLETED')
     );
@@ -242,10 +220,8 @@ export const useDashboardViewModel = () => {
       pendingRevenue += Math.max(0, event.total - totalPaid);
     });
 
-    const totalEvents = monthlyEvents.length;
-
-    return { realizedRevenue, pendingRevenue, totalEvents };
-  }, [allEvents, allPayments, today]);
+    return { realizedRevenue, pendingRevenue, totalEvents: monthlyEvents.length };
+  }, [eventsForPeriod, allPayments, today]);
 
   const calendarEvents = useMemo(() =>
     upcomingEvents.map(event => parseLocalDate(event.date)),
@@ -254,7 +230,7 @@ export const useDashboardViewModel = () => {
   return {
     isLoading,
     error,
-    upcomingEvents, // Renamed from 'events' for clarity
+    upcomingEvents,
     notificationEvents,
     eventsForSelectedDate,
     eventsThisWeek,

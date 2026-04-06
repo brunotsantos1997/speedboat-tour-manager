@@ -9,6 +9,9 @@ import {
   query,
   deleteDoc,
   getDoc,
+  where,
+  limit,
+  orderBy,
   type Unsubscribe
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -20,18 +23,15 @@ export interface IClientRepository {
   update(client: ClientProfile): Promise<ClientProfile>;
   delete(clientId: string): Promise<void>;
   getById(clientId: string): Promise<ClientProfile | null>;
-  getAll(): Promise<ClientProfile[]>;
+  getAll(limitCount?: number): Promise<ClientProfile[]>;
   dispose(): void;
   initialize(user?: any): void;
 }
 
 class ClientRepositoryImpl implements IClientRepository {
-  private clients: ClientProfile[] = [];
   private collectionName = 'clients';
-  private unsubscribe: Unsubscribe | null = null;
   private isInitialized = false;
   private currentUser: any = null;
-  private listeners: ((data: ClientProfile[]) => void)[] = [];
 
   constructor() {}
 
@@ -39,81 +39,79 @@ class ClientRepositoryImpl implements IClientRepository {
     if (user) {
       this.currentUser = user;
     }
-    if (this.unsubscribe) return;
-    this.initListener();
-  }
-
-  private initListener() {
-    const q = query(collection(db, this.collectionName));
-    this.unsubscribe = onSnapshot(q, (snapshot) => {
-      this.clients = snapshot.docs.map(doc => ({
-        ...doc.data() as ClientProfile,
-        id: doc.id
-      }));
-      this.isInitialized = true;
-      this.notifyListeners();
-    });
-  }
-
-  private notifyListeners() {
-    this.listeners.forEach(listener => listener(this.clients));
-  }
-
-  subscribe(listener: (data: ClientProfile[]) => void) {
-    this.listeners.push(listener);
-    if (this.isInitialized) {
-      listener(this.clients);
-    }
-    return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
-    };
+    this.isInitialized = true;
   }
 
   dispose() {
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = null;
-    }
     this.isInitialized = false;
-    this.clients = [];
     this.currentUser = null;
   }
 
-  async getAll(): Promise<ClientProfile[]> {
-    if (!this.isInitialized || (this.isInitialized && this.clients.length === 0)) {
-      try {
-        const querySnapshot = await getDocs(collection(db, this.collectionName));
-        const fetchedClients = querySnapshot.docs.map(doc => ({
-          ...doc.data() as ClientProfile,
-          id: doc.id
-        }));
-        // Only update if we actually got results or if we are not initialized
-        if (fetchedClients.length > 0 || !this.isInitialized) {
-          this.clients = fetchedClients;
-          this.isInitialized = true;
-        }
-      } catch (error) {
-        console.error("Error fetching all clients:", error);
-      }
+  async getAll(limitCount: number = 50): Promise<ClientProfile[]> {
+    try {
+      const q = query(
+        collection(db, this.collectionName),
+        orderBy('name'),
+        limit(limitCount)
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({
+        ...doc.data() as ClientProfile,
+        id: doc.id
+      }));
+    } catch (error) {
+      console.error("Error fetching clients:", error);
+      return [];
     }
-    return this.clients;
   }
 
   async search(term: string): Promise<ClientProfile[]> {
-    const all = await this.getAll();
     if (!term) return [];
-    const lowercasedTerm = term.toLowerCase();
-    return all.filter(client =>
-      (client.name || '').toLowerCase().includes(lowercasedTerm) ||
-      (client.phone || '').includes(term)
-    );
+    
+    // Firestore doesn't support full-text search directly without 3rd party
+    // or complex prefixes. For simple search, we use a range query for prefix
+    // or just fetch with a limit and filter in memory if the term is small.
+    // Here we implement a compromise: search by name prefix if possible,
+    // otherwise fallback to a limited fetch.
+    
+    try {
+      const termUpper = term.charAt(0).toUpperCase() + term.slice(1);
+      const q = query(
+        collection(db, this.collectionName),
+        where('name', '>=', term),
+        where('name', '<=', term + '\uf8ff'),
+        limit(20)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      let results = querySnapshot.docs.map(doc => ({
+        ...doc.data() as ClientProfile,
+        id: doc.id
+      }));
+
+      // If no prefix results, try a broader limited search or search by phone
+      if (results.length === 0 && /^\d+$/.test(term)) {
+        const qPhone = query(
+          collection(db, this.collectionName),
+          where('phone', '>=', term),
+          where('phone', '<=', term + '\uf8ff'),
+          limit(20)
+        );
+        const phoneSnapshot = await getDocs(qPhone);
+        results = phoneSnapshot.docs.map(doc => ({
+          ...doc.data() as ClientProfile,
+          id: doc.id
+        }));
+      }
+
+      return results;
+    } catch (error) {
+      console.error("Error searching clients:", error);
+      return [];
+    }
   }
 
   async getById(clientId: string): Promise<ClientProfile | null> {
-    const all = await this.getAll();
-    const found = all.find(c => c.id === clientId);
-    if (found) return found;
-
     try {
       const docRef = doc(db, this.collectionName, clientId);
       const docSnap = await getDoc(docRef);
@@ -142,9 +140,7 @@ class ClientRepositoryImpl implements IClientRepository {
       totalTrips: 0,
     };
     const docRef = await addDoc(collection(db, this.collectionName), data);
-    const newClient = { id: docRef.id, ...data };
-
-    return newClient;
+    return { id: docRef.id, ...data };
   }
 
   async update(updatedClient: ClientProfile): Promise<ClientProfile> {

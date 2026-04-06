@@ -21,16 +21,13 @@ export interface IExpenseCategoryRepository {
   remove(categoryId: string): Promise<void>;
   dispose(): void;
   initialize(user?: any): void;
+  subscribe(callback: (data: ExpenseCategory[]) => void): Unsubscribe;
 }
 
 class ExpenseCategoryRepositoryImpl implements IExpenseCategoryRepository {
   private static instance: ExpenseCategoryRepositoryImpl;
-  private categories: ExpenseCategory[] = [];
   private collectionName = 'expense_categories';
-  private unsubscribe: Unsubscribe | null = null;
-  private isInitialized = false;
   private currentUser: any = null;
-  private listeners: ((data: ExpenseCategory[]) => void)[] = [];
 
   private constructor() {}
 
@@ -45,57 +42,31 @@ class ExpenseCategoryRepositoryImpl implements IExpenseCategoryRepository {
     if (user) {
       this.currentUser = user;
     }
-    if (this.unsubscribe) return;
-    this.initListener();
   }
 
-  private initListener() {
+  subscribe(callback: (data: ExpenseCategory[]) => void): Unsubscribe {
     const q = query(collection(db, this.collectionName));
-    this.unsubscribe = onSnapshot(q, (snapshot) => {
-      this.categories = snapshot.docs.map(doc => ({
+    return onSnapshot(q, (snapshot) => {
+      const categories = snapshot.docs.map(doc => ({
         ...doc.data() as ExpenseCategory,
         id: doc.id
       }));
-      this.isInitialized = true;
-      this.notifyListeners();
+      callback(categories.filter(c => !c.isArchived));
     });
   }
 
-  private notifyListeners() {
-    const activeCategories = this.categories.filter(c => !c.isArchived);
-    this.listeners.forEach(listener => listener(activeCategories));
-  }
-
-  subscribe(listener: (data: ExpenseCategory[]) => void) {
-    this.listeners.push(listener);
-    if (this.isInitialized) {
-      listener(this.categories.filter(c => !c.isArchived));
-    }
-    return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
-    };
-  }
-
   dispose() {
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = null;
-    }
-    this.isInitialized = false;
-    this.categories = [];
     this.currentUser = null;
   }
 
   async getAll(): Promise<ExpenseCategory[]> {
-    if (!this.isInitialized) {
-      const querySnapshot = await getDocs(collection(db, this.collectionName));
-      this.categories = querySnapshot.docs.map(doc => ({
+    const querySnapshot = await getDocs(collection(db, this.collectionName));
+    return querySnapshot.docs
+      .map(doc => ({
         ...doc.data() as ExpenseCategory,
         id: doc.id
-      }));
-      this.isInitialized = true;
-    }
-    return this.categories.filter(c => !c.isArchived);
+      }))
+      .filter(c => !c.isArchived);
   }
 
   private checkAdminPermission() {

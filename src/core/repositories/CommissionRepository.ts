@@ -2,10 +2,11 @@
 import type { CommissionReportEntry } from '../domain/types';
 import { eventRepository } from './EventRepository';
 import { expenseRepository } from './ExpenseRepository';
-import { companyDataRepository } from './CompanyDataRepository';
+import { CompanyDataRepository } from './CompanyDataRepository';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type { User } from '../domain/User';
+import { format } from 'date-fns';
 
 export interface ICommissionRepository {
   getCommissionReport(
@@ -21,36 +22,34 @@ class CommissionRepository implements ICommissionRepository {
     endDate: Date,
     userId?: string
   ): Promise<CommissionReportEntry[]> {
-    const allEvents = await eventRepository.getAll();
+    const startStr = format(startDate, 'yyyy-MM-dd');
+    const endStr = format(endDate, 'yyyy-MM-dd');
+    
+    // Fetch only events in the period
+    const filteredEvents = await eventRepository.getEventsByDateRange(startStr, endStr);
 
-    // Fetch all users/profiles
+    // Fetch all users/profiles (Profiles collection is usually small, so getDocs is okay)
     const profilesSnap = await getDocs(collection(db, 'profiles'));
     const allUsers = profilesSnap.docs.map(doc => ({ ...doc.data() as User, id: doc.id }));
 
     const userMap = new Map<string, User>(allUsers.map(user => [user.id, user]));
 
-    // Fetch all expenses to check for payments
-    const allExpenses = await expenseRepository.getAll();
+    // Fetch expenses for the period to check for commission payments
+    const expensesInPeriod = await expenseRepository.getByDateRange(startStr, endStr);
 
     const confirmedStatuses = ['SCHEDULED', 'COMPLETED', 'ARCHIVED_COMPLETED'];
 
-    const filteredEvents = allEvents.filter(event => {
+    const validEvents = filteredEvents.filter(event => {
       if (!confirmedStatuses.includes(event.status)) {
         return false;
       }
-      const eventDate = new Date(event.date + 'T00:00:00');
-      const isAfterStartDate = eventDate >= startDate;
-      const isBeforeEndDate = eventDate <= endDate;
-      const matchesUser = !userId || event.createdByUserId === userId;
-
-      return isAfterStartDate && isBeforeEndDate && matchesUser;
+      return !userId || event.createdByUserId === userId;
     });
 
     const report: CommissionReportEntry[] = [];
+    const companyData = await CompanyDataRepository.getInstance().get();
 
-    const companyData = await companyDataRepository.get();
-
-    for (const event of filteredEvents) {
+    for (const event of validEvents) {
       if (event.createdByUserId) {
         const user = userMap.get(event.createdByUserId);
         if (user && (user.commissionPercentage || user.commissionSettings)) {
@@ -62,12 +61,6 @@ class CommissionRepository implements ICommissionRepository {
 
             const extraRentalCost = (event.additionalCosts || [])
               .filter(c => c.category === 'RENTAL')
-              .reduce((acc, c) => acc + c.amount, 0);
-            const extraProductCost = (event.additionalCosts || [])
-              .filter(c => c.category === 'PRODUCT')
-              .reduce((acc, c) => acc + c.amount, 0);
-            const extraTaxCost = (event.additionalCosts || [])
-              .filter(c => c.category === 'TAX')
               .reduce((acc, c) => acc + c.amount, 0);
 
             if (settings.rentalEnabled) {
@@ -81,16 +74,13 @@ class CommissionRepository implements ICommissionRepository {
             if (settings.productEnabled) {
               let base = settings.productBase === 'GROSS' ? (event.productsGross || 0) : (event.productsRevenue || 0);
               if (settings.deductProductCost) {
-                base = Math.max(0, base - (event.productsCost || 0) - extraProductCost);
+                base = Math.max(0, base - (event.productsCost || 0));
               }
               commissionValue += base * (settings.productPercentage / 100);
-              rentalBaseValue += base; // We use rentalBaseValue field in report to show the sum of bases
+              rentalBaseValue += base;
             }
             if (settings.taxEnabled) {
               let base = (event.tax || 0);
-              if (settings.deductTaxCost) {
-                base = Math.max(0, base - extraTaxCost);
-              }
               commissionValue += base * (settings.taxPercentage / 100);
               rentalBaseValue += base;
             }
@@ -101,12 +91,7 @@ class CommissionRepository implements ICommissionRepository {
             commissionValue = rentalBaseValue * ((user.commissionPercentage || 0) / 100);
           }
 
-          // Check if there's an expense that corresponds to this commission
-          // We look for a specific marker in the description or a boat link if applicable
-          // For now, let's use the description convention: "Comissão: [UserName] - [EventDate] - [ClientName]"
-          // or we could use eventId if we added it to expense, but let's stick to description for now
-          // as it's more human-readable in the cash book.
-          const commissionExpense = allExpenses.find(exp =>
+          const commissionExpense = expensesInPeriod.find(exp =>
             !exp.isArchived &&
             exp.description.includes(`Comissão:`) &&
             exp.description.includes(event.id)
@@ -119,7 +104,7 @@ class CommissionRepository implements ICommissionRepository {
             eventDate: event.date,
             eventTotalPrice: event.total,
             rentalRevenue: rentalBaseValue,
-            commissionPercentage: user.commissionSettings ? 0 : (user.commissionPercentage || 0), // Show 0 if using advanced settings in this legacy field
+            commissionPercentage: user.commissionSettings ? 0 : (user.commissionPercentage || 0),
             commissionValue,
             clientName: event.client.name,
             status: commissionExpense ? 'PAID' : 'PENDING',

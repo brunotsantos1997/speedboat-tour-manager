@@ -16,12 +16,8 @@ import { auditLogRepository } from './AuditLogRepository';
 
 export class TourTypeRepository {
   private static instance: TourTypeRepository;
-  private tourTypes: TourType[] = [];
   private collectionName = 'tour_types';
-  private unsubscribe: Unsubscribe | null = null;
-  private isInitialized = false;
   private currentUser: any = null;
-  private listeners: ((data: TourType[]) => void)[] = [];
 
   private constructor() {}
 
@@ -36,58 +32,31 @@ export class TourTypeRepository {
     if (user) {
       this.currentUser = user;
     }
-    if (this.unsubscribe) return;
-    this.initListener();
   }
 
-  private initListener() {
+  subscribe(callback: (data: TourType[]) => void): Unsubscribe {
     const q = query(collection(db, this.collectionName));
-    this.unsubscribe = onSnapshot(q, (snapshot) => {
-      this.tourTypes = snapshot.docs.map(doc => ({
+    return onSnapshot(q, (snapshot) => {
+      const tourTypes = snapshot.docs.map(doc => ({
         ...doc.data() as TourType,
         id: doc.id
       }));
-      this.isInitialized = true;
-      this.notifyListeners();
+      callback(tourTypes.filter(t => !t.isArchived));
     });
   }
 
-  private notifyListeners() {
-    const activeTourTypes = this.tourTypes.filter(t => !t.isArchived);
-    this.listeners.forEach(listener => listener(activeTourTypes));
-  }
-
-  subscribe(listener: (data: TourType[]) => void) {
-    this.listeners.push(listener);
-    if (this.isInitialized) {
-      listener(this.tourTypes.filter(t => !t.isArchived));
-    }
-    return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
-    };
-  }
-
   dispose() {
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = null;
-    }
-    this.isInitialized = false;
-    this.tourTypes = [];
     this.currentUser = null;
   }
 
   async getAll(): Promise<TourType[]> {
-    if (!this.isInitialized) {
-      const querySnapshot = await getDocs(collection(db, this.collectionName));
-      this.tourTypes = querySnapshot.docs.map(doc => ({
+    const querySnapshot = await getDocs(collection(db, this.collectionName));
+    return querySnapshot.docs
+      .map(doc => ({
         ...doc.data() as TourType,
         id: doc.id
-      }));
-      this.isInitialized = true;
-    }
-
-    return this.tourTypes.filter(t => !t.isArchived);
+      }))
+      .filter(t => !t.isArchived);
   }
 
   async add(tourType: Omit<TourType, 'id'>): Promise<TourType> {

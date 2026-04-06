@@ -8,6 +8,9 @@ import {
   getDoc,
   onSnapshot,
   query,
+  where,
+  orderBy,
+  limit,
   type Unsubscribe
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -15,23 +18,21 @@ import type { Expense } from '../domain/types';
 import { auditLogRepository } from './AuditLogRepository';
 
 export interface IExpenseRepository {
-  getAll(): Promise<Expense[]>;
+  getAll(limitCount?: number): Promise<Expense[]>;
   getByDateRange(startDate: string, endDate: string): Promise<Expense[]>;
   add(expenseData: Omit<Expense, 'id'>): Promise<Expense>;
   update(updatedExpense: Expense): Promise<Expense>;
   remove(expenseId: string): Promise<void>;
   dispose(): void;
   initialize(user?: any): void;
+  subscribe(callback: (data: Expense[]) => Unsubscribe): Unsubscribe;
+  subscribeByDateRange(startDate: string, endDate: string, callback: (data: Expense[]) => void): Unsubscribe;
 }
 
 class ExpenseRepositoryImpl implements IExpenseRepository {
   private static instance: ExpenseRepositoryImpl;
-  private expenses: Expense[] = [];
   private collectionName = 'expenses';
-  private unsubscribe: Unsubscribe | null = null;
-  private isInitialized = false;
   private currentUser: any = null;
-  private listeners: ((data: Expense[]) => void)[] = [];
 
   private constructor() {}
 
@@ -46,66 +47,68 @@ class ExpenseRepositoryImpl implements IExpenseRepository {
     if (user) {
       this.currentUser = user;
     }
-    if (this.unsubscribe) return;
-    this.initListener();
   }
 
-  private initListener() {
-    const q = query(collection(db, this.collectionName));
-    this.unsubscribe = onSnapshot(q, (snapshot) => {
-      this.expenses = snapshot.docs
-        .map(doc => ({
-          ...doc.data() as Expense,
-          id: doc.id
-        }))
-        .sort((a, b) => b.date.localeCompare(a.date));
-      this.isInitialized = true;
-      this.notifyListeners();
+  subscribe(callback: (data: Expense[]) => void): Unsubscribe {
+    const q = query(
+      collection(db, this.collectionName),
+      orderBy('date', 'desc'),
+      limit(100)
+    );
+    return onSnapshot(q, (snapshot) => {
+      const expenses = snapshot.docs.map(doc => ({
+        ...doc.data() as Expense,
+        id: doc.id
+      }));
+      callback(expenses);
     });
   }
 
-  private notifyListeners() {
-    this.listeners.forEach(listener => listener(this.expenses));
-  }
-
-  subscribe(listener: (data: Expense[]) => void) {
-    this.listeners.push(listener);
-    if (this.isInitialized) {
-      listener(this.expenses);
-    }
-    return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
-    };
+  subscribeByDateRange(startDate: string, endDate: string, callback: (data: Expense[]) => void): Unsubscribe {
+    const q = query(
+      collection(db, this.collectionName),
+      where('date', '>=', startDate),
+      where('date', '<=', endDate),
+      orderBy('date', 'desc')
+    );
+    return onSnapshot(q, (snapshot) => {
+      const expenses = snapshot.docs.map(doc => ({
+        ...doc.data() as Expense,
+        id: doc.id
+      }));
+      callback(expenses);
+    });
   }
 
   dispose() {
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = null;
-    }
-    this.isInitialized = false;
-    this.expenses = [];
     this.currentUser = null;
   }
 
-  async getAll(): Promise<Expense[]> {
-    if (!this.isInitialized) {
-      const q = query(collection(db, this.collectionName));
-      const querySnapshot = await getDocs(q);
-      this.expenses = querySnapshot.docs
-        .map(doc => ({
-          ...doc.data() as Expense,
-          id: doc.id
-        }))
-        .sort((a, b) => b.date.localeCompare(a.date));
-      this.isInitialized = true;
-    }
-    return this.expenses;
+  async getAll(limitCount: number = 100): Promise<Expense[]> {
+    const q = query(
+      collection(db, this.collectionName),
+      orderBy('date', 'desc'),
+      limit(limitCount)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      ...doc.data() as Expense,
+      id: doc.id
+    }));
   }
 
   async getByDateRange(startDate: string, endDate: string): Promise<Expense[]> {
-    const all = await this.getAll();
-    return all.filter(e => e.date >= startDate && e.date <= endDate);
+    const q = query(
+      collection(db, this.collectionName),
+      where('date', '>=', startDate),
+      where('date', '<=', endDate),
+      orderBy('date', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      ...doc.data() as Expense,
+      id: doc.id
+    }));
   }
 
   private checkAdminPermission() {
@@ -161,10 +164,6 @@ class ExpenseRepositoryImpl implements IExpenseRepository {
     const oldDoc = await getDoc(docRef);
     const oldData = oldDoc.exists() ? { ...oldDoc.data(), id: oldDoc.id } : null;
 
-    // Hard delete for expenses as they are not usually "archived" like domain entities,
-    // but follow the pattern if needed. Here I'll do a simple delete for now, or use isArchived.
-    // The user didn't specify, but for financial records, archiving might be safer.
-    // Let's use isArchived to stay consistent.
     await updateDoc(docRef, { isArchived: true });
 
     await auditLogRepository.log({

@@ -5,36 +5,29 @@ import {
   addDoc,
   updateDoc,
   doc,
-  getDoc,
   onSnapshot,
   query,
-  type Unsubscribe,
-  deleteDoc,
-  where
+  where,
+  limit,
+  orderBy,
+  type Unsubscribe
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type { Payment } from '../domain/types';
-import { auditLogRepository } from './AuditLogRepository';
 
 export interface IPaymentRepository {
-  getAll(): Promise<Payment[]>;
   getByEventId(eventId: string): Promise<Payment[]>;
-  getByDateRange(startDate: string, endDate: string): Promise<Payment[]>;
+  subscribeToEventPayments(eventId: string, callback: (data: Payment[]) => void): Unsubscribe;
   add(paymentData: Omit<Payment, 'id'>): Promise<Payment>;
-  update(paymentId: string, data: Partial<Payment>): Promise<void>;
-  remove(paymentId: string): Promise<void>;
+  getAll(limitCount?: number): Promise<Payment[]>;
   dispose(): void;
   initialize(user?: any): void;
 }
 
 class PaymentRepositoryImpl implements IPaymentRepository {
   private static instance: PaymentRepositoryImpl;
-  private payments: Payment[] = [];
   private collectionName = 'payments';
-  private unsubscribe: Unsubscribe | null = null;
-  private isInitialized = false;
   private currentUser: any = null;
-  private listeners: ((data: Payment[]) => void)[] = [];
 
   private constructor() {}
 
@@ -49,141 +42,67 @@ class PaymentRepositoryImpl implements IPaymentRepository {
     if (user) {
       this.currentUser = user;
     }
-    if (this.unsubscribe) return;
-    this.initListener();
   }
 
-  private initListener() {
-    const q = query(collection(db, this.collectionName));
-    this.unsubscribe = onSnapshot(q, (snapshot) => {
-      this.payments = snapshot.docs
-        .map(doc => ({
-          ...doc.data() as Payment,
-          id: doc.id
-        }))
-        .sort((a, b) => b.timestamp - a.timestamp);
-      this.isInitialized = true;
-      this.notifyListeners();
+  subscribe(callback: (data: Payment[]) => void): Unsubscribe {
+    // Limited global listener for dashboard/summary, latest 100 payments
+    const q = query(
+      collection(db, this.collectionName),
+      orderBy('timestamp', 'desc'),
+      limit(100)
+    );
+    return onSnapshot(q, (snapshot) => {
+      callback(snapshot.docs.map(doc => ({ ...doc.data() as Payment, id: doc.id })));
     });
   }
 
-  private notifyListeners() {
-    this.listeners.forEach(listener => listener(this.payments));
-  }
-
-  subscribe(listener: (data: Payment[]) => void) {
-    this.listeners.push(listener);
-    if (this.isInitialized) {
-      listener(this.payments);
-    }
-    return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
-    };
-  }
-
-  subscribeToEventPayments(eventId: string, callback: (data: Payment[]) => void) {
+  subscribeToEventPayments(eventId: string, callback: (data: Payment[]) => void): Unsubscribe {
     const q = query(collection(db, this.collectionName), where('eventId', '==', eventId));
     return onSnapshot(q, (snapshot) => {
       const payments = snapshot.docs.map(doc => ({
         ...doc.data() as Payment,
         id: doc.id
-      })).sort((a, b) => a.timestamp - b.timestamp);
+      }));
       callback(payments);
     });
   }
 
   dispose() {
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = null;
-    }
-    this.isInitialized = false;
-    this.payments = [];
     this.currentUser = null;
   }
 
-  async getAll(): Promise<Payment[]> {
-    if (!this.isInitialized) {
-      const q = query(collection(db, this.collectionName));
-      const querySnapshot = await getDocs(q);
-      this.payments = querySnapshot.docs
-        .map(doc => ({
-          ...doc.data() as Payment,
-          id: doc.id
-        }))
-        .sort((a, b) => b.timestamp - a.timestamp);
-      this.isInitialized = true;
-    }
-    return this.payments;
+  async getAll(limitCount: number = 100): Promise<Payment[]> {
+    const q = query(
+      collection(db, this.collectionName),
+      orderBy('timestamp', 'desc'),
+      limit(limitCount)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      ...doc.data() as Payment,
+      id: doc.id
+    }));
   }
 
   async getByEventId(eventId: string): Promise<Payment[]> {
-    const all = await this.getAll();
-    return all
-      .filter(p => p.eventId === eventId)
-      .sort((a, b) => a.timestamp - b.timestamp);
+    const q = query(collection(db, this.collectionName), where('eventId', '==', eventId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      ...doc.data() as Payment,
+      id: doc.id
+    }));
   }
 
-  async getByDateRange(startDate: string, endDate: string): Promise<Payment[]> {
-    const all = await this.getAll();
-    return all
-      .filter(p => p.date >= startDate && p.date <= endDate)
-      .sort((a, b) => a.date.localeCompare(b.date));
+  private checkAdminPermission() {
+    if (!this.currentUser || (this.currentUser.role !== 'OWNER' && this.currentUser.role !== 'SUPER_ADMIN' && this.currentUser.role !== 'ADMIN')) {
+      throw new Error('Você não tem permissão para realizar esta ação.');
+    }
   }
 
   async add(paymentData: Omit<Payment, 'id'>): Promise<Payment> {
+    this.checkAdminPermission();
     const docRef = await addDoc(collection(db, this.collectionName), paymentData);
-    const newPayment = { id: docRef.id, ...paymentData };
-
-    await auditLogRepository.log({
-      userId: this.currentUser?.id || 'unknown',
-      userName: this.currentUser?.name || 'Sistema',
-      action: 'CREATE',
-      collection: this.collectionName,
-      docId: docRef.id,
-      newData: newPayment,
-    });
-
-    return newPayment;
-  }
-
-  async update(paymentId: string, data: Partial<Payment>): Promise<void> {
-    const docRef = doc(db, this.collectionName, paymentId);
-    const oldDoc = await getDoc(docRef);
-    const oldData = oldDoc.exists() ? { ...oldDoc.data(), id: oldDoc.id } : null;
-
-    await updateDoc(docRef, data as any);
-
-    await auditLogRepository.log({
-      userId: this.currentUser?.id || 'unknown',
-      userName: this.currentUser?.name || 'Sistema',
-      action: 'UPDATE',
-      collection: this.collectionName,
-      docId: paymentId,
-      oldData,
-      newData: { ...oldData, ...data },
-    });
-  }
-
-  async remove(paymentId: string): Promise<void> {
-    if (!this.currentUser || (this.currentUser.role !== 'OWNER' && this.currentUser.role !== 'SUPER_ADMIN' && this.currentUser.role !== 'ADMIN')) {
-      throw new Error('Você não tem permissão para excluir pagamentos.');
-    }
-
-    const docRef = doc(db, this.collectionName, paymentId);
-    const oldDoc = await getDoc(docRef);
-    const oldData = oldDoc.exists() ? { ...oldDoc.data(), id: oldDoc.id } : null;
-
-    await deleteDoc(docRef);
-
-    await auditLogRepository.log({
-      userId: this.currentUser?.id || 'unknown',
-      userName: this.currentUser?.name || 'Sistema',
-      action: 'DELETE',
-      collection: this.collectionName,
-      docId: paymentId,
-      oldData,
-    });
+    return { id: docRef.id, ...paymentData };
   }
 }
 

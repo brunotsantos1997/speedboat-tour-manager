@@ -10,7 +10,11 @@ import {
   getDoc,
   deleteDoc,
   type Unsubscribe,
-  where
+  where,
+  orderBy,
+  limit,
+  startAt,
+  endAt
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type { EventType } from '../domain/types';
@@ -19,23 +23,23 @@ import { timeToMinutes } from '../utils/timeUtils';
 export interface IEventRepository {
   getById(eventId: string): Promise<EventType | undefined>;
   getEventsByDate(date: string): Promise<EventType[]>;
+  getEventsByDateRange(startDate: string, endDate: string): Promise<EventType[]>;
   getEventsByClient(clientId: string): Promise<EventType[]>;
   add(event: Omit<EventType, 'id'>): Promise<EventType>;
   updateEvent(event: EventType): Promise<EventType>;
   remove(eventId: string): Promise<void>;
-  getAll(): Promise<EventType[]>;
+  getAll(limitCount?: number): Promise<EventType[]>;
   backfillFinancialData(): Promise<void>;
   dispose(): void;
   initialize(user?: any): void;
+  subscribeToDateRange(startDate: string, endDate: string, callback: (data: EventType[]) => void): Unsubscribe;
+  subscribeToNotifications(callback: (data: EventType[]) => void): Unsubscribe;
 }
 
 class EventRepositoryImpl implements IEventRepository {
-  private events: EventType[] = [];
   private collectionName = 'events';
-  private unsubscribe: Unsubscribe | null = null;
   private isInitialized = false;
   private currentUser: any = null;
-  private listeners: ((data: EventType[]) => void)[] = [];
 
   constructor() {}
 
@@ -43,34 +47,40 @@ class EventRepositoryImpl implements IEventRepository {
     if (user) {
       this.currentUser = user;
     }
-    if (this.unsubscribe) return;
-    this.initListener();
+    this.isInitialized = true;
   }
 
-  private initListener() {
-    const q = query(collection(db, this.collectionName));
-    this.unsubscribe = onSnapshot(q, (snapshot) => {
-      this.events = snapshot.docs.map(doc => ({
+  subscribeToDateRange(startDate: string, endDate: string, callback: (data: EventType[]) => void): Unsubscribe {
+    const q = query(
+      collection(db, this.collectionName),
+      where('date', '>=', startDate),
+      where('date', '<=', endDate),
+      orderBy('date'),
+      orderBy('startTime')
+    );
+
+    return onSnapshot(q, (snapshot) => {
+      const events = snapshot.docs.map(doc => ({
         ...doc.data() as EventType,
         id: doc.id
       }));
-      this.isInitialized = true;
-      this.notifyListeners();
+      callback(events);
     });
   }
 
-  private notifyListeners() {
-    this.listeners.forEach(listener => listener(this.events));
-  }
+  subscribeToNotifications(callback: (data: EventType[]) => void): Unsubscribe {
+    const q = query(
+      collection(db, this.collectionName),
+      where('status', 'in', ['COMPLETED', 'CANCELLED', 'PENDING_REFUND'])
+    );
 
-  subscribe(listener: (data: EventType[]) => void) {
-    this.listeners.push(listener);
-    if (this.isInitialized) {
-      listener(this.events);
-    }
-    return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
-    };
+    return onSnapshot(q, (snapshot) => {
+      const events = snapshot.docs.map(doc => ({
+        ...doc.data() as EventType,
+        id: doc.id
+      }));
+      callback(events);
+    });
   }
 
   subscribeToId(id: string, callback: (data: EventType | undefined) => void) {
@@ -96,12 +106,7 @@ class EventRepositoryImpl implements IEventRepository {
   }
 
   dispose() {
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = null;
-    }
     this.isInitialized = false;
-    this.events = [];
     this.currentUser = null;
   }
 
@@ -115,25 +120,50 @@ class EventRepositoryImpl implements IEventRepository {
   }
 
   async getEventsByDate(date: string): Promise<EventType[]> {
-    const all = await this.getAll();
-    return all.filter(e => e.date === date);
+    const q = query(
+      collection(db, this.collectionName),
+      where('date', '==', date)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      ...doc.data() as EventType,
+      id: doc.id
+    }));
+  }
+
+  async getEventsByDateRange(startDate: string, endDate: string): Promise<EventType[]> {
+    const q = query(
+      collection(db, this.collectionName),
+      where('date', '>=', startDate),
+      where('date', '<=', endDate)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      ...doc.data() as EventType,
+      id: doc.id
+    }));
   }
 
   async getEventsByClient(clientId: string): Promise<EventType[]> {
-    const all = await this.getAll();
-    return all.filter((e: EventType) => e.client?.id === clientId);
+    const q = query(collection(db, this.collectionName), where('client.id', '==', clientId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      ...doc.data() as EventType,
+      id: doc.id
+    }));
   }
 
-  async getAll(): Promise<EventType[]> {
-    if (!this.isInitialized) {
-      const querySnapshot = await getDocs(collection(db, this.collectionName));
-      this.events = querySnapshot.docs.map(doc => ({
-        ...doc.data() as EventType,
-        id: doc.id
-      }));
-      this.isInitialized = true;
-    }
-    return this.events;
+  async getAll(limitCount: number = 100): Promise<EventType[]> {
+    const q = query(
+      collection(db, this.collectionName),
+      orderBy('date', 'desc'),
+      limit(limitCount)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      ...doc.data() as EventType,
+      id: doc.id
+    }));
   }
 
   private isTimeConflict(eventA: Omit<EventType, 'id'>, eventB: EventType): boolean {
@@ -148,9 +178,6 @@ class EventRepositoryImpl implements IEventRepository {
     const startB = timeToMinutes(eventB.startTime);
     const endB = timeToMinutes(eventB.endTime);
 
-    // Overlap considering organization time on both ends for both events
-    // Busy window for A: [startA - orgTime, endA + orgTime]
-    // Busy window for B: [startB - orgTime, endB + orgTime]
     return (startA - orgTime) < (endB + orgTime) && (endA + orgTime) > (startB - orgTime);
   }
 
@@ -161,11 +188,14 @@ class EventRepositoryImpl implements IEventRepository {
     if (!eventData.boat?.id || !eventData.client?.id || !eventData.boardingLocation?.id) {
       throw new Error('Dados incompletos para criação do passeio.');
     }
-    const allEvents = await this.getAll();
+    
+    // Optimized conflict check: only check same day and same boat
+    const conflictingEvents = await this.getEventsByDate(eventData.date);
     const now = Date.now();
     const twentyFourHours = 24 * 60 * 60 * 1000;
 
-    const conflictingEvents = allEvents.filter(existingEvent =>
+    const boatConflicts = conflictingEvents.filter(existingEvent =>
+      existingEvent.boat?.id === eventData.boat.id &&
       existingEvent.status !== 'CANCELLED' &&
       existingEvent.status !== 'ARCHIVED_CANCELLED' &&
       existingEvent.status !== 'REFUNDED' &&
@@ -173,14 +203,13 @@ class EventRepositoryImpl implements IEventRepository {
       this.isTimeConflict(eventData, existingEvent)
     );
 
-    for (const conflict of conflictingEvents) {
+    for (const conflict of boatConflicts) {
       if (conflict.status === 'SCHEDULED') {
         throw new Error('Este horário já está agendado e confirmado.');
       }
       if (conflict.status === 'PRE_SCHEDULED' && conflict.preScheduledAt && (now - conflict.preScheduledAt < twentyFourHours)) {
         throw new Error('Este horário está pré-reservado. A vaga será liberada se o pagamento não for confirmado em 24h.');
       }
-      // Expired pre-reservations are ignored for conflict purposes
     }
 
     const docRef = await addDoc(collection(db, this.collectionName), eventData);
@@ -199,12 +228,14 @@ class EventRepositoryImpl implements IEventRepository {
     if (this.currentUser.role !== 'OWNER' && this.currentUser.role !== 'SUPER_ADMIN' && this.currentUser.role !== 'ADMIN' && updatedEvent.createdByUserId !== this.currentUser.id) {
       throw new Error('Você não tem permissão para alterar este evento.');
     }
-    const allEvents = await this.getAll();
+
+    const conflictingEvents = await this.getEventsByDate(updatedEvent.date);
     const now = Date.now();
     const twentyFourHours = 24 * 60 * 60 * 1000;
 
-    const conflictingEvents = allEvents.filter(existingEvent =>
+    const boatConflicts = conflictingEvents.filter(existingEvent =>
       existingEvent.id !== updatedEvent.id &&
+      existingEvent.boat?.id === updatedEvent.boat.id &&
       existingEvent.status !== 'CANCELLED' &&
       existingEvent.status !== 'ARCHIVED_CANCELLED' &&
       existingEvent.status !== 'REFUNDED' &&
@@ -212,7 +243,7 @@ class EventRepositoryImpl implements IEventRepository {
       this.isTimeConflict(updatedEvent, existingEvent)
     );
 
-    for (const conflict of conflictingEvents) {
+    for (const conflict of boatConflicts) {
       if (conflict.status === 'SCHEDULED') {
         throw new Error('Este horário já está agendado e confirmado por outro evento.');
       }
@@ -235,11 +266,18 @@ class EventRepositoryImpl implements IEventRepository {
   }
 
   async backfillFinancialData(): Promise<void> {
-    const events = await this.getAll();
-    const confirmedEvents = events.filter(e =>
-      (e.status === 'SCHEDULED' || e.status === 'COMPLETED' || e.status === 'ARCHIVED_COMPLETED') &&
-      (e.rentalRevenue === undefined || e.productsRevenue === undefined)
+    // Note: This method was designed for a batch process.
+    // For large collections, this should be a cloud function.
+    // Limiting to 50 for safety in client-side context.
+    const q = query(
+      collection(db, this.collectionName),
+      where('status', 'in', ['SCHEDULED', 'COMPLETED', 'ARCHIVED_COMPLETED']),
+      limit(50)
     );
+    const snapshot = await getDocs(q);
+    const confirmedEvents = snapshot.docs
+      .map(d => ({ ...d.data() as EventType, id: d.id }))
+      .filter(e => e.rentalRevenue === undefined || e.productsRevenue === undefined);
 
     if (confirmedEvents.length === 0) return;
 
@@ -270,7 +308,6 @@ class EventRepositoryImpl implements IEventRepository {
           return acc + (p.price || 0);
         }, 0);
 
-        // Calculate Costs for backfill
         const rentalCost = hours * (event.boat?.costPerHour || 0) + (remainingMinutes >= 30 ? (event.boat?.costPerHalfHour || 0) : 0);
         const productsCost = (event.products || []).reduce((acc, p) => {
           if (p.isCourtesy) return acc;
@@ -282,7 +319,6 @@ class EventRepositoryImpl implements IEventRepository {
           return acc + (p.cost || 0);
         }, 0);
 
-        // Apply discount proportionally to keep consistency with event.total (which is NET)
         const totalGross = rentalRevenue + productsGross;
         let finalRentalRevenue = rentalRevenue;
         let finalProductsRevenue = productsGross;

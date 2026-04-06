@@ -7,6 +7,7 @@ import {
   doc,
   onSnapshot,
   query,
+  where,
   type Unsubscribe
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -19,16 +20,13 @@ export interface IProductRepository {
   remove(productId: string): Promise<void>;
   dispose(): void;
   initialize(user?: any): void;
+  subscribe(callback: (data: Product[]) => void): Unsubscribe;
 }
 
 class ProductRepositoryImpl implements IProductRepository {
   private static instance: ProductRepositoryImpl;
-  private products: Product[] = [];
   private collectionName = 'products';
-  private unsubscribe: Unsubscribe | null = null;
-  private isInitialized = false;
   private currentUser: any = null;
-  private listeners: ((data: Product[]) => void)[] = [];
 
   private constructor() {}
 
@@ -43,57 +41,31 @@ class ProductRepositoryImpl implements IProductRepository {
     if (user) {
       this.currentUser = user;
     }
-    if (this.unsubscribe) return;
-    this.initListener();
   }
 
-  private initListener() {
+  subscribe(callback: (data: Product[]) => void): Unsubscribe {
     const q = query(collection(db, this.collectionName));
-    this.unsubscribe = onSnapshot(q, (snapshot) => {
-      this.products = snapshot.docs.map(doc => ({
+    return onSnapshot(q, (snapshot) => {
+      const products = snapshot.docs.map(doc => ({
         ...doc.data() as Product,
         id: doc.id
       }));
-      this.isInitialized = true;
-      this.notifyListeners();
+      callback(products.filter(p => !p.isArchived));
     });
   }
 
-  private notifyListeners() {
-    const activeProducts = this.products.filter(p => !p.isArchived);
-    this.listeners.forEach(listener => listener(activeProducts));
-  }
-
-  subscribe(listener: (data: Product[]) => void) {
-    this.listeners.push(listener);
-    if (this.isInitialized) {
-      listener(this.products.filter(p => !p.isArchived));
-    }
-    return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
-    };
-  }
-
   dispose() {
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = null;
-    }
-    this.isInitialized = false;
-    this.products = [];
     this.currentUser = null;
   }
 
   async getAll(): Promise<Product[]> {
-    if (!this.isInitialized) {
-      const querySnapshot = await getDocs(collection(db, this.collectionName));
-      this.products = querySnapshot.docs.map(doc => ({
+    const querySnapshot = await getDocs(collection(db, this.collectionName));
+    return querySnapshot.docs
+      .map(doc => ({
         ...doc.data() as Product,
         id: doc.id
-      }));
-      this.isInitialized = true;
-    }
-    return this.products.filter(p => !p.isArchived);
+      }))
+      .filter(p => !p.isArchived);
   }
 
   private checkAdminPermission() {
@@ -105,9 +77,7 @@ class ProductRepositoryImpl implements IProductRepository {
   async add(productData: Omit<Product, 'id'>): Promise<Product> {
     this.checkAdminPermission();
     const docRef = await addDoc(collection(db, this.collectionName), productData);
-    const newProduct = { id: docRef.id, ...productData };
-
-    return newProduct;
+    return { id: docRef.id, ...productData };
   }
 
   async update(updatedProduct: Product): Promise<Product> {

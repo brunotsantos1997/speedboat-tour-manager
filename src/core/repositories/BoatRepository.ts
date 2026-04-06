@@ -19,16 +19,13 @@ export interface IBoatRepository {
   remove(boatId: string): Promise<void>;
   dispose(): void;
   initialize(user?: any): void;
+  subscribe(callback: (data: Boat[]) => void): Unsubscribe;
 }
 
 class BoatRepositoryImpl implements IBoatRepository {
   private static instance: BoatRepositoryImpl;
-  private boats: Boat[] = [];
   private collectionName = 'boats';
-  private unsubscribe: Unsubscribe | null = null;
-  private isInitialized = false;
   private currentUser: any = null;
-  private listeners: ((data: Boat[]) => void)[] = [];
 
   private constructor() {}
 
@@ -43,57 +40,31 @@ class BoatRepositoryImpl implements IBoatRepository {
     if (user) {
       this.currentUser = user;
     }
-    if (this.unsubscribe) return;
-    this.initListener();
   }
 
-  private initListener() {
+  subscribe(callback: (data: Boat[]) => void): Unsubscribe {
     const q = query(collection(db, this.collectionName));
-    this.unsubscribe = onSnapshot(q, (snapshot) => {
-      this.boats = snapshot.docs.map(doc => ({
+    return onSnapshot(q, (snapshot) => {
+      const boats = snapshot.docs.map(doc => ({
         ...doc.data() as Boat,
         id: doc.id
       }));
-      this.isInitialized = true;
-      this.notifyListeners();
+      callback(boats.filter(b => !b.isArchived));
     });
   }
 
-  private notifyListeners() {
-    const activeBoats = this.boats.filter(b => !b.isArchived);
-    this.listeners.forEach(listener => listener(activeBoats));
-  }
-
-  subscribe(listener: (data: Boat[]) => void) {
-    this.listeners.push(listener);
-    if (this.isInitialized) {
-      listener(this.boats.filter(b => !b.isArchived));
-    }
-    return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
-    };
-  }
-
   dispose() {
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = null;
-    }
-    this.isInitialized = false;
-    this.boats = [];
     this.currentUser = null;
   }
 
   async getAll(): Promise<Boat[]> {
-    if (!this.isInitialized) {
-      const querySnapshot = await getDocs(collection(db, this.collectionName));
-      this.boats = querySnapshot.docs.map(doc => ({
+    const querySnapshot = await getDocs(collection(db, this.collectionName));
+    return querySnapshot.docs
+      .map(doc => ({
         ...doc.data() as Boat,
         id: doc.id
-      }));
-      this.isInitialized = true;
-    }
-    return this.boats.filter(b => !b.isArchived);
+      }))
+      .filter(b => !b.isArchived);
   }
 
   private checkAdminPermission() {
@@ -105,9 +76,7 @@ class BoatRepositoryImpl implements IBoatRepository {
   async add(boatData: Omit<Boat, 'id'>): Promise<Boat> {
     this.checkAdminPermission();
     const docRef = await addDoc(collection(db, this.collectionName), boatData);
-    const newBoat = { id: docRef.id, ...boatData };
-
-    return newBoat;
+    return { id: docRef.id, ...boatData };
   }
 
   async update(updatedBoat: Boat): Promise<Boat> {

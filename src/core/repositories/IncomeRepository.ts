@@ -8,6 +8,9 @@ import {
   getDoc,
   onSnapshot,
   query,
+  where,
+  orderBy,
+  limit,
   type Unsubscribe,
   deleteDoc
 } from 'firebase/firestore';
@@ -16,23 +19,21 @@ import type { Income } from '../domain/types';
 import { auditLogRepository } from './AuditLogRepository';
 
 export interface IIncomeRepository {
-  getAll(): Promise<Income[]>;
+  getAll(limitCount?: number): Promise<Income[]>;
   getByDateRange(startDate: string, endDate: string): Promise<Income[]>;
   add(incomeData: Omit<Income, 'id'>): Promise<Income>;
   update(updatedIncome: Income): Promise<Income>;
   remove(incomeId: string): Promise<void>;
   dispose(): void;
   initialize(user?: any): void;
+  subscribe(callback: (data: Income[]) => void): Unsubscribe;
+  subscribeByDateRange(startDate: string, endDate: string, callback: (data: Income[]) => void): Unsubscribe;
 }
 
 class IncomeRepositoryImpl implements IIncomeRepository {
   private static instance: IncomeRepositoryImpl;
-  private incomes: Income[] = [];
   private collectionName = 'incomes';
-  private unsubscribe: Unsubscribe | null = null;
-  private isInitialized = false;
   private currentUser: any = null;
-  private listeners: ((data: Income[]) => void)[] = [];
 
   private constructor() {}
 
@@ -47,66 +48,68 @@ class IncomeRepositoryImpl implements IIncomeRepository {
     if (user) {
       this.currentUser = user;
     }
-    if (this.unsubscribe) return;
-    this.initListener();
   }
 
-  private initListener() {
-    const q = query(collection(db, this.collectionName));
-    this.unsubscribe = onSnapshot(q, (snapshot) => {
-      this.incomes = snapshot.docs
-        .map(doc => ({
-          ...doc.data() as Income,
-          id: doc.id
-        }))
-        .sort((a, b) => b.date.localeCompare(a.date));
-      this.isInitialized = true;
-      this.notifyListeners();
+  subscribe(callback: (data: Income[]) => void): Unsubscribe {
+    const q = query(
+      collection(db, this.collectionName),
+      orderBy('date', 'desc'),
+      limit(100)
+    );
+    return onSnapshot(q, (snapshot) => {
+      const incomes = snapshot.docs.map(doc => ({
+        ...doc.data() as Income,
+        id: doc.id
+      }));
+      callback(incomes);
     });
   }
 
-  private notifyListeners() {
-    this.listeners.forEach(listener => listener(this.incomes));
-  }
-
-  subscribe(listener: (data: Income[]) => void) {
-    this.listeners.push(listener);
-    if (this.isInitialized) {
-      listener(this.incomes);
-    }
-    return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
-    };
+  subscribeByDateRange(startDate: string, endDate: string, callback: (data: Income[]) => void): Unsubscribe {
+    const q = query(
+      collection(db, this.collectionName),
+      where('date', '>=', startDate),
+      where('date', '<=', endDate),
+      orderBy('date', 'desc')
+    );
+    return onSnapshot(q, (snapshot) => {
+      const incomes = snapshot.docs.map(doc => ({
+        ...doc.data() as Income,
+        id: doc.id
+      }));
+      callback(incomes);
+    });
   }
 
   dispose() {
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = null;
-    }
-    this.isInitialized = false;
-    this.incomes = [];
     this.currentUser = null;
   }
 
-  async getAll(): Promise<Income[]> {
-    if (!this.isInitialized) {
-      const q = query(collection(db, this.collectionName));
-      const querySnapshot = await getDocs(q);
-      this.incomes = querySnapshot.docs
-        .map(doc => ({
-          ...doc.data() as Income,
-          id: doc.id
-        }))
-        .sort((a, b) => b.date.localeCompare(a.date));
-      this.isInitialized = true;
-    }
-    return this.incomes;
+  async getAll(limitCount: number = 100): Promise<Income[]> {
+    const q = query(
+      collection(db, this.collectionName),
+      orderBy('date', 'desc'),
+      limit(limitCount)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      ...doc.data() as Income,
+      id: doc.id
+    }));
   }
 
   async getByDateRange(startDate: string, endDate: string): Promise<Income[]> {
-    const all = await this.getAll();
-    return all.filter(i => i.date >= startDate && i.date <= endDate);
+    const q = query(
+      collection(db, this.collectionName),
+      where('date', '>=', startDate),
+      where('date', '<=', endDate),
+      orderBy('date', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      ...doc.data() as Income,
+      id: doc.id
+    }));
   }
 
   private checkAdminPermission() {

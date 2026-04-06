@@ -14,12 +14,8 @@ import type { BoardingLocation } from '../domain/types';
 
 export class BoardingLocationRepository {
   private static instance: BoardingLocationRepository;
-  private locations: BoardingLocation[] = [];
   private collectionName = 'boarding_locations';
-  private unsubscribe: Unsubscribe | null = null;
-  private isInitialized = false;
   private currentUser: any = null;
-  private listeners: ((data: BoardingLocation[]) => void)[] = [];
 
   private constructor() {}
 
@@ -34,58 +30,31 @@ export class BoardingLocationRepository {
     if (user) {
       this.currentUser = user;
     }
-    if (this.unsubscribe) return;
-    this.initListener();
   }
 
-  private initListener() {
+  subscribe(callback: (data: BoardingLocation[]) => void): Unsubscribe {
     const q = query(collection(db, this.collectionName));
-    this.unsubscribe = onSnapshot(q, (snapshot) => {
-      this.locations = snapshot.docs.map(doc => ({
+    return onSnapshot(q, (snapshot) => {
+      const locations = snapshot.docs.map(doc => ({
         ...doc.data() as BoardingLocation,
         id: doc.id
       }));
-      this.isInitialized = true;
-      this.notifyListeners();
+      callback(locations.filter(l => !l.isArchived));
     });
   }
 
-  private notifyListeners() {
-    const activeLocations = this.locations.filter(l => !l.isArchived);
-    this.listeners.forEach(listener => listener(activeLocations));
-  }
-
-  subscribe(listener: (data: BoardingLocation[]) => void) {
-    this.listeners.push(listener);
-    if (this.isInitialized) {
-      listener(this.locations.filter(l => !l.isArchived));
-    }
-    return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
-    };
-  }
-
   dispose() {
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = null;
-    }
-    this.isInitialized = false;
-    this.locations = [];
     this.currentUser = null;
   }
 
   async getAll(): Promise<BoardingLocation[]> {
-    if (!this.isInitialized) {
-      // Initial fetch to ensure data is available immediately
-      const querySnapshot = await getDocs(collection(db, this.collectionName));
-      this.locations = querySnapshot.docs.map(doc => ({
+    const querySnapshot = await getDocs(collection(db, this.collectionName));
+    return querySnapshot.docs
+      .map(doc => ({
         ...doc.data() as BoardingLocation,
         id: doc.id
-      }));
-      this.isInitialized = true;
-    }
-    return this.locations.filter(l => !l.isArchived);
+      }))
+      .filter(l => !l.isArchived);
   }
 
   private checkAdminPermission() {
@@ -97,9 +66,7 @@ export class BoardingLocationRepository {
   async add(location: Omit<BoardingLocation, 'id'>): Promise<BoardingLocation> {
     this.checkAdminPermission();
     const docRef = await addDoc(collection(db, this.collectionName), location);
-    const newLocation = { id: docRef.id, ...location };
-
-    return newLocation;
+    return { id: docRef.id, ...location };
   }
 
   async update(location: BoardingLocation): Promise<BoardingLocation> {
