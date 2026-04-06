@@ -1,14 +1,14 @@
 // =================================================================
-// AUTH CONTEXT - RESPONSIBILIDADES E LIMITES
+// AUTH PROVIDER - RESPONSIBILIDADES E LIMITES
 // =================================================================
 // 
-// O QUE ESTE CONTEXT FAZ:
+// O QUE ESTE PROVIDER FAZ:
 // - Autenticação (login, signup, logout)
 // - Gerenciamento de sessão e estado do usuário atual
 // - Wrappers seguros para operações de perfil (delegando para ViewModels)
 // - Bootstrap de repositories (após autenticação aprovada)
 // 
-// O QUE ESTE CONTEXT NÃO FAZ:
+// O QUE ESTE PROVIDER NÃO FAZ:
 // - Regras de negócio de domínio (delegadas para ViewModels especializados)
 // - Operações diretas de persistência (delegadas para repositories)
 // - Enforcement de autorização (feito pelas regras do Firestore server-side)
@@ -22,9 +22,9 @@
 // - Repository Bootstrap: inicialização pós-autenticação, cleanup no logout
 // =================================================================
 
-import { createContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import type { User, UserRole, UserStatus, UserCommissionSettings } from '../core/domain/User';
-import { auth, db } from '../lib/firebase';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import type { User, UserRole, UserStatus, UserCommissionSettings } from '../../core/domain/User';
+import { auth, db } from '../../lib/firebase';
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -43,24 +43,25 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import DOMPurify from 'dompurify';
-import { googleTokenStore } from '../core/utils/googleTokenStore';
-import { auditLogRepository } from '../core/repositories/AuditLogRepository';
-import { productRepository } from '../core/repositories/ProductRepository';
-import { boatRepository } from '../core/repositories/BoatRepository';
-import { boardingLocationRepository } from '../core/repositories/BoardingLocationRepository';
-import { clientRepository } from '../core/repositories/ClientRepository';
-import { eventRepository } from '../core/repositories/EventRepository';
-import { expenseCategoryRepository } from '../core/repositories/ExpenseCategoryRepository';
-import { expenseRepository } from '../core/repositories/ExpenseRepository';
-import { incomeRepository } from '../core/repositories/IncomeRepository';
-import { paymentRepository } from '../core/repositories/PaymentRepository';
-import { tourTypeRepository } from '../core/repositories/TourTypeRepository';
-import { VoucherAppearanceRepository } from '../core/repositories/VoucherAppearanceRepository';
-import { VoucherTermsRepository } from '../core/repositories/VoucherTermsRepository';
-import { CompanyDataRepository } from '../core/repositories/CompanyDataRepository';
-import { useUserManagementViewModel } from '../viewmodels/useUserManagementViewModel';
-import { usePasswordResetViewModel } from '../viewmodels/usePasswordResetViewModel';
-import { useProfileViewModel } from '../viewmodels/useProfileViewModel';
+import { googleTokenStore } from '../../core/utils/googleTokenStore';
+import { auditLogRepository } from '../../core/repositories/AuditLogRepository';
+import { productRepository } from '../../core/repositories/ProductRepository';
+import { boatRepository } from '../../core/repositories/BoatRepository';
+import { boardingLocationRepository } from '../../core/repositories/BoardingLocationRepository';
+import { clientRepository } from '../../core/repositories/ClientRepository';
+import { eventRepository } from '../../core/repositories/EventRepository';
+import { expenseCategoryRepository } from '../../core/repositories/ExpenseCategoryRepository';
+import { expenseRepository } from '../../core/repositories/ExpenseRepository';
+import { incomeRepository } from '../../core/repositories/IncomeRepository';
+import { paymentRepository } from '../../core/repositories/PaymentRepository';
+import { tourTypeRepository } from '../../core/repositories/TourTypeRepository';
+import { VoucherAppearanceRepository } from '../../core/repositories/VoucherAppearanceRepository';
+import { VoucherTermsRepository } from '../../core/repositories/VoucherTermsRepository';
+import { CompanyDataRepository } from '../../core/repositories/CompanyDataRepository';
+import { useUserManagementViewModel } from '../../viewmodels/useUserManagementViewModel';
+import { usePasswordResetViewModel } from '../../viewmodels/usePasswordResetViewModel';
+import { useProfileViewModel } from '../../viewmodels/useProfileViewModel';
+import { AuthContext, type AuthContextType } from './AuthContext';
 
 const validatePassword = (password: string) => {
   if (password.length < 8) throw new Error('A senha deve ter pelo menos 8 caracteres.');
@@ -69,31 +70,6 @@ const validatePassword = (password: string) => {
   if (!/\d/.test(password)) throw new Error('A senha deve conter pelo menos um número.');
   if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) throw new Error('A senha deve conter pelo menos um caractere especial.');
 };
-
-interface AuthContextType {
-  currentUser: User | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<User | null>;
-  loginWithGoogle: () => Promise<User | null>;
-  linkGoogle: () => Promise<void>;
-  unlinkGoogle: () => Promise<void>;
-  signup: (name: string, email: string, password: string) => Promise<User>;
-  logout: () => Promise<void>;
-  updateUserStatus: (userId: string, status: UserStatus) => Promise<void>;
-  updateUserRole: (userId: string, role: UserRole) => Promise<void>;
-  updateUserCommissionSettings: (userId: string, settings: UserCommissionSettings) => Promise<void>;
-  getAllUsers: () => Promise<User[]>;
-  updateProfile: (userId: string, data: { name?: string; email?: string; newPassword?: string; oldPassword?: string }) => Promise<void>;
-  updateCalendarSettings: (userId: string, settings: { calendarId?: string; autoSync: boolean }) => Promise<void>;
-  updateCompletedTours: (userId: string, tourId: string) => Promise<void>;
-  resetTours: (userId: string) => Promise<void>;
-  requestPasswordReset: (email: string) => Promise<void>;
-  linkedProviders: string[];
-  googleAccessToken: string | null;
-  setGoogleAccessToken: (token: string | null) => void;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const disposeRepositories = () => {
   productRepository.dispose();
@@ -111,7 +87,7 @@ const disposeRepositories = () => {
   CompanyDataRepository.getInstance().dispose();
 };
 
-// Bootstrap de repositories - responsabilidade do AuthContext
+// Bootstrap de repositories - responsabilidade do AuthProvider
 // Inicializa repositories com contexto de usuário após autenticação aprovada
 // Isso é necessário porque repositories precisam saber qual usuário está operando
 // para queries e validações, mas as regras de negócio ficam nos ViewModels
@@ -279,7 +255,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await signOut(auth);
   };
 
-  // Thin wrappers that inject currentUser into the delegated ViewModels
+  // Thin wrappers que injetam currentUser nos ViewModels delegados
   const getAllUsers = async () => { if (!currentUser) throw new Error('Usuário não autenticado.'); return userMgmt.getAllUsers(currentUser); };
   const updateUserStatus = async (userId: string, status: UserStatus) => { 
     if (!currentUser) throw new Error('Usuário não autenticado.'); 
