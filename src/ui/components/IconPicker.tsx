@@ -1,18 +1,6 @@
 // src/ui/components/IconPicker.tsx
 import React from 'react';
-import { Anchor, Utensils, Beer, User, Circle, Package, HelpCircle } from 'lucide-react';
-
-// Define the list of available icons
-export const availableIcons = {
-  Anchor,
-  Utensils,
-  Beer,
-  User,
-  Circle,
-  Package,
-};
-
-export type IconKey = keyof typeof availableIcons;
+import { availableIcons, type IconKey } from './icons';
 
 interface IconPickerProps {
   selectedIcon: IconKey | null;
@@ -26,7 +14,7 @@ const IconPicker: React.FC<IconPickerProps> = ({ selectedIcon, onSelectIcon }) =
       <div className="grid grid-cols-5 gap-2 p-2 bg-gray-100 rounded-lg">
         {Object.keys(availableIcons).map((key) => {
           const iconKey = key as IconKey;
-          const IconComponent = availableIcons[iconKey] || HelpCircle;
+          const IconComponent = availableIcons[iconKey] || availableIcons.Anchor;
           const isSelected = selectedIcon === iconKey;
 
           return (

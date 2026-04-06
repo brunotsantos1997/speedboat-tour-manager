@@ -18,7 +18,7 @@ const BoatModal: React.FC<{
   boat: Partial<Boat> | null;
   onSave: () => void;
   onClose: () => void;
-  onUpdate: (field: keyof Boat, value: any) => void;
+  onUpdate: (field: keyof Boat, value: string | number | boolean) => void;
 }> = ({ isOpen, boat, onSave, onClose, onUpdate }) => {
   if (!isOpen || !boat) return null;
 

@@ -1,6 +1,7 @@
 // src/ui/components/PaymentModal.tsx
 import React, { useState } from 'react';
 import { X, Smartphone, CreditCard, DollarSign, Landmark, Receipt } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { MoneyInput } from './MoneyInput';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 import type { PaymentMethod, PaymentType } from '../../core/domain/types';
@@ -41,7 +42,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   };
 
-  const methods: { value: PaymentMethod; label: string; icon: any }[] = [
+  const methods: { value: PaymentMethod; label: string; icon: LucideIcon }[] = [
     { value: 'PIX', label: 'PIX', icon: Smartphone },
     { value: 'CARD_CREDIT', label: 'Crédito', icon: CreditCard },
     { value: 'CARD_DEBIT', label: 'Débito', icon: CreditCard },

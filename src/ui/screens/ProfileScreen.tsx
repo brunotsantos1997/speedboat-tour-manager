@@ -17,8 +17,10 @@ export function ProfileScreen() {
 
   useEffect(() => {
     if (currentUser) {
-      setName(currentUser.name);
-      setEmail(currentUser.email);
+      setTimeout(() => {
+        setName(currentUser.name);
+        setEmail(currentUser.email);
+      }, 0);
     }
   }, [currentUser]);
 

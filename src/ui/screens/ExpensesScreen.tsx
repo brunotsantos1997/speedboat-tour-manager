@@ -5,6 +5,7 @@ import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 import { Plus, Trash2, Pencil, Anchor, Tag } from 'lucide-react';
 import { MoneyInput } from '../components/MoneyInput';
 import { useModalContext } from '../contexts/ModalContext';
+import type { Expense } from '../../core/domain/types';
 
 export const ExpensesScreen: React.FC = () => {
   const { showAlert } = useModalContext();
@@ -19,7 +20,7 @@ export const ExpensesScreen: React.FC = () => {
   const [boatId, setBoatId] = useState('');
   const [status, setStatus] = useState<'PENDING' | 'PAID'>('PAID');
 
-  const handleOpenModal = (expense?: any) => {
+  const handleOpenModal = (expense?: Expense) => {
     if (expense) {
       setEditingExpenseId(expense.id);
       setDescription(expense.description);
@@ -46,12 +47,12 @@ export const ExpensesScreen: React.FC = () => {
       return;
     }
 
-    const data = { description, amount, date, categoryId, boatId, status };
+    const data = { description, amount, date, categoryId, boatId, status, timestamp: Date.now() };
 
     if (editingExpenseId) {
-      await updateExpense({ ...data, id: editingExpenseId } as any);
+      await updateExpense({ ...data, id: editingExpenseId });
     } else {
-      await addExpense(data as any);
+      await addExpense(data);
     }
     setIsModalOpen(false);
   };
@@ -177,7 +178,7 @@ export const ExpensesScreen: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                   <select
                     value={status}
-                    onChange={(e) => setStatus(e.target.value as any)}
+                    onChange={(e) => setStatus(e.target.value as 'PENDING' | 'PAID')}
                     className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none"
                   >
                     <option value="PAID">Pago</option>

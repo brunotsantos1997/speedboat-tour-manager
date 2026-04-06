@@ -18,8 +18,8 @@ export function SignupScreen() {
     try {
       await loginWithGoogle();
       navigate('/dashboard');
-    } catch (err: any) {
-      if (err.message.includes('Conta criada com sucesso')) {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message.includes('Conta criada com sucesso')) {
         navigate('/pending-approval');
       } else {
         setError(err instanceof Error ? err.message : 'Falha ao cadastrar com Google.');

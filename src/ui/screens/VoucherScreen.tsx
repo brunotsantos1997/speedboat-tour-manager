@@ -344,7 +344,7 @@ export const VoucherScreen: React.FC = () => {
                       {(() => {
                         const productDiscountsTotal = products.reduce((acc, p) => {
                           if (p.isCourtesy || !p.discount || p.discount.value <= 0) return acc;
-                          let itemGross = p.pricingType === 'PER_PERSON' ? (p.price || 0) * passengerCount : (p.price || 0);
+                          const itemGross = p.pricingType === 'PER_PERSON' ? (p.price || 0) * passengerCount : (p.price || 0);
                           if (p.discount.type === 'FIXED') return acc + p.discount.value;
                           return acc + (itemGross * (p.discount.value / 100));
                         }, 0);

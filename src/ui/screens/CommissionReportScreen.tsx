@@ -44,7 +44,7 @@ export const CommissionReportScreen: React.FC = () => {
       showToast('Pagamento de comissão registrado!');
       setIsModalOpen(false);
       setSelectedEntry(null);
-    } catch (e) {
+    } catch (_e) {
       showToast('Erro ao registrar pagamento.');
     }
   };

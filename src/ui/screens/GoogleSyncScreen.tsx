@@ -28,8 +28,10 @@ export const GoogleSyncScreen: React.FC = () => {
 
   useEffect(() => {
     if (currentUser?.calendarSettings) {
-      setSelectedCalendar(currentUser.calendarSettings.calendarId || '');
-      setAutoSync(currentUser.calendarSettings.autoSync);
+      setTimeout(() => {
+        setSelectedCalendar(currentUser.calendarSettings?.calendarId || '');
+        setAutoSync(currentUser.calendarSettings?.autoSync || false);
+      }, 0);
     }
   }, [currentUser]);
 
@@ -64,7 +66,7 @@ export const GoogleSyncScreen: React.FC = () => {
     if (await confirm('Confirmar Desvinculação', 'Tem certeza que deseja desvincular sua conta Google? Isso desativará a sincronização automática.')) {
       try {
         await unlinkGoogle();
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
       }
     }
@@ -142,7 +144,7 @@ export const GoogleSyncScreen: React.FC = () => {
                     try {
                       await linkGoogle();
                       await fetchCalendars();
-                    } catch (err: any) {
+                    } catch (err: unknown) {
                       console.error(err);
                     }
                   }}

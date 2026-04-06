@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Calendar, DollarSign, Tag, CheckCircle, AlertTriangle, Clock, Ban, Smartphone, CreditCard, Landmark, Receipt, Save } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 import { MoneyInput } from './MoneyInput';
 import type { EventType, Payment, EventStatus, PaymentStatus, PaymentMethod, PaymentType } from '../../core/domain/types';
@@ -69,7 +70,7 @@ export const EventQuickEditModal: React.FC<EventQuickEditModalProps> = ({
     }
   };
 
-  const statusOptions: { value: EventStatus; label: string; icon: any; color: string }[] = [
+  const statusOptions: { value: EventStatus; label: string; icon: LucideIcon; color: string }[] = [
     { value: 'PRE_SCHEDULED', label: 'Pré-Agendado', icon: Clock, color: 'text-yellow-600' },
     { value: 'SCHEDULED', label: 'Agendado', icon: Clock, color: 'text-blue-600' },
     { value: 'COMPLETED', label: 'Realizado', icon: CheckCircle, color: 'text-green-600' },
@@ -85,7 +86,7 @@ export const EventQuickEditModal: React.FC<EventQuickEditModalProps> = ({
     { value: 'CONFIRMED', label: 'Confirmado', color: 'text-green-600' },
   ];
 
-  const methods: { value: PaymentMethod; label: string; icon: any }[] = [
+  const methods: { value: PaymentMethod; label: string; icon: LucideIcon }[] = [
     { value: 'PIX', label: 'PIX', icon: Smartphone },
     { value: 'CARD_CREDIT', label: 'Crédito', icon: CreditCard },
     { value: 'CARD_DEBIT', label: 'Débito', icon: CreditCard },
@@ -273,7 +274,7 @@ const PaymentItem: React.FC<{
   payment: Payment;
   onUpdate: (data: Partial<Payment>) => Promise<void>;
   onDelete: () => Promise<void>;
-  methods: { value: PaymentMethod; label: string; icon: any }[];
+  methods: { value: PaymentMethod; label: string; icon: LucideIcon }[];
   types: { value: PaymentType; label: string }[];
   confirm: (title: string, message: string) => Promise<boolean>;
 }> = ({ payment, onUpdate, onDelete, methods, types, confirm }) => {

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useSharedEventViewModel } from '../../viewmodels/useSharedEventViewModel';
 import { MoneyInput } from './MoneyInput';
 import { X, Anchor, Users, Clock, Calendar, CreditCard, MessageSquare } from 'lucide-react';
+import type { PaymentMethod } from '../../core/domain/types';
 import { formatCurrencyBRL } from '../../core/utils/currencyUtils';
 
 interface SharedEventModalProps {
@@ -213,7 +214,7 @@ export const SharedEventModal: React.FC<SharedEventModalProps> = ({ isOpen, onCl
                 <select
                   id="payment-method"
                   value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value as any)}
+                  onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 >
                   <option value="PIX">PIX</option>

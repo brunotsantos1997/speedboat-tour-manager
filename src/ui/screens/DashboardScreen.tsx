@@ -146,7 +146,7 @@ export const DashboardScreen: React.FC = () => {
 
   useEffect(() => {
     if (searchParams.get('shared') === 'true') {
-      setIsSharedModalOpen(true);
+      setTimeout(() => setIsSharedModalOpen(true), 0);
     }
   }, [searchParams]);
 

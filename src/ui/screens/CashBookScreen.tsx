@@ -90,7 +90,7 @@ export const CashBookScreen: React.FC = () => {
             <select
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none appearance-none text-sm bg-white"
                 value={filterType}
-                onChange={(e) => setFilterType(e.target.value as any)}
+                onChange={(e) => setFilterType(e.target.value as 'ALL' | 'ENTRANCE' | 'EXIT')}
             >
                 <option value="ALL">Todos os Tipos</option>
                 <option value="ENTRANCE">Entradas</option>

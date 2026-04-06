@@ -37,7 +37,7 @@ export const UserCommissionsScreen: React.FC = () => {
     try {
       await updateCommission(selectedUserId, localSettings);
       setToastMessage('Configurações de comissão atualizadas!');
-    } catch (err) {
+    } catch (_err) {
       setToastMessage('Erro ao atualizar configurações.');
     }
   };

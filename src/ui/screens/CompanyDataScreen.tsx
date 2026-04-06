@@ -22,7 +22,7 @@ export const CompanyDataScreen: React.FC = () => {
 
   useEffect(() => {
     if (companyData) {
-      setFormData(companyData);
+      setTimeout(() => setFormData(companyData), 0);
     }
   }, [companyData]);
 
@@ -51,7 +51,7 @@ export const CompanyDataScreen: React.FC = () => {
     try {
       await updateCompanyData(formData);
       showToast('Dados da empresa atualizados com sucesso!');
-    } catch (err) {
+    } catch (_err) {
       showToast('Erro ao atualizar os dados da empresa.');
     }
   };

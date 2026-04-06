@@ -2,7 +2,7 @@
 import React from 'react';
 import { MoneyInput } from './MoneyInput';
 import { Save, X, Info, Plus, Trash2 } from 'lucide-react';
-import type { EventType, SelectedProduct, EventCostItem } from '../../core/domain/types';
+import type { EventType, SelectedProduct, EventCostItem, EventCostCategory } from '../../core/domain/types';
 
 interface EventCostModalProps {
   isOpen: boolean;
@@ -119,7 +119,7 @@ export const EventCostModal: React.FC<EventCostModalProps> = ({
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Categoria (p/ Comissão)</label>
                       <select
                         value={item.category}
-                        onChange={(e) => updateAdditionalCost(item.id, { category: e.target.value as any })}
+                        onChange={(e) => updateAdditionalCost(item.id, { category: e.target.value as EventCostCategory })}
                         className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-sm font-medium bg-white"
                       >
                         <option value="RENTAL">Passeio (Barco)</option>

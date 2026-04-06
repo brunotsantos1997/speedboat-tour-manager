@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useExpenseViewModel } from '../../viewmodels/useExpenseViewModel';
 import { Plus, Trash2, Pencil, ChevronLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import type { ExpenseCategory } from '../../core/domain/types';
 
 export const ExpenseCategoriesScreen: React.FC = () => {
   const { categories, addCategory, updateCategory, removeCategory, loading } = useExpenseViewModel();
@@ -10,7 +11,7 @@ export const ExpenseCategoriesScreen: React.FC = () => {
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [name, setName] = useState('');
 
-  const handleOpenModal = (cat?: any) => {
+  const handleOpenModal = (cat?: ExpenseCategory) => {
     if (cat) {
       setEditingCatId(cat.id);
       setName(cat.name);
