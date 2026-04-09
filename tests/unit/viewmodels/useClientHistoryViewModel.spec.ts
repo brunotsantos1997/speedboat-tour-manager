@@ -226,7 +226,7 @@ describe('useClientHistoryViewModel - Testes Unitários', () => {
     const totalPaid = payments.reduce((acc, p) => acc + p.amount, 0)
 
     // Lógica de atualização
-    let updatedEvent = { ...event }
+    const updatedEvent = { ...event }
     
     if (totalPaid > 0 && updatedEvent.status === 'PRE_SCHEDULED') {
       updatedEvent.status = 'SCHEDULED'

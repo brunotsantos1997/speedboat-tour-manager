@@ -190,7 +190,7 @@ describe('useModalState - Testes Unitários', () => {
 
   it('deve validar lógica de confirmação de modais', () => {
     // Mock de confirmação
-    let modalState = {
+    const modalState = {
       pendingConfirmations: new Map(),
       confirmationResults: new Map()
     }
@@ -237,7 +237,7 @@ describe('useModalState - Testes Unitários', () => {
 
   it('deve validar lógica de alertas de modais', () => {
     // Mock de alertas
-    let modalState = {
+    const modalState = {
       alertHistory: []
     }
 
@@ -282,7 +282,7 @@ describe('useModalState - Testes Unitários', () => {
 
   it('deve validar lógica de pilha de modais', () => {
     // Mock de pilha de modais
-    let modalStack = {
+    const modalStack = {
       stack: [],
       maxDepth: 5,
       currentDepth: 0
@@ -346,7 +346,7 @@ describe('useModalState - Testes Unitários', () => {
 
   it('deve validar lógica de bloqueio de modais', () => {
     // Mock de bloqueio
-    let modalLockState = {
+    const modalLockState = {
       lockedModals: new Set(),
       lockReasons: {},
       globalLock: false
@@ -484,7 +484,7 @@ describe('useModalState - Testes Unitários', () => {
 
   it('deve validar lógica de eventos de modais', () => {
     // Mock de eventos
-    let modalEvents = {
+    const modalEvents = {
       listeners: new Map(),
       eventHistory: []
     }

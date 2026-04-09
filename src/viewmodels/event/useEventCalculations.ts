@@ -43,7 +43,7 @@ export const useEventCalculations = (
       if (product.isCourtesy) return;
 
       let productPrice = 0;
-      let productCost = product.snapshotCost || 0;
+      const productCost = product.snapshotCost || 0;
 
       // Calculate product price based on pricing type
       if (product.pricingType === 'PER_PERSON') {

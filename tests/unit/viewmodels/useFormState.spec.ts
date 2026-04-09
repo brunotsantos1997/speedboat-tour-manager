@@ -171,7 +171,7 @@ describe('useFormState - Testes UnitÃ¡rios', () => {
       }
     }
 
-    let formState = {
+    const formState = {
       values: { name: '', email: '', age: '', phone: '' },
       errors: {},
       touched: {}
@@ -494,7 +494,7 @@ describe('useFormState - Testes UnitÃ¡rios', () => {
 
   it('deve validar lÃ³gica de campos tocados (touched)', () => {
     // Mock de estado
-    let formState = {
+    const formState = {
       touched: {},
       values: { name: '', email: '' }
     }

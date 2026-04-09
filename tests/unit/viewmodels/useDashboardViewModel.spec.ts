@@ -284,7 +284,7 @@ describe('useDashboardViewModel - Testes Unitários', () => {
       const totalPaid = 500
       
       // Lógica de atualização de status
-      let updatedEvent = { ...event }
+      const updatedEvent = { ...event }
       
       if (totalPaid > 0 && updatedEvent.status === 'PRE_SCHEDULED') {
         updatedEvent.status = 'SCHEDULED'

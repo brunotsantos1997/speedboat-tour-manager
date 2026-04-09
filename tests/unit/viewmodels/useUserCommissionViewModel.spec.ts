@@ -285,7 +285,7 @@ describe('useUserCommissionViewModel - Testes Unitários', () => {
   it('deve validar lógica de finally no try/catch', () => {
     // Mock de variáveis de controle
     let loading = true
-    let error = null
+    const error = null
 
     // Lógica de finally
     const finallyLogic = () => {
